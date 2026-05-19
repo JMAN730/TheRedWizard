@@ -1,4 +1,4 @@
-# TheRedWizard[CR][CR]
-The Red Wizard Plugins and Repository[CR][CR]
-To install and update Red Wizard plugins, go to...[CR][CR]
+# TheRedWizard<br/>
+The Red Wizard Plugins and Repository<br/>
+To install and update Red Wizard plugins, go to...<br/>
 https://repo.redwizard.xyz/
