@@ -91,8 +91,9 @@ class TMDbListAPI:
 			except: pass
 		def _process(dummy):
 			result = self.request_data(url % (self.base_url, account_id, 1))
-			results_extend(result['results'])
-			total_pages = result['total_pages']
+			if not result: return results
+			results_extend(result.get('results') or [])
+			total_pages = result.get('total_pages') or 1
 			if total_pages > 1:
 				threads = TaskPool().tasks(_process_multi, range(2, total_pages + 1), max_threads())
 				[i.join() for i in threads]

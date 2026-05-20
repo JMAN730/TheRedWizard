@@ -1607,7 +1607,7 @@
                           <property name="setting_label">Check for cached status of Results (RD &amp; AD)</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.external.cache_check)]</property>
-                          <property name="setting_description">Enable this and Red Light will get the cached status for Real Debrid and All Debrid results. This will lead to less results overall, but the results displayed SHOULD be cached on their servers. There will also be results filtered out that are cached. Use this knowing that you will get less results</property>
+                          <property name="setting_description">Enable this and Red Light will get the cached status for Real Debrid and All Debrid results. This will lead to less results overall, but the results displayed SHOULD be cached on their servers. There will also be results filtered out that are cached. Use this knowing that you will get less results.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=external.cache_check)</onclick>
                       </item>
                       <item>
@@ -2111,7 +2111,7 @@
                           <property name="setting_label">Filter Results by Name</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.title_filter)]</property>
-                          <property name="setting_description">Enable this and Red Light will perform extra name matching functions on your Easynews results. Will help to limit incorrect results, but may also filter some relevant results</property>
+                          <property name="setting_description">After EasyNews returns results, match filenames against the movie or episode title (and aliases). EasyNews search is already narrow (e.g. Movie Year or Show S01E05), so this often removes few extra results but helps when unrelated files slip through. Disable if valid links go missing. Search Width, Filter Languages, and Fallback Search Queries usually matter more for EasyNews</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.title_filter)</onclick>
                       </item>
                       <item>
@@ -2134,6 +2134,47 @@
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.lang_filters)]</property>
                           <property name="setting_description">Choose which languages you wish to include in Easynews results</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=set_language_filter_choice&amp;filter_setting_id=easynews.lang_filters&amp;multi_choice=true)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.easynews.filter_lang),true)</visible>
+                          <property name="setting_label">    - Include Unknown Language Results</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.lang_include_unknown)]</property>
+                          <property name="setting_description">When language filtering is enabled, keep files EasyNews does not report a language for. Disable to exclude them (strict filtering)</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.lang_include_unknown)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
+                          <property name="setting_label">Refresh Credentials Each Request</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.refresh_credentials)]</property>
+                          <property name="setting_description">Reload your EasyNews login from settings before each search and playback request. Recommended if you change your password without restarting Kodi</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.refresh_credentials)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
+                          <property name="setting_label">Fallback Search Queries</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.fallback_search)]</property>
+                          <property name="setting_description">If the primary search returns no results, try alternate titles (aliases) and season-wide searches for TV shows. Not needed when Search Width is Broad</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.fallback_search)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
+                          <property name="setting_label">Search Width</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.search_width_name)]</property>
+                          <property name="setting_description">Focused: one query (Movie Year or Show S01E05). Balanced: also title-only (movies) or season-wide (TV). Broad: also whole-show title and alias searches. Wider searches use more API calls; keep Filter Results by Name enabled to trim unrelated files</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=easynews.search_width)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(60)</visible>

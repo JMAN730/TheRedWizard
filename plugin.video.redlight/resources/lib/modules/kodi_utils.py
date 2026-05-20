@@ -471,7 +471,11 @@ def show_text(heading, text=None, file=None, font_size='small', kodi_log=False):
 	text = ''.join(text)
 	return open_window(('windows.textviewer', 'TextViewer'), 'textviewer.xml', heading=heading, text=text, font_size=font_size)
 
-def notification(line1, time=5000, icon=None):
+LIST_ITEM_NOT_IN_LIST = 'Item not in list'
+
+def notification(line1, time=5000, icon=None, settle_ms=0):
+	# Brief delay helps Kodi show the toast after select/confirm dialogs close (rapid calls can drop it otherwise).
+	if settle_ms: sleep(settle_ms)
 	kodi_dialog().notification('Red Light', line1, icon or addon_icon(), time)
 
 def player_check(mode, params):

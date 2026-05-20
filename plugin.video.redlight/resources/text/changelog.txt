@@ -5,6 +5,12 @@
 * No politics
 * NO DRAMA!
 
+[COLOR red][B]Version 1.1.1[/B][/COLOR]
+- EasyNews: Search Width (Focused / Balanced / Broad) to run wider Solr queries; optional refresh credentials, include unknown-language results when filtering, and fallback alias/season searches when the primary query returns nothing.
+- EasyNews: clarified Filter Results by Name help text in Settings Manager.
+- Trakt, Personal and TMDb Lists: Removing an item that is not in the list dialog standardised and now shows "Item not in list", not Failed or Error Removing from List.
+- FenLightAM TMDb Lists bugs fixed.
+
 [COLOR red][B]Version 1.1.0[/B][/COLOR]
 - A small fix.
 

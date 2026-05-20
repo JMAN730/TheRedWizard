@@ -400,7 +400,8 @@ def add_to_list(user, slug, data):
 
 def remove_from_list(user, slug, data):
 	result = call_trakt('/users/%s/lists/%s/items/remove' % (user, slug), data=data)
-	if result['deleted']['movies'] + result['deleted']['shows'] == 0: return kodi_utils.notification('Error', 3000)
+	if not result or result.get('deleted', {}).get('movies', 0) + result.get('deleted', {}).get('shows', 0) == 0:
+		return kodi_utils.notification(kodi_utils.LIST_ITEM_NOT_IN_LIST, 3000)
 	kodi_utils.notification('Success', 3000)
 	trakt_sync_activities()
 	if kodi_utils.path_check('my_lists') or kodi_utils.external(): kodi_utils.kodi_refresh()
@@ -416,7 +417,8 @@ def add_to_watchlist(data):
 
 def remove_from_watchlist(data):
 	result = call_trakt('/sync/watchlist/remove', data=data)
-	if result['deleted']['movies'] + result['deleted']['shows'] == 0: return kodi_utils.notification('Error', 3000)
+	if not result or result.get('deleted', {}).get('movies', 0) + result.get('deleted', {}).get('shows', 0) == 0:
+		return kodi_utils.notification(kodi_utils.LIST_ITEM_NOT_IN_LIST, 3000)
 	kodi_utils.notification('Success', 3000)
 	trakt_sync_activities()
 	if kodi_utils.path_check('trakt_watchlist') or kodi_utils.external(): kodi_utils.kodi_refresh()
@@ -432,7 +434,8 @@ def add_to_collection(data):
 
 def remove_from_collection(data):
 	result = call_trakt('/sync/collection/remove', data=data)
-	if result['deleted']['movies'] + result['deleted']['episodes'] == 0: return kodi_utils.notification('Error', 3000)
+	if not result or result.get('deleted', {}).get('movies', 0) + result.get('deleted', {}).get('episodes', 0) == 0:
+		return kodi_utils.notification(kodi_utils.LIST_ITEM_NOT_IN_LIST, 3000)
 	kodi_utils.notification('Success', 3000)
 	trakt_sync_activities()
 	if kodi_utils.path_check('trakt_collection') or kodi_utils.external(): kodi_utils.kodi_refresh()
