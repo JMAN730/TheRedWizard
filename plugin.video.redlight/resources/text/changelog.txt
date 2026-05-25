@@ -13,7 +13,7 @@
 - All Debrid, Premiumize, Real Debrid and Torbox History menus now fetch fresh data each time they are opened.
 - All Debrid: My Services refresh on open. Cloud browse shows video files only.
 - All Debrid: Fixed Cloud Storage crash.
-- Premiumize: Fixed blank History "No transfers" when transfers exist. Show In-Progress Transfers and clearer notifications when the list is empty or fails.
+- Premiumize: Fixed blank History or "No transfers" when transfers exist. Show In-Progress Transfers and clearer notifications when the list is empty or fails.
 
 [COLOR red][B]Version 1.1.3[/B][/COLOR]
 - TorBox: Fixed Download Pack picker failing with "No URL found for Download" due to a provider name mismatch in the pack file picker.
