@@ -1,3 +1,6 @@
+v1.0.5 (2026-05-25)
+- Fixed: Parsing error when linking straight to a Chains Live category menu, then arrowing out of that menu
+
 v1.0.4 (2026-05-25)
 - Category menu only. Removed Chains Live sources and The Chains browser options
 

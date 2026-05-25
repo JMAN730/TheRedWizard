@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.chainsliveplayer" name="Chains Live Player" version="1.0.4" provider-name="[COLOR red]The Red Wizard[/COLOR]">
+<addon id="plugin.video.chainsliveplayer" name="Chains Live Player" version="1.0.5" provider-name="[COLOR red]The Red Wizard[/COLOR]">
 	<requires>
 		<import addon="xbmc.python" version="3.0.1"/>
 		<import addon="plugin.video.chainslive" version="1.0" optional="true"/>
@@ -9,7 +9,7 @@
 	</extension>
 	<extension point="xbmc.addon.metadata">
 		<summary lang="en_GB">Launches Chains Live</summary>
-		<description lang="en_GB">Launches the Chains Live Channel Categories[CR][CR]Requires Chains Live from the Chains Repository</description>
+		<description lang="en_GB">Launches the Chains Live Channel Categories - Requires Chains Live from the Chains Repository</description>
 		<disclaimer lang="en_GB">The author of this add-on does not host any content and has no affiliation with the content providers</disclaimer>
 		<language>en</language>
 		<platform>all</platform>
