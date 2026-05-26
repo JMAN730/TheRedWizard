@@ -5,6 +5,14 @@
 * No politics
 * NO DRAMA!
 
+[COLOR red][B]Version 1.1.5[/B][/COLOR]
+- Real Debrid: Limit parallel magnet resolves to 3 (semaphore) to reduce rate limiting when multiple sources resolve at once.
+- Real Debrid: Optional "Free active download slot" setting (default Off). When enabled, removes one active torrent before adding a new one if RD already has 5 active downloads.
+- Fix Autoplay Next Episode failing when the next episode scrape finishes after the current episode has ended.
+- Expand EasyNews settings help text for Refresh Credentials, Fallback Search, Search Width, and Check Before Full Search.
+- Settings Manager: pin INFO help panel below the settings list (matches list slide) and top-align description text for consistent placement.
+- Settings Manager: fix INFO text autoscroll (fixed textbox height; faster scroll timing).
+
 [COLOR red][B]Version 1.1.4[/B][/COLOR]
 - TorBox: "Include Uncached Results (TorBox)" added under External Scrapers (default Off). When enabled, Uncached TorBox sort with the same provider priority as Cached TorBox (grey highlight).
 - TorBox: "Notify when added torrents are ready in Cloud" added in Sources Accounts (default On).

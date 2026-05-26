@@ -720,10 +720,11 @@ class Sources():
 			self.get_sources()
 
 	def still_watching_check(self):
-		watching_check = self.nextep_settings['watching_check']
+		watching_check = self.nextep_settings.get('watching_check', 0)
 		if watching_check == 0: return True
 		player = kodi_utils.kodi_player()
-		if not player.isPlayingVideo(): return False
+		if not player.isPlayingVideo():
+			return bool(self.background)
 		watch_count = self.meta.get('watch_count')
 		if watch_count == watching_check: still_watching, watch_count = self._make_still_watching_dialog('Are you still watching [B]%s[/B]?'), 0
 		else: still_watching = True
@@ -750,12 +751,13 @@ class Sources():
 		if not self.still_watching_check():
 			kodi_utils.notification('Cancel Autoplay', icon=self.meta.get('poster'))
 			return False
+		use_window = self.nextep_settings['use_window']
+		window_time = self.nextep_settings['window_time']
+		default_action = self.nextep_settings['default_action']
 		player = kodi_utils.kodi_player()
+		continue_nextep = False
 		if player.isPlayingVideo():
 			total_time = player.getTotalTime()
-			use_window, window_time, default_action = self.nextep_settings['use_window'], self.nextep_settings['window_time'], self.nextep_settings['default_action']
-			action = None if use_window else 'close'
-			continue_nextep = False
 			while player.isPlayingVideo():
 				try:
 					remaining_time = round(total_time - player.getTime())
@@ -764,25 +766,33 @@ class Sources():
 						break
 					kodi_utils.sleep(1000)
 				except: pass
-			if continue_nextep:
-				if use_window: action = self._make_nextep_dialog(default_action=default_action)
-				else: kodi_utils.notification('[B]Next Up:[/B] %s S%02dE%02d' \
-						% (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 6500, self.meta.get('poster'))
-				if not action: action = default_action
-				if action == 'cancel': return False
-				elif action == 'pause':
-					player.stop()
-					return False
-				elif action == 'play':
-					self._make_resolve_dialog()
-					player.stop()
-					return True
-				else:
-					while player.isPlayingVideo(): kodi_utils.sleep(100)
-					self._make_resolve_dialog()
-					return True
-			else: return False
-		else: return False
+		elif self.background:
+			continue_nextep = True
+		if not continue_nextep:
+			return False
+		action = None if use_window else 'close'
+		if use_window:
+			action = self._make_nextep_dialog(default_action=default_action)
+		else:
+			kodi_utils.notification('[B]Next Up:[/B] %s S%02dE%02d' \
+					% (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 6500, self.meta.get('poster'))
+		if not action:
+			action = default_action
+		if action == 'cancel':
+			return False
+		if action == 'pause':
+			if player.isPlayingVideo():
+				player.stop()
+			return False
+		if action == 'play':
+			self._make_resolve_dialog()
+			if player.isPlayingVideo():
+				player.stop()
+			return True
+		while player.isPlayingVideo():
+			kodi_utils.sleep(100)
+		self._make_resolve_dialog()
+		return True
 
 	def autoscrape_nextep_handler(self):
 		if settings.autoscrape_confirm():

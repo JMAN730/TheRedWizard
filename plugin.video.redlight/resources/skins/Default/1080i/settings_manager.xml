@@ -1752,6 +1752,16 @@
                           <property name="setting_description">Enable this and Red Light will use an alternate base url for RD. This may circumvent any blocks being performed</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=rd.alternate_base_url)</onclick>
                       </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
+                          <property name="setting_label">Free active download slot</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.rd.free_active_slot)]</property>
+                          <property name="setting_description">When enabled, Red Light removes one active Real Debrid torrent before adding a new one if you already have 5 active downloads (RD's usual limit). This can prevent failed resolves when slots are full, but may delete a transfer you started elsewhere — including in the RD website or another app. Leave disabled unless you often hit resolve failures due to too many active downloads.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=rd.free_active_slot)</onclick>
+                      </item>
         <!-- Premiumize -->
                       <item>
                           <visible>Container(2000).HasFocus(60)</visible>
@@ -2174,7 +2184,7 @@
                           <property name="setting_label">Refresh Credentials Each Request</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.refresh_credentials)]</property>
-                          <property name="setting_description">Reload your EasyNews login from settings before each search and playback request. Recommended if you change your password without restarting Kodi</property>
+                          <property name="setting_description">Reload your EasyNews username and password from Red Light settings before every Solr search and before resolving or downloading a file. Kodi normally keeps the login in memory for the session; enable this if you change your EasyNews password on the website, edit credentials in settings, or share a profile and want the next search to use the updated login without restarting Kodi. Expect a small extra delay per request when enabled</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.refresh_credentials)</onclick>
                       </item>
                       <item>
@@ -2184,7 +2194,7 @@
                           <property name="setting_label">Fallback Search Queries</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.fallback_search)]</property>
-                          <property name="setting_description">If the primary search returns no results, try alternate titles (aliases) and season-wide searches for TV shows. Not needed when Search Width is Broad</property>
+                          <property name="setting_description">If the main Search Width queries return no files, run extra EasyNews searches using TMDB alternate titles (aliases). For TV: alias plus episode (e.g. Show S01E05) and alias plus season (Show S01). For movies: alias plus release year. Only queries not already tried are used. Helpful when EasyNews filenames use a different show name than TMDB. Usually unnecessary if Search Width is Broad, because Broad already searches aliases. Default is on</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.fallback_search)</onclick>
                       </item>
                       <item>
@@ -2194,7 +2204,7 @@
                           <property name="setting_label">Search Width</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.search_width_name)]</property>
-                          <property name="setting_description">Focused: one query (Movie Year or Show S01E05). Balanced: also title-only (movies) or season-wide (TV). Broad: also whole-show title and alias searches. Wider searches use more API calls; keep Filter Results by Name enabled to trim unrelated files</property>
+                          <property name="setting_description">How many EasyNews Solr searches to run per movie or episode. Results are merged and duplicates removed. Focused (fastest): one query only — Movie: Title Year (e.g. Dune 2021); TV: Title S01E05 (e.g. Breaking Bad S01E05). Balanced: Focused plus a wider query — Movie: title without year; TV: Title S01 (all episodes in that season on EasyNews). Broad (slowest, best recall): Balanced plus show or movie title only, then the same patterns for each TMDB alias. Broad pulls many unrelated files for short titles; keep Filter Results by Name enabled. More width means more API calls and a longer source search</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=easynews.search_width)</onclick>
                       </item>
                       <item>
@@ -2204,7 +2214,7 @@
                           <property name="setting_label">Check Before Full Search</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.check.easynews)]</property>
-                          <property name="setting_description">Enable this and Red Light will search for results from your Easynews service before checking other enabled scrapers</property>
+                          <property name="setting_description">Query EasyNews early in the source search, before external torrent scrapers and the rest of the internal scrape list. The progress window can show EasyNews quality counts (4K, 1080p, etc.) while torrent scrapers are still running. If EasyNews returns results during this prescrape step, you may get playable links sooner instead of waiting for the full scrape to finish. Does not replace external scrapers — it runs EasyNews first, then the normal search continues. When enabled, often used together with Autoplay Result, below</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.easynews)</onclick>
                       </item>
                       <item>
@@ -2979,40 +2989,68 @@
                 </content>
             </control>
             <control type="group">
-                <top>930</top>
+                <top>875</top>
                 <left>15</left>
+                <width>1685</width>
+                <height>120</height>
+                <!-- Match right-hand settings list vertical offset so INFO stays directly below it -->
+                <animation effect="slide" end="0,-340" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,1) | Integer.IsEqual(Container(2100).NumItems,2)]">Conditional</animation>
+                <animation effect="slide" end="0,-255" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,3) | Integer.IsEqual(Container(2100).NumItems,4)]">Conditional</animation>
+                <animation effect="slide" end="0,-170" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,5) | Integer.IsEqual(Container(2100).NumItems,6)]">Conditional</animation>
+                <animation effect="slide" end="0,-85" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,7) | Integer.IsEqual(Container(2100).NumItems,8)]">Conditional</animation>
+                <animation effect="slide" end="0,-340" time="0" condition="Control.HasFocus(2000) + [Integer.IsEqual(Container(2000).NumItems,1) | Integer.IsEqual(Container(2000).NumItems,2)]">Conditional</animation>
+                <animation effect="slide" end="0,-255" time="0" condition="Control.HasFocus(2000) + [Integer.IsEqual(Container(2000).NumItems,3) | Integer.IsEqual(Container(2000).NumItems,4)]">Conditional</animation>
+                <animation effect="slide" end="0,-170" time="0" condition="Control.HasFocus(2000) + [Integer.IsEqual(Container(2000).NumItems,5) | Integer.IsEqual(Container(2000).NumItems,6)]">Conditional</animation>
+                <animation effect="slide" end="0,-85" time="0" condition="Control.HasFocus(2000) + [Integer.IsEqual(Container(2000).NumItems,7) | Integer.IsEqual(Container(2000).NumItems,8)]">Conditional</animation>
+                <control type="image">
+                    <top>0</top>
+                    <left>0</left>
+                    <width>1685</width>
+                    <height>120</height>
+                    <texture colordiffuse="FF1A1A1A" border="20">redlight_common/circle.png</texture>
+                </control>
                 <control type="label">
-                    <top>30</top>
+                    <top>12</top>
                     <left>30</left>
                     <width>200</width>
-                    <height>20</height>
+                    <height>24</height>
                     <font>font12</font> <!-- REDLIGHT_26 -->
                     <textcolor>FFCCCCCC</textcolor>
                     <label>[UPPERCASE][B]INFO: [/B][/UPPERCASE]</label>
                     <align>left</align>
-                    <aligny>center</aligny>
+                    <aligny>top</aligny>
                 </control>
                 <control type="group">
-                    <top>4</top>
+                    <top>8</top>
                     <left>115</left>
                     <width>1530</width>
-                    <height>70</height>
+                    <height>104</height>
                     <control type="textbox">
+                        <left>0</left>
+                        <top>0</top>
+                        <width>1530</width>
+                        <height>104</height>
                         <font>font12</font> <!-- REDLIGHT_26 -->
                         <align>left</align>
-                        <aligny>center</aligny>
+                        <aligny>top</aligny>
                         <textcolor>FFCCCCCC</textcolor>
+                        <scrolltime>300</scrolltime>
                         <label>$INFO[Container(2100).ListItem.Property(setting_description)]</label>
-                        <autoscroll time="7000" delay="15000" repeat="7000">true</autoscroll>
+                        <autoscroll delay="2000" time="2500" repeat="4000">true</autoscroll>
                         <visible>Control.HasFocus(2100)</visible>
                     </control>
                     <control type="textbox">
+                        <left>0</left>
+                        <top>0</top>
+                        <width>1530</width>
+                        <height>104</height>
                         <font>font12</font> <!-- REDLIGHT_26 -->
                         <align>left</align>
-                        <aligny>center</aligny>
+                        <aligny>top</aligny>
                         <textcolor>FFCCCCCC</textcolor>
+                        <scrolltime>300</scrolltime>
                         <label>$INFO[Container(2000).ListItem.Property(setting_label),All settings related to [UPPERCASE][B],[/B][/UPPERCASE] settings]</label>
-                        <autoscroll time="7000" delay="15000" repeat="7000">true</autoscroll>
+                        <autoscroll delay="2000" time="2500" repeat="4000">true</autoscroll>
                         <visible>Control.HasFocus(2000)</visible>
                     </control>
                 </control>
