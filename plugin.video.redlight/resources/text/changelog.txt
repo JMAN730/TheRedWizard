@@ -1,3 +1,11 @@
+[COLOR red][B]Version 1.1.9~alpha[/B][/COLOR]
+- AIOStreams: optional native source provider (Tools > Settings > Sources Accounts > AIOStreams > Enable). Uses HTTP Basic Auth username and password from your AIOStreams dashboard.
+- AIOStreams: instance picker and Active base URL row show each preset with its full domain (Kuu, ElfHosted, Yeb, Midnight, or Custom).
+- AIOStreams: Check Before Full Search and Autoplay Result toggles (same pattern as EasyNews and Debrid cloud scrapers).
+- AIOStreams runs alongside Debrid, EasyNews, and external scrapers; P2P results are ignored.
+- AIOStreams: optional result highlight colour under Tools > Settings > Results (provider highlight mode).
+- Results: removed obsolete Easy Debrid and Off Cloud highlight colours.
+
 [COLOR red][B]Version 1.1.8[/B][/COLOR]
 - Fix rare scrape-screen lockup caused by thread exhaustion ("can't start new thread") by falling back to serial provider processing when new threads cannot be spawned.
 - Sources results window now fails safely if initialisation errors occur, preventing stuck scrape dialogs that required a Kodi restart.

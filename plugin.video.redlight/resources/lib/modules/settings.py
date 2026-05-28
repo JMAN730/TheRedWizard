@@ -240,6 +240,16 @@ def easynews_authorized():
 	else: easynews_status = True
 	return easynews_status
 
+def aiostreams_authorized():
+	username = get_setting('redlight.aiostreams.username', 'empty_setting')
+	password = get_setting('redlight.aiostreams.password', 'empty_setting')
+	if username in ('empty_setting', '') or password in ('empty_setting', ''): return False
+	return True
+
+def aiostreams_active():
+	if get_setting('redlight.provider.aiostreams', 'false') == 'true': return aiostreams_authorized()
+	return False
+
 def extras_enable_extra_ratings():
 	return get_setting('redlight.extras.enable_extra_ratings', 'true') == 'true'
 
@@ -274,7 +284,7 @@ def tv_progress_location():
 	return int(get_setting('redlight.tv_progress_location', '0'))
 
 def check_prescrape_sources(scraper, media_type):
-	if scraper in ('easynews', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud', 'folders'): return get_setting('redlight.check.%s' % scraper) == 'true'
+	if scraper in ('easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud', 'folders'): return get_setting('redlight.check.%s' % scraper) == 'true'
 	if get_setting('redlight.check.%s' % scraper) == 'true' and auto_play(media_type): return True
 	else: return False
 
@@ -332,7 +342,7 @@ def results_sort_order():
 			)[int(get_setting('redlight.results.sort_order', '1'))]
 
 def active_internal_scrapers():
-	settings = ['provider.external', 'provider.easynews', 'provider.folders']
+	settings = ['provider.external', 'provider.easynews', 'provider.aiostreams', 'provider.folders']
 	settings_append = settings.append
 	for item in [('rd', 'provider.rd_cloud'), ('pm', 'provider.pm_cloud'), ('ad', 'provider.ad_cloud'), ('tb', 'provider.tb_cloud')]:
 		if enabled_debrids_check(item[0]): settings_append(item[1])
@@ -341,12 +351,13 @@ def active_internal_scrapers():
 
 def provider_sort_ranks():
 	fo_priority = int(get_setting('redlight.folders.priority', '6'))
+	aio_priority = int(get_setting('redlight.aio.priority', '7'))
 	en_priority = int(get_setting('redlight.en.priority', '7'))
 	rd_priority = int(get_setting('redlight.rd.priority', '8'))
 	ad_priority = int(get_setting('redlight.ad.priority', '9'))
 	pm_priority = int(get_setting('redlight.pm.priority', '10'))
 	tb_priority = int(get_setting('redlight.tb.priority', '10'))
-	return {'easynews': en_priority, 'real-debrid': rd_priority, 'premiumize.me': pm_priority, 'alldebrid': ad_priority,
+	return {'easynews': en_priority, 'aiostreams': aio_priority, 'real-debrid': rd_priority, 'premiumize.me': pm_priority, 'alldebrid': ad_priority,
 	'torbox': tb_priority, 'rd_cloud': rd_priority, 'pm_cloud': pm_priority, 'ad_cloud': ad_priority, 'tb_cloud': tb_priority, 'folders': fo_priority}
 
 def sort_to_top(provider):
@@ -362,11 +373,12 @@ def scraping_settings():
 	if highlight_type == 2:
 		highlight = get_setting('redlight.scraper_single_highlight', 'FF008EB2')
 		return {'highlight_type': 1, '4k': highlight, '1080p': highlight, '720p': highlight, 'sd': highlight}
-	easynews_highlight, debrid_cloud_highlight, folders_highlight = '', '', ''
-	rd_highlight, pm_highlight, ad_highlight, ed_highlight, tb_highlight = '', '', '', '', ''
+	easynews_highlight, aiostreams_highlight, debrid_cloud_highlight, folders_highlight = '', '', '', ''
+	rd_highlight, pm_highlight, ad_highlight, tb_highlight = '', '', '', ''
 	highlight_4K, highlight_1080P, highlight_720P, highlight_SD = '', '', '', ''
 	if highlight_type == 0:
 		easynews_highlight = get_setting('redlight.provider.easynews_highlight', 'FF00B3B2')
+		aiostreams_highlight = get_setting('redlight.provider.aiostreams_highlight', 'FF00D4FF')
 		debrid_cloud_highlight = get_setting('redlight.provider.debrid_cloud_highlight', 'FF7A01CC')
 		folders_highlight = get_setting('redlight.provider.folders_highlight', 'FFB36B00')
 		rd_highlight = get_setting('redlight.provider.rd_highlight', 'FF3C9900')
@@ -380,7 +392,7 @@ def scraping_settings():
 		highlight_SD = get_setting('redlight.scraper_SD_highlight', 'FF0166FF')
 	return {'highlight_type': highlight_type, 'real-debrid': rd_highlight, 'premiumize': pm_highlight, 'alldebrid': ad_highlight,
 			'torbox': tb_highlight, 'rd_cloud': debrid_cloud_highlight, 'pm_cloud': debrid_cloud_highlight, 'ad_cloud': debrid_cloud_highlight,
-			'tb_cloud': debrid_cloud_highlight, 'easynews': easynews_highlight, 'folders': folders_highlight,
+			'tb_cloud': debrid_cloud_highlight, 'easynews': easynews_highlight, 'aiostreams': aiostreams_highlight, 'folders': folders_highlight,
 			'4k': highlight_4K, '1080p': highlight_1080P, '720p': highlight_720P, 'sd': highlight_SD}
 
 def external_cache_check():

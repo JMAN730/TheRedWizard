@@ -43,8 +43,18 @@ class SettingsCache:
 		if setting_type == 'action' and 'settings_options' in setting_info:
 			name_setting_id = '%s_name' % setting_id
 			name_setting_value = setting_info['settings_options'][setting_value]
+			if setting_id == 'aiostreams.instance':
+				try:
+					from apis.aiostreams_api import INSTANCE_LABELS
+					name_setting_value = INSTANCE_LABELS.get(str(setting_value), name_setting_value)
+				except: pass
 			dbcon.execute('INSERT OR REPLACE INTO settings VALUES (?, ?, ?, ?)', (name_setting_id, 'name', '', name_setting_value))
 			self.set_memory_cache(name_setting_id, name_setting_value)
+		if setting_id in ('aiostreams.instance', 'aiostreams.custom_url', 'provider.aiostreams'):
+			try:
+				from apis.aiostreams_api import refresh_settings_properties
+				refresh_settings_properties()
+			except: pass
 
 	def set_many(self, settings_list):
 		dbcon = connect_database('settings_db')
@@ -107,11 +117,20 @@ def sync_settings(params={}):
 		setting_type = item['setting_type']
 		setting_default = item['setting_default']
 		if setting_type == 'action' and 'settings_options' in item:
-			name_default = item['settings_options'][setting_default]
+			if setting_id == 'aiostreams.instance':
+				try:
+					from apis.aiostreams_api import INSTANCE_LABELS
+					name_default = INSTANCE_LABELS.get(setting_default, item['settings_options'][setting_default])
+				except: name_default = item['settings_options'][setting_default]
+			else: name_default = item['settings_options'][setting_default]
 			insert_list_append(('%s_name' % setting_id, 'name', name_default, name_default))
 		insert_list_append((setting_id, setting_type, setting_default, setting_default))
 	if insert_list: settings_cache.set_many(insert_list)
 	settings_cache.clean_database()
+	try:
+		from apis.aiostreams_api import refresh_settings_properties
+		refresh_settings_properties()
+	except: pass
 	if not silent: kodi_utils.notification('Settings Cache Remade')
 
 def set_default(setting_ids):
@@ -423,6 +442,24 @@ def default_settings():
 {'setting_id': 'check.easynews', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'autoplay.easynews', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'en.priority', 'setting_type': 'action', 'setting_default': '7', 'min_value': '1', 'max_value': '10'},
+#==================== AIOStreams
+{'setting_id': 'provider.aiostreams', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'aiostreams.instance', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {
+	'0': 'Kuu — https://aiostreams.stremio.ru',
+	'1': 'ElfHosted — https://aiostreams.elfhosted.com',
+	'2': 'Yeb — https://aiostreams.fortheweak.cloud',
+	'3': 'Midnight — https://aiostreamsfortheweebsstable.midnightignite.me',
+	'4': 'Custom — set URL below',
+}},
+{'setting_id': 'aiostreams.instance_schema', 'setting_type': 'string', 'setting_default': '2'},
+{'setting_id': 'aiostreams.custom_url', 'setting_type': 'string', 'setting_default': ''},
+{'setting_id': 'aiostreams.username', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'aiostreams.password', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'aiostreams.title_filter', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'check.aiostreams', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'autoplay.aiostreams', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'aio.priority', 'setting_type': 'action', 'setting_default': '7', 'min_value': '1', 'max_value': '10'},
+{'setting_id': 'provider.aiostreams_highlight', 'setting_type': 'string', 'setting_default': 'FF00D4FF'},
 #=========+========== Folders
 {'setting_id': 'provider.folders', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'folders.title_filter', 'setting_type': 'boolean', 'setting_default': 'true'},
@@ -485,8 +522,6 @@ def default_settings():
 {'setting_id': 'provider.rd_highlight', 'setting_type': 'string', 'setting_default': 'FF3C9900'},
 {'setting_id': 'provider.pm_highlight', 'setting_type': 'string', 'setting_default': 'FFFF3300'},
 {'setting_id': 'provider.ad_highlight', 'setting_type': 'string', 'setting_default': 'FFE6B800'},
-{'setting_id': 'provider.oc_highlight', 'setting_type': 'string', 'setting_default': 'FF008EB2'},
-{'setting_id': 'provider.ed_highlight', 'setting_type': 'string', 'setting_default': 'FF3233FF'},
 {'setting_id': 'provider.tb_highlight', 'setting_type': 'string', 'setting_default': 'FF01662A'},
 {'setting_id': 'scraper_4k_highlight', 'setting_type': 'string', 'setting_default': 'FFFF00FE'},
 {'setting_id': 'scraper_1080p_highlight', 'setting_type': 'string', 'setting_default': 'FFE6B800'},

@@ -30,7 +30,7 @@ class SourcesResults(BaseDialog):
 		self.external_cache_check = kwargs.get('external_cache_check')
 		self.prerelease_values, self.prerelease_key = ('CAM', 'SCR', 'TELE'), 'CAM/SCR/TELE'
 		self.item_list, self.filter_list, self.total_results = [], [], '0'
-		self.info_icons_dict = {'easynews': get_icon('easynews'), 'alldebrid': get_icon('alldebrid'), 'real-debrid': get_icon('realdebrid'),
+		self.info_icons_dict = {'easynews': get_icon('easynews'), 'aiostreams': get_icon('premiumize'), 'alldebrid': get_icon('alldebrid'), 'real-debrid': get_icon('realdebrid'),
 		'premiumize': get_icon('premiumize'), 'torbox': get_icon('torbox'), 'ad_cloud': get_icon('alldebrid'), 'rd_cloud': get_icon('realdebrid'),
 		'pm_cloud': get_icon('premiumize'), 'tb_cloud': get_icon('torbox')}
 		self.info_quality_dict = {'4k': get_icon('flag_4k', 'flags'), '1080p': get_icon('flag_1080p', 'flags'), '720p': get_icon('flag_720p', 'flags'),

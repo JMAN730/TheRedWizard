@@ -425,6 +425,10 @@ def jsonrpc_get_system_setting(setting_id, setting_value=''):
 	return result
 
 def open_settings():
+	try:
+		from apis.aiostreams_api import refresh_settings_properties
+		refresh_settings_properties()
+	except: pass
 	from windows.base_window import open_window
 	open_window(('windows.settings_manager', 'SettingsManager'), 'settings_manager.xml')
 

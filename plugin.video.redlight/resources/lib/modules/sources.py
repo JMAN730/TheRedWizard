@@ -27,7 +27,7 @@ class Sources():
 							('sources_sd', '', self._quality_length_sd), ('sources_total', '', self._quality_length_final))
 		self.filter_keys = include_exclude_filters()
 		self.filter_keys.pop('hybrid')
-		self.default_internal_scrapers = ('easynews', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud', 'folders')
+		self.default_internal_scrapers = ('easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud', 'folders')
 		self.debrids = {'Real-Debrid': ('apis.real_debrid_api', 'RealDebridAPI'), 'rd_cloud': ('apis.real_debrid_api', 'RealDebridAPI'),
 		'rd_browse': ('apis.real_debrid_api', 'RealDebridAPI'), 'Premiumize.me': ('apis.premiumize_api', 'PremiumizeAPI'), 'pm_cloud': ('apis.premiumize_api', 'PremiumizeAPI'),
 		'pm_browse': ('apis.premiumize_api', 'PremiumizeAPI'), 'AllDebrid': ('apis.alldebrid_api', 'AllDebridAPI'), 'ad_cloud': ('apis.alldebrid_api', 'AllDebridAPI'),
@@ -307,7 +307,7 @@ class Sources():
 		self.active_external, self.external_providers = False, []
 
 	def internal_sources(self, prescrape=False):
-		active_sources = [i for i in self.active_internal_scrapers if i in ['easynews', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud']]
+		active_sources = [i for i in self.active_internal_scrapers if i in ['easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud']]
 		try: sourceDict = [('internal', manual_function_import('scrapers.%s' % i, 'source'), i) for i in active_sources \
 												if not (prescrape and not settings.check_prescrape_sources(i, self.media_type))]
 		except: sourceDict = []
@@ -829,7 +829,11 @@ class Sources():
 				if cache_provider in ('Real-Debrid', 'Premiumize.me', 'AllDebrid', 'TorBox'):
 					url = self.resolve_cached(cache_provider, item['url'], item['hash'], title, season, episode, pack)
 			elif item.get('scrape_provider', None) in self.default_internal_scrapers:
-				url = self.resolve_internal(item['scrape_provider'], item['id'], item['url_dl'], item.get('direct_debrid_link', False))
+				if item.get('scrape_provider') == 'aiostreams':
+					from apis.aiostreams_api import resolve_playback_url
+					url = resolve_playback_url(item)
+				else:
+					url = self.resolve_internal(item['scrape_provider'], item['id'], item['url_dl'], item.get('direct_debrid_link', False))
 			else: url = item['url']
 		except: pass
 		return url
