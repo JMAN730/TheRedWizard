@@ -29,6 +29,7 @@ class SourcesResults(BaseDialog):
 		self.poster = self.meta_get('poster') or self.empty_poster
 		self.external_cache_check = kwargs.get('external_cache_check')
 		self.prerelease_values, self.prerelease_key = ('CAM', 'SCR', 'TELE'), 'CAM/SCR/TELE'
+		self.item_list, self.filter_list, self.total_results = [], [], '0'
 		self.info_icons_dict = {'easynews': get_icon('easynews'), 'alldebrid': get_icon('alldebrid'), 'real-debrid': get_icon('realdebrid'),
 		'premiumize': get_icon('premiumize'), 'torbox': get_icon('torbox'), 'ad_cloud': get_icon('alldebrid'), 'rd_cloud': get_icon('realdebrid'),
 		'pm_cloud': get_icon('premiumize'), 'tb_cloud': get_icon('torbox')}
@@ -203,7 +204,9 @@ class SourcesResults(BaseDialog):
 				prescrape_listitem.setProperty('perform_full_search', 'true')
 			self.total_results = str(len(self.item_list))
 			if self.prescrape: self.item_list.append(prescrape_listitem)
-		except: pass
+		except:
+			self.item_list = []
+			self.total_results = '0'
 
 	def make_filter_items(self):
 		def builder(count, item):

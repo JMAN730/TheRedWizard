@@ -368,10 +368,14 @@ class Sources():
 
 	def display_results(self, results):
 		window_format, window_number = settings.results_format()
-		action, chosen_item = open_window(('windows.sources', 'SourcesResults'), 'sources_results.xml',
+		window_result = open_window(('windows.sources', 'SourcesResults'), 'sources_results.xml',
 				window_format=window_format, window_id=window_number, results=results, meta=self.meta, episode_group_label=self.episode_group_label,
 				scraper_settings=self.scraper_settings, prescrape=self.prescrape, filters_ignored=self.filters_ignored,
 				uncached_results=self.uncached_results, external_cache_check=self.external_cache_check)
+		if not window_result:
+			self._kill_progress_dialog()
+			return
+		action, chosen_item = window_result
 		if not action: self._kill_progress_dialog()
 		elif action == 'play': return self.play_file(results, chosen_item)
 		elif self.prescrape and action == 'perform_full_search':

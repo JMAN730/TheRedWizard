@@ -1,3 +1,12 @@
+[COLOR red][B]Version 1.1.8[/B][/COLOR]
+- Fix rare scrape-screen lockup caused by thread exhaustion ("can't start new thread") by falling back to serial provider processing when new threads cannot be spawned.
+- Sources results window now fails safely if initialisation errors occur, preventing stuck scrape dialogs that required a Kodi restart.
+- Tools > Database & Cache Maintenance: added separate "Clear EasyNews Scrape Cache" and "Clear EasyNews Search History" actions.
+- "Clear All Cache (Excluding Favorites)" now also clears EasyNews search history.
+- Tools > Database & Cache Maintenance: removed obsolete "Clear Easy Debrid Cache" entry from menu and clear-all paths.
+- EasyNews: added "Exclude Adult Results" toggle (Safe Search) in settings.
+- Settings Manager: slowed help text autoscroll repeat timing to 7 seconds.
+
 [COLOR red][B]Version 1.1.7[/B][/COLOR]
 - Subtitles: SubMaker now supports selectable Subtitle Language in Settings (default English).
 - Subtitles: Now a separate section in Settings > Playback.

@@ -107,6 +107,9 @@ def routing(sys):
 		elif mode == 'search.clear_all':
 			from modules.search import clear_all
 			return clear_all(params.get('setting_id'), params.get('refresh', 'false'))
+		elif mode == 'search.clear_easynews_search_history':
+			from modules.search import clear_easynews_search_history
+			return clear_easynews_search_history(params.get('refresh', 'false'))
 	elif 'real_debrid' in mode:
 		if mode == 'real_debrid.rd_cloud':
 			from indexers.real_debrid import rd_cloud

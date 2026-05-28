@@ -302,6 +302,9 @@ def easynews_language_filter():
 	else: filters = []
 	return enabled, filters
 
+def easynews_exclude_adult():
+	return get_setting('redlight.easynews.exclude_adult', 'false') == 'true'
+
 def easynews_refresh_credentials():
 	return get_setting('redlight.easynews.refresh_credentials', 'true') == 'true'
 

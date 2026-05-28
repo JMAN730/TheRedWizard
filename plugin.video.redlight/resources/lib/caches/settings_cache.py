@@ -408,12 +408,13 @@ def default_settings():
 {'setting_id': 'autoplay.tb_cloud', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'results.sort_tbcloud_first', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'tb.priority', 'setting_type': 'action', 'setting_default': '10', 'min_value': '1', 'max_value': '10'},
-#==================== Easynews
+#==================== EasyNews
 {'setting_id': 'provider.easynews', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'easynews_user', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'easynews_password', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'easynews.title_filter', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'easynews.filter_lang', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'easynews.exclude_adult', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'easynews.lang_filters', 'setting_type': 'string', 'setting_default': 'eng'},
 {'setting_id': 'easynews.refresh_credentials', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'easynews.lang_include_unknown', 'setting_type': 'boolean', 'setting_default': 'true'},

@@ -607,7 +607,7 @@
                           <property name="setting_label">Premium Files Directory</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.premium_download_directory)]</property>
-                          <property name="setting_description">Choose your download location for Premium files. Includes downloads from debrid service caches or Easynews</property>
+                          <property name="setting_description">Choose your download location for Premium files. Includes downloads from debrid service caches or EasyNews</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_path&amp;setting_id=premium_download_directory)</onclick>
                       </item>
                       <item>
@@ -2102,10 +2102,10 @@
                           <property name="setting_description">Choose the order in which TorBox results appear in relation to any other active accounts. The lower the number, the higher the sort order</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_numeric&amp;setting_id=tb.priority)</onclick>
                       </item>
-        <!-- Easynews -->
+        <!-- EasyNews -->
                       <item>
                           <visible>Container(2000).HasFocus(60)</visible>
-                          <property name="setting_label">Easynews</property>
+                          <property name="setting_label">EasyNews</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
@@ -2114,7 +2114,7 @@
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.provider.easynews)]</property>
-                          <property name="setting_description">Enable the use of your Easynews account</property>
+                          <property name="setting_description">Enable the use of your EasyNews account</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.easynews)</onclick>
                       </item>
                       <item>
@@ -2123,7 +2123,7 @@
                           <property name="setting_label">Login</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews_user)]</property>
-                          <property name="setting_description">Enter the Login of your Easynews account</property>
+                          <property name="setting_description">Enter the Login of your EasyNews account</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=easynews_user)</onclick>
                       </item>
                       <item>
@@ -2132,7 +2132,7 @@
                           <property name="setting_label">Password</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews_password)]</property>
-                          <property name="setting_description">Enter the Password of your Easynews account</property>
+                          <property name="setting_description">Enter the Password of your EasyNews account</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=easynews_password)</onclick>
                       </item>
                       <item>
@@ -2152,8 +2152,18 @@
                           <property name="setting_label">Filter Languages</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.filter_lang)]</property>
-                          <property name="setting_description">Enable this and Red Light will perform extra language filtering on your Easynews results. Will help to limit incorrect results, but may also filter some relevant results</property>
+                          <property name="setting_description">Enable this and Red Light will perform extra language filtering on your EasyNews results. Will help to limit incorrect results, but may also filter some relevant results</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.filter_lang)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
+                          <property name="setting_label">Exclude Adult Results</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.exclude_adult)]</property>
+                          <property name="setting_description">Enable to request Safe Search filtering from EasyNews and exclude adult results from EasyNews queries.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.exclude_adult)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(60)</visible>
@@ -2163,7 +2173,7 @@
                           <property name="setting_label">    - Choose Languages To Include</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.lang_filters)]</property>
-                          <property name="setting_description">Choose which languages you wish to include in Easynews results</property>
+                          <property name="setting_description">Choose which languages you wish to include in EasyNews results</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=set_language_filter_choice&amp;filter_setting_id=easynews.lang_filters&amp;multi_choice=true)</onclick>
                       </item>
                       <item>
@@ -2214,7 +2224,7 @@
                           <property name="setting_label">Check Before Full Search</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.check.easynews)]</property>
-                          <property name="setting_description">Query EasyNews early in the source search, before external torrent scrapers and the rest of the internal scrape list. The progress window can show EasyNews quality counts (4K, 1080p, etc.) while torrent scrapers are still running. If EasyNews returns results during this prescrape step, you may get playable links sooner instead of waiting for the full scrape to finish. Does not replace external scrapers — it runs EasyNews first, then the normal search continues. When enabled, often used together with Autoplay Result, below</property>
+                          <property name="setting_description">Query EasyNews early in the source search, before external torrent scrapers and the rest of the internal scrape list. The progress window can show EasyNews quality counts (4K, 1080p, etc.) while torrent scrapers are still running. If EasyNews returns results during this prescrape step, you may get playable links sooner instead of waiting for the full scrape to finish. Does not replace external scrapers — it runs EasyNews first, then the normal search continues. Often used in conjunction with Autoplay Result, below (when Check Before Full Search is enabled).</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.easynews)</onclick>
                       </item>
                       <item>
@@ -2225,7 +2235,7 @@
                           <property name="setting_label">    - Autoplay Result</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.autoplay.easynews)]</property>
-                          <property name="setting_description">Enable this and Red Light will Autoplay the top result found from Easynews</property>
+                          <property name="setting_description">Enable this and Red Light will Autoplay the top result found from EasyNews</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.easynews)</onclick>
                       </item>
                       <item>
@@ -2235,7 +2245,7 @@
                           <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.en.priority)]</property>
-                          <property name="setting_description">Choose the order in which Easynews results appear in relation to any other active accounts. The lower the number, the higher the sort order</property>
+                          <property name="setting_description">Choose the order in which EasyNews results appear in relation to any other active accounts. The lower the number, the higher the sort order</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_numeric&amp;setting_id=en.priority)</onclick>
                       </item>
         <!-- Local Media Folders -->
@@ -2644,10 +2654,10 @@
                       <item>
                           <visible>Container(2000).HasFocus(70)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.highlight.type),0)</visible>
-                          <property name="setting_label">    - Easynews Color</property>
+                          <property name="setting_label">    - EasyNews Color</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">[COLOR $INFO[Window(10000).Property(redlight.provider.easynews_highlight)]]$INFO[Window(10000).Property(redlight.provider.easynews_highlight)][/COLOR]</property>
-                          <property name="setting_description">Choose Easynews color</property>
+                          <property name="setting_description">Choose EasyNews color</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=scraper_color_choice&amp;setting_id=provider.easynews_highlight)</onclick>
                       </item>
                       <item>
@@ -2933,10 +2943,10 @@
                           <visible>Container(2000).HasFocus(80)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
-                          <property name="setting_label">Easynews Playback Method</property>
+                          <property name="setting_label">EasyNews Playback Method</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.playback_method_name)]</property>
-                          <property name="setting_description">Choose the method for Red Light to use to attempt optimal Easynews playback. RETRY will retry once the link if it fails to resolve (slow). NO SEEK will tell Kodi the stream is not seekable. This results in quick and consistent resolving of the stream, but you will be unable to seek the stream outside of the cached data. Both is to use both methods. None is to use none of the methods.</property>
+                          <property name="setting_description">Choose the method for Red Light to use to attempt optimal EasyNews playback. RETRY will retry once the link if it fails to resolve (slow). NO SEEK will tell Kodi the stream is not seekable. This results in quick and consistent resolving of the stream, but you will be unable to seek the stream outside of the cached data. Both is to use both methods. None is to use none of the methods.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=easynews.playback_method)</onclick>
                       </item>
                       <item>
@@ -2947,7 +2957,7 @@
                           <property name="setting_label">    - Set Max. Retries for Playback</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.playback_method_retries)]</property>
-                          <property name="setting_description">Choose the maximum retries allowed for Easynews playback attempts</property>
+                          <property name="setting_description">Choose the maximum retries allowed for EasyNews playback attempts</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_numeric&amp;setting_id=easynews.playback_method_retries)</onclick>
                       </item>
                       <item>
@@ -2958,7 +2968,7 @@
                           <property name="setting_label">    - Exclude NO SEEK Playback for My Services</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews.playback_method_limited)]</property>
-                          <property name="setting_description">Enable this and Red Light will not use the NO SEEK Easynews Playback Method when resolving regular files from the My Services->Easynews location</property>
+                          <property name="setting_description">Enable this and Red Light will not use the NO SEEK EasyNews Playback Method when resolving regular files from the My Services->EasyNews location</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.playback_method_limited)</onclick>
                       </item>
                       <item>
@@ -3081,7 +3091,7 @@
                         <textcolor>FFCCCCCC</textcolor>
                         <scrolltime>300</scrolltime>
                         <label>$INFO[Container(2100).ListItem.Property(setting_description)]</label>
-                        <autoscroll delay="2000" time="2500" repeat="4000">true</autoscroll>
+                        <autoscroll delay="2000" time="2500" repeat="7000">true</autoscroll>
                         <visible>Control.HasFocus(2100)</visible>
                     </control>
                     <control type="textbox">
@@ -3095,7 +3105,7 @@
                         <textcolor>FFCCCCCC</textcolor>
                         <scrolltime>300</scrolltime>
                         <label>$INFO[Container(2000).ListItem.Property(setting_label),All settings related to [UPPERCASE][B],[/B][/UPPERCASE] settings]</label>
-                        <autoscroll delay="2000" time="2500" repeat="4000">true</autoscroll>
+                        <autoscroll delay="2000" time="2500" repeat="7000">true</autoscroll>
                         <visible>Control.HasFocus(2000)</visible>
                     </control>
                 </control>
