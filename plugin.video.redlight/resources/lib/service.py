@@ -30,6 +30,7 @@ class SetAddonConstants:
 			('redlight.addon_fanart', kodi_utils.addon_fanart())
 					]
 		for item in addon_items: kodi_utils.set_property(*item)
+		kodi_utils.clear_property('redlight.widgets_refresh_scheduled')
 		return kodi_utils.logger('Red Light', 'SetAddonConstants Service Finished')
 
 class DatabaseMaintenance:
@@ -49,16 +50,23 @@ class BootstrapSettings:
 	def run(self):
 		kodi_utils.logger('Red Light', 'BootstrapSettings Service Starting')
 		monitor = kodi_utils.kodi_monitor()
-		monitor.waitForAbort(5)
+		monitor.waitForAbort(2)
 		if monitor.abortRequested(): return
 		try:
-			from caches.settings_cache import bootstrap_settings_properties
+			from caches.settings_cache import bootstrap_settings_properties, refresh_widgets_after_db_migration
 			bootstrap_settings_properties()
+			refresh_widgets_after_db_migration()
 		except Exception as e:
 			kodi_utils.logger('BootstrapSettings', str(e))
 		return kodi_utils.logger('Red Light', 'BootstrapSettings Service Finished')
 
 _custom_windows_thread_started = False
+
+def start_custom_windows_prepare():
+	global _custom_windows_thread_started
+	if _custom_windows_thread_started: return
+	_custom_windows_thread_started = True
+	Thread(target=CustomWindowsPrepare().run, daemon=True).start()
 
 def run_deferred_service_setup():
 	global _custom_windows_thread_started
@@ -71,9 +79,6 @@ def run_deferred_service_setup():
 		from windows.base_window import ExtrasUtils
 		ExtrasUtils().run()
 	except Exception as e: kodi_utils.logger('DeferredServiceSetup', 'ExtrasUtils: %s' % e)
-	if not _custom_windows_thread_started:
-		_custom_windows_thread_started = True
-		Thread(target=CustomWindowsPrepare().run).start()
 	return kodi_utils.logger('Red Light', 'Deferred Service Setup Finished')
 
 class OnUpdateChanges:
@@ -116,6 +121,7 @@ class TraktMonitor:
 		from modules.settings import trakt_user_active, trakt_sync_interval
 		monitor, player = kodi_utils.kodi_monitor(), kodi_utils.kodi_player()
 		wait_for_abort, is_playing = monitor.waitForAbort, player.isPlayingVideo
+		wait_for_abort(45)
 		while not monitor.abortRequested():
 			while is_playing() or kodi_utils.get_property(pause_services_prop) == 'true': wait_for_abort(10)
 			wait_time = 1800
@@ -264,6 +270,7 @@ class RedLightMonitor(Monitor):
 		try: SyncSettings().run()
 		except Exception as e: kodi_utils.logger('SyncSettings', str(e))
 		Thread(target=BootstrapSettings().run).start()
+		start_custom_windows_prepare()
 		Thread(target=TraktMonitor().run).start()
 		Thread(target=UpdateCheck().run).start()
 		Thread(target=WidgetRefresher().run).start()
@@ -278,6 +285,7 @@ class RedLightMonitor(Monitor):
 			kodi_utils.clear_property(pause_services_prop)
 			kodi_utils.logger('OnNotificationActions', 'UNPAUSING Red Light Services Due to Device Awake')
 
-kodi_utils.logger('Red Light', 'Main Monitor Service Starting')
-RedLightMonitor().waitForAbort()
-kodi_utils.logger('Red Light', 'Main Monitor Service Finished')
+if __name__ == '__main__':
+	kodi_utils.logger('Red Light', 'Main Monitor Service Starting')
+	RedLightMonitor().waitForAbort()
+	kodi_utils.logger('Red Light', 'Main Monitor Service Finished')

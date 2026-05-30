@@ -349,12 +349,24 @@ def reload_skin():
 def kodi_refresh():
 	execute_builtin('UpdateLibrary(video,special://skin/foo)')
 
-def refresh_widgets():
+def schedule_widget_refresh(silent=True, reload_skin=False):
+	url = 'plugin://plugin.video.redlight/?mode=refresh_widgets&silent=%s&reload_skin=%s' % ('true' if silent else 'false', 'true' if reload_skin else 'false')
+	execute_builtin('AlarmClock(redlight_widget_refresh,RunPlugin(%s),00:00:02,silent)' % url)
+
+def refresh_widgets(silent=False, reload_skin=False):
 	from caches.settings_cache import get_setting
 	from caches.random_widgets_cache import RandomWidgets
+	from caches.lists_cache import lists_cache
 	RandomWidgets().delete_like('random_list.%')
+	if reload_skin: lists_cache.delete_like('trakt_movies_trending_%')
 	kodi_refresh()
-	if get_setting('redlight.widget_refresh_notification', 'true') == 'true': notification('Widgets Refreshed', 2500)
+	try:
+		if home(): container_refresh()
+	except: pass
+	if reload_skin:
+		try: execute_builtin('AlarmClock(redlight_widget_skin,ReloadSkin(),00:00:01,silent)')
+		except: pass
+	if not silent and get_setting('redlight.widget_refresh_notification', 'true') == 'true': notification('Widgets Refreshed', 2500)
 
 def run_plugin(params, block=False):
 	if isinstance(params, dict): params = build_url(params)

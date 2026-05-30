@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import re
+from threading import Lock
 from modules import kodi_utils
 from caches.base_cache import connect_database
 # logger = kodi_utils.logger
@@ -11,6 +12,12 @@ _EXTRAS_LIST_DEFAULT = '2050,2051,2052,2053,2054,2055,2056,2057,2058,2059,2060,2
 _MAX_PROPERTY_LEN = 8192
 _SETTINGS_PROPERTIES_LOADED = 'redlight.settings_properties_loaded'
 _DEFERRED_SETUP_DONE = 'redlight.deferred_service_setup_done'
+_SETTINGS_DB_MIGRATED = 'redlight.settings_db_migrated'
+_SETTINGS_DB_SYNCED = 'redlight.settings_db_synced'
+_WIDGET_REFRESH_SCHEDULED = 'redlight.widgets_refresh_scheduled'
+_bootstrap_lock = Lock()
+_DEFAULTS_LIST = None
+_DEFAULTS_MAP = None
 
 def _properties_loaded():
 	return kodi_utils.get_property(_SETTINGS_PROPERTIES_LOADED) == 'true'
@@ -28,7 +35,7 @@ def _sanitize_extras_list(value, fallback=_EXTRAS_LIST_DEFAULT):
 	if not valid: return fallback
 	return ','.join(str(i) for i in valid)
 
-def sanitize_setting_value(setting_id, value, setting_info=None):
+def sanitize_setting_value(setting_id, value, setting_info=None, validate_paths=True):
 	if setting_info is None: setting_info = default_setting_values(setting_id)
 	default = setting_info['setting_default'] if setting_info else ''
 	if value is None: return default
@@ -37,10 +44,12 @@ def sanitize_setting_value(setting_id, value, setting_info=None):
 		fallback = setting_info['setting_default'] if setting_info else _EXTRAS_LIST_DEFAULT
 		return _sanitize_extras_list(value, fallback)
 	if setting_id == 'default_addon_fanart':
+		if not validate_paths: return value or default
 		path = kodi_utils.translate_path(value) if value else ''
 		if path and kodi_utils.path_exists(path): return value
 		return kodi_utils.addon_fanart()
 	if setting_id == 'addon_icon_choice':
+		if not validate_paths: return value or default
 		path = kodi_utils.translate_path(value) if value else ''
 		if path and kodi_utils.path_exists(path): return value
 		return default or 'resources/media/addon_icons/icon.png'
@@ -54,17 +63,45 @@ def sanitize_setting_value(setting_id, value, setting_info=None):
 	return value
 
 class SettingsCache:
-	def read_db_value(self, setting_id):
+	def __init__(self):
+		self._db_cache = {}
+		self._db_warmed = False
+
+	def clear_db_cache(self):
+		self._db_cache = {}
+		self._db_warmed = False
+
+	def _warm_db_cache(self):
+		if self._db_warmed: return
+		try:
+			for setting_id, setting_value in self.get_all().items():
+				setting_info = default_setting_values(setting_id)
+				if setting_info: setting_value = sanitize_setting_value(setting_id, setting_value, setting_info, validate_paths=False)
+				else: setting_value = property_safe_string(setting_value)
+				self._db_cache[setting_id] = setting_value
+			self._db_warmed = True
+		except: pass
+
+	def read_db_value(self, setting_id, validate_paths=False):
+		setting_id = setting_id.replace('redlight.', '')
+		if setting_id in self._db_cache: return self._db_cache[setting_id]
+		if not self._db_warmed: self._warm_db_cache()
+		if setting_id in self._db_cache: return self._db_cache[setting_id]
 		try:
 			dbcon = connect_database('settings_db')
-			setting_id = setting_id.replace('redlight.', '')
 			row = dbcon.execute('SELECT setting_value FROM settings WHERE setting_id = ?', (setting_id,)).fetchone()
-			if not row: return None
+			if not row:
+				self._db_cache[setting_id] = None
+				return None
 			setting_value = row[0]
 			setting_info = default_setting_values(setting_id)
-			if setting_info: return sanitize_setting_value(setting_id, setting_value, setting_info)
-			return property_safe_string(setting_value)
-		except: return None
+			if setting_info: setting_value = sanitize_setting_value(setting_id, setting_value, setting_info, validate_paths=validate_paths)
+			else: setting_value = property_safe_string(setting_value)
+			self._db_cache[setting_id] = setting_value
+			return setting_value
+		except:
+			self._db_cache[setting_id] = None
+			return None
 
 	def get(self, setting_id):
 		return self.read_db_value(setting_id)
@@ -89,6 +126,9 @@ class SettingsCache:
 		return all_settings
 
 	def set(self, setting_id, setting_value=None):
+		setting_id = setting_id.replace('redlight.', '')
+		self._db_cache.pop(setting_id, None)
+		self._db_cache.pop('%s_name' % setting_id, None)
 		dbcon = connect_database('settings_db')
 		setting_info = default_setting_values(setting_id)
 		if not setting_info: return
@@ -121,6 +161,8 @@ class SettingsCache:
 			for item in settings_list: self.set_memory_cache(item[0], item[3] or item[2])
 
 	def write_db(self, setting_id, setting_value, setting_info=None):
+		setting_id = setting_id.replace('redlight.', '')
+		self._db_cache.pop(setting_id, None)
 		if setting_info is None: setting_info = default_setting_values(setting_id)
 		if setting_info: setting_value = sanitize_setting_value(setting_id, setting_value, setting_info)
 		else: setting_value = property_safe_string(setting_value)
@@ -163,6 +205,25 @@ def get_setting(setting_id, fallback=''):
 	if value not in ('', None): return value
 	return fallback
 
+def _apply_settings_properties_from_db():
+	d_settings = default_settings()
+	defaultsettings_ids = _defaultsettings_ids(d_settings)
+	defaults_map = _get_defaults_map()
+	currentsettings = settings_cache.get_all()
+	for setting_id, value in currentsettings.items():
+		if setting_id not in defaultsettings_ids: continue
+		info = defaults_map.get(setting_id)
+		if info: sanitized = sanitize_setting_value(setting_id, value, info, validate_paths=False)
+		else: sanitized = property_safe_string(value)
+		try: settings_cache.set_memory_cache(setting_id, sanitized)
+		except: pass
+	try:
+		from apis.aiostreams_api import refresh_settings_properties
+		refresh_settings_properties()
+	except: pass
+	kodi_utils.set_property(_SETTINGS_PROPERTIES_LOADED, 'true')
+	settings_cache.clear_db_cache()
+
 def get_many(settings_list):
 	return settings_cache.get_many(settings_list)
 
@@ -172,26 +233,39 @@ def _defaultsettings_ids(d_settings):
 	defaultsettings_ids.extend(['%s_name' % i for i in defaultsettings_names])
 	return defaultsettings_ids
 
+def ensure_settings_properties_loaded():
+	if _properties_loaded(): return False
+	with _bootstrap_lock:
+		if _properties_loaded(): return False
+		if kodi_utils.get_property(_SETTINGS_DB_SYNCED) == 'true':
+			_apply_settings_properties_from_db()
+			return True
+		return bootstrap_settings_properties()
+
 def bootstrap_settings_properties(force=False):
-	if not force and _properties_loaded(): return
-	if force: kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
-	sync_settings({'silent': 'true', 'load_properties': False})
-	d_settings = default_settings()
-	defaultsettings_ids = _defaultsettings_ids(d_settings)
-	defaults_map = {i['setting_id']: i for i in d_settings}
-	currentsettings = settings_cache.get_all()
-	for setting_id, value in currentsettings.items():
-		if setting_id not in defaultsettings_ids: continue
-		info = defaults_map.get(setting_id)
-		if info: sanitized = sanitize_setting_value(setting_id, value, info)
-		else: sanitized = property_safe_string(value)
-		try: settings_cache.set_memory_cache(setting_id, sanitized)
-		except: pass
-	try:
-		from apis.aiostreams_api import refresh_settings_properties
-		refresh_settings_properties()
+	if not force and _properties_loaded(): return False
+	with _bootstrap_lock:
+		if not force and _properties_loaded(): return False
+		if force:
+			kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
+			kodi_utils.clear_property(_SETTINGS_DB_SYNCED)
+		if force or kodi_utils.get_property(_SETTINGS_DB_SYNCED) != 'true':
+			sync_settings({'silent': 'true', 'load_properties': False})
+		else:
+			kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
+		_apply_settings_properties_from_db()
+		return True
+
+def schedule_widget_refresh_once(reload_skin=False):
+	if kodi_utils.get_property(_WIDGET_REFRESH_SCHEDULED) == 'true': return
+	kodi_utils.set_property(_WIDGET_REFRESH_SCHEDULED, 'true')
+	try: kodi_utils.schedule_widget_refresh(silent=True, reload_skin=reload_skin)
 	except: pass
-	kodi_utils.set_property(_SETTINGS_PROPERTIES_LOADED, 'true')
+
+def refresh_widgets_after_db_migration():
+	if kodi_utils.get_property(_SETTINGS_DB_MIGRATED) != 'true': return
+	kodi_utils.clear_property(_SETTINGS_DB_MIGRATED)
+	schedule_widget_refresh_once(reload_skin=True)
 
 def run_deferred_setup_if_needed():
 	if kodi_utils.get_property(_DEFERRED_SETUP_DONE) == 'true': return
@@ -204,14 +278,17 @@ def run_deferred_setup_if_needed():
 
 def load_settings_properties(force=False):
 	bootstrap_settings_properties(force=force)
+	refresh_widgets_after_db_migration()
 	run_deferred_setup_if_needed()
 
 def sync_settings(params={}):
 	silent = params.get('silent', 'true') == 'true'
 	load_properties = params.get('load_properties', True)
+	migrated = False
 	insert_list = []
 	insert_list_append = insert_list.append
 	currentsettings = settings_cache.get_all()
+	had_existing_settings = bool(currentsettings)
 	d_settings = default_settings()
 	defaultsettings_ids = _defaultsettings_ids(d_settings)
 	defaults_map = {i['setting_id']: i for i in d_settings}
@@ -220,6 +297,7 @@ def sync_settings(params={}):
 		obsoletesettings_ids = [k for k, v in c_settings if not k in defaultsettings_ids]
 		if obsoletesettings_ids:
 			for item in obsoletesettings_ids: settings_cache.remove_setting(item)
+			migrated = True
 			currentsettings = settings_cache.get_all()
 	except: pass
 	if currentsettings:
@@ -227,13 +305,16 @@ def sync_settings(params={}):
 				and currentsettings.get('update.username') != 'The-Red-Wizard':
 			settings_cache.write_db('update.username', 'The-Red-Wizard', defaults_map.get('update.username'))
 			currentsettings['update.username'] = 'The-Red-Wizard'
+			migrated = True
 			if load_properties: settings_cache.set_memory_cache('update.username', 'The-Red-Wizard')
 		for setting_id, value in list(currentsettings.items()):
 			if setting_id not in defaults_map: continue
-			sanitized = sanitize_setting_value(setting_id, value, defaults_map[setting_id])
+			sanitized = sanitize_setting_value(setting_id, value, defaults_map[setting_id], validate_paths=False)
 			if sanitized != value:
+				sanitized = sanitize_setting_value(setting_id, value, defaults_map[setting_id], validate_paths=True)
 				settings_cache.write_db(setting_id, sanitized, defaults_map[setting_id])
 				currentsettings[setting_id] = sanitized
+				migrated = True
 			if load_properties:
 				settings_cache.set_memory_cache(setting_id, sanitized)
 	for item in d_settings:
@@ -250,12 +331,17 @@ def sync_settings(params={}):
 			else: name_default = item['settings_options'][setting_default]
 			insert_list_append(('%s_name' % setting_id, 'name', name_default, name_default))
 		insert_list_append((setting_id, setting_type, setting_default, setting_default))
-	if insert_list: settings_cache.set_many(insert_list, load_properties=load_properties)
+	if insert_list:
+		settings_cache.set_many(insert_list, load_properties=load_properties)
+		migrated = True
+	if migrated and had_existing_settings:
+		kodi_utils.set_property(_SETTINGS_DB_MIGRATED, 'true')
 	if load_properties:
 		settings_cache.clean_database()
 		bootstrap_settings_properties(force=True)
 		run_deferred_setup_if_needed()
 	else:
+		kodi_utils.set_property(_SETTINGS_DB_SYNCED, 'true')
 		kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
 	if not silent: kodi_utils.notification('Settings Cache Remade')
 
@@ -334,11 +420,17 @@ def restore_setting_default(params):
 
 def default_setting_values(setting_id):
 	if 'redlight.' in setting_id: setting_id = setting_id.replace('redlight.', '')
-	d_settings = default_settings()
-	return next((i for i in d_settings if i['setting_id'] == setting_id), None)
+	return _get_defaults_map().get(setting_id)
+
+def _get_defaults_map():
+	global _DEFAULTS_MAP
+	if _DEFAULTS_MAP is None: _DEFAULTS_MAP = {i['setting_id']: i for i in default_settings()}
+	return _DEFAULTS_MAP
 
 def default_settings():
-	return [
+	global _DEFAULTS_LIST
+	if _DEFAULTS_LIST is not None: return _DEFAULTS_LIST
+	_DEFAULTS_LIST = [
 #===============================================================================#
 #====================================GENERAL====================================#
 #===============================================================================#
@@ -771,3 +863,4 @@ def default_settings():
 {'setting_id': 'extras.movie.button17', 'setting_type': 'string', 'setting_default': 'show_options'},
 {'setting_id': 'updatechecks.refresh_addon_keys', 'setting_type': 'string', 'setting_default': 'false'}
 	]
+	return _DEFAULTS_LIST

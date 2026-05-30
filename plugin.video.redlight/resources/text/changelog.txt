@@ -1,3 +1,9 @@
+[COLOR red][B]Version 1.2.3[/B][/COLOR]
+- Fixed skin widgets (e.g. Movies > Trending) staying empty after a settings DB upgrade: widget calls no longer block on settings bootstrap, failed Trakt list fetches are not cached, and widgets are silently reloaded with ReloadSkin only when sync_settings actually migrates or repairs an existing settings.db (not on every boot).
+- Fixed slow startup and browsing after the 1.2.2 boot-crash fix: settings reads no longer hit SQLite on every call once properties are loaded, the database is not synced twice on boot, path-existence checks are skipped on the read path, and default-settings metadata is cached in memory.
+- Fixed widget and skin list loads hanging ~5 seconds (or failing) after opening Red Light: the font/skin background thread now runs only in the service process, not in the plugin invoker where it blocked every widget exit.
+- Fixed widgets staying empty after the above change: widget calls no longer bulk-load settings into window properties (which could fail silently); they read from a warmed in-memory DB cache instead when properties are not yet loaded.
+
 [COLOR red][B]Version 1.2.2[/B][/COLOR]
 - Fixed Kodi boot crash after upgrading from older versions when legacy settings.db contained invalid values. On boot the service migrates/sanitizes the database first, then loads settings into window properties after the GUI is up (so widgets and skin labels work). Skin/XML updates still run when Red Light is first opened.
 
