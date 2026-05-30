@@ -69,8 +69,8 @@ class source:
 					self.progress_dialog.update_scraper(self.sources_sd, self.sources_720p, self.sources_1080p, self.sources_4k, self.sources_total, line1, percent)
 					if self.threads_completed:
 						len_alive_threads = len(alive_threads)
-						if len_alive_threads == 0 or percent >= 100: break
-					elif percent >= 100: break
+						if len_alive_threads == 0: break
+					if percent >= 100: break
 					kodi_utils.sleep(100)
 				except: pass
 			return
