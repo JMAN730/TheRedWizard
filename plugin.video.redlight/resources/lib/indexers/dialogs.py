@@ -113,17 +113,19 @@ def rescrape_actions_choice(params):
 	action_values = {0: 'Off', 1: 'Auto', 2: 'Prompt'}
 	order_values = {0: 'Highest', 1: 'High', 2: 'Middle', 3: 'Low', 4: 'Lower', 5: 'Lowest'}
 	rescrape_settings = settings.rescrape_all_settings()
+	def _rescrape_line2(item, action, order):
+		return 'Action: [B]%s[/B]  |  Order: [B]%s[/B]' % (action_values[action], order_values[order])
 	choices = [dict(i, **{'line1': '%02d, %s' % (int(k[2]) + 1, i['name']),
-				'line2': 'Current | Action: [B]%s[/B] | Order: [B]%s[/B]' % (action_values[k[1]], order_values[k[2]]), 'value': i['value'],
+				'line2': _rescrape_line2(i, k[1], k[2]), 'value': i['value'],
 				'action': k[1], 'order': k[2]}) for i in kodi_utils.rescrape_items() for k in rescrape_settings if k[0] == i['value']]
 	choices = [dict(i, **{'position': c}) for c, i in enumerate(sorted(choices, key=lambda k: k['order']))]
-	kwargs = {'items': json.dumps(choices), 'heading': 'Choose Properties for Rescrape Functions', 'multi_line': 'true', 'narrow_window': 'true', 'set_focus': set_focus}
+	kwargs = {'items': json.dumps(choices), 'heading': 'Choose Properties for Rescrape', 'multi_line': 'true', 'narrow_window': 'true', 'set_focus': set_focus}
 	choice = kodi_utils.select_dialog(choices, **kwargs)
 	if choice == None: return
 	choice_value, choice_action, choice_order = choice['value'], choice['action'], choice['order']
 	params['set_focus'] = choice['position']
 	choices = [{'line1': 'Set Action', 'action': 'set_action'}, {'line1': 'Set Order', 'action': 'set_order'}]
-	kwargs = {'items': json.dumps(choices), 'heading': 'Choose Properties for Rescrape Functions', 'narrow_window': 'true', 'set_focus': set_focus}
+	kwargs = {'items': json.dumps(choices), 'heading': 'Choose Properties for Rescrape', 'narrow_window': 'true', 'set_focus': set_focus}
 	choice = kodi_utils.select_dialog(choices, **kwargs)
 	if choice == None: return rescrape_actions_choice(params)
 	action = choice['action']
@@ -658,9 +660,9 @@ def playback_choice(params):
 	items = [{'line': 'Select Source', 'function': 'scrape'},
 			{'line': 'Rescrape & Select Source', 'function': 'clear_and_rescrape'}]
 	if debrid_for_ext_cache_check():
-		items.append({'line': 'Rescrape with External Cache Check [B]%s[/B]' % check_cache_status, 'function': 'rescrape_external_cache_check'})
+		items.append({'line': 'Rescrape with External Cache Check (Real Debrid only) [B]%s[/B]' % check_cache_status, 'function': 'rescrape_external_cache_check'})
 	items.extend([{'line': 'Clear Debrid Cache & Show Results', 'function': 'clear_debrid_cache_and_show'},
-				{'line': 'Scrape with ALL External Scrapers', 'function': 'scrape_with_disabled'},
+				{'line': 'Scrape with Disabled External Providers', 'function': 'scrape_with_disabled'},
 				{'line': 'Scrape With All Filters Ignored', 'function': 'scrape_with_filters_ignored'}])
 	if media_type == 'episode': items.append({'line': 'Scrape with Custom Episode Groups Value', 'function': 'scrape_with_episode_group'})
 	if aliases: items.append({'line': 'Scrape with an Alias', 'function': 'scrape_with_aliases'})
@@ -754,7 +756,7 @@ def playback_choice(params):
 			_process_params(episode, custom_episode, 'custom_episode')
 			if any(i in play_params for i in ('custom_season', 'custom_episode')):
 				if settings.autoplay_next_episode(): _process_params('', 'true', 'disable_autoplay_next_episode')
-		all_choice = kodi_utils.confirm_dialog(heading=meta.get('rootname', ''), text='Scrape with ALL External Scrapers?', ok_label='Yes', cancel_label='No')
+		all_choice = kodi_utils.confirm_dialog(heading=meta.get('rootname', ''), text='Scrape with disabled external torrent providers?', ok_label='Yes', cancel_label='No')
 		if all_choice == None: return kodi_utils.notification('Cancelled', 2500)
 		if all_choice: _process_params('', 'true', 'disabled_ext_ignored')
 		disable_filters_choice = kodi_utils.confirm_dialog(heading=meta.get('rootname', ''), text='Disable All Filters for Search?', ok_label='Yes', cancel_label='No')

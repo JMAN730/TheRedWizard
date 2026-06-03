@@ -32,7 +32,7 @@ def runner(params):
 		pack_choices, pack_api = pack_result
 		provider = downloader_provider_slug(getattr(pack_source, 'debrid', '') or source.get('cache_provider', ''))
 		pack_items = [dict(params, **{'pack_files': item, 'provider': provider}) for item in pack_choices]
-		icon = {'real-debrid': 'realdebrid', 'premiumize.me': 'premiumize', 'alldebrid': 'alldebrid', 'torbox': 'torbox'}.get(provider, 'box_office')
+		icon = {'real-debrid': 'realdebrid', 'premiumize.me': 'premiumize', 'alldebrid': 'alldebrid', 'offcloud': 'offcloud', 'torbox': 'torbox'}.get(provider, 'box_office')
 		chosen_list = select_pack_item(pack_items, kodi_utils.get_icon(icon))
 		if not chosen_list: return
 		show_package = source.get('package') == 'show'

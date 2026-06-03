@@ -5,6 +5,7 @@ from apis.real_debrid_api import RealDebridAPI
 from apis.premiumize_api import PremiumizeAPI
 from apis.alldebrid_api import AllDebridAPI
 from apis.torbox_api import TorBoxAPI
+from apis.offcloud_api import OffcloudAPI
 from modules.source_utils import get_external_cache_status
 from modules.utils import chunks
 from modules.kodi_utils import show_busy_dialog, hide_busy_dialog, notification
@@ -13,7 +14,7 @@ from modules.settings import enabled_debrids_check
 
 def debrid_enabled():
 	return [
-	i[0] for i in [('Real-Debrid', 'rd'), ('Premiumize.me', 'pm'), ('AllDebrid', 'ad'), ('TorBox', 'tb')] if enabled_debrids_check(i[1])]
+	i[0] for i in [('Real-Debrid', 'rd'), ('Premiumize.me', 'pm'), ('AllDebrid', 'ad'), ('Offcloud', 'oc'), ('TorBox', 'tb')] if enabled_debrids_check(i[1])]
 
 def debrid_for_ext_cache_check(enabled_debrid=None):
 	if not enabled_debrid: enabled_debrid = debrid_enabled()
@@ -33,6 +34,7 @@ def downloader_provider_slug(provider):
 		'Premiumize.me': 'premiumize.me',
 		'AllDebrid': 'alldebrid',
 		'TorBox': 'torbox',
+		'Offcloud': 'offcloud',
 	}.get(provider, (provider or '').lower())
 
 def import_pack_api(provider):
@@ -42,6 +44,7 @@ def import_pack_api(provider):
 		'Premiumize.me': PremiumizeAPI,
 		'AllDebrid': AllDebridAPI,
 		'TorBox': TorBoxAPI,
+		'Offcloud': OffcloudAPI,
 	}
 	return api_map.get(provider)()
 
@@ -77,7 +80,7 @@ class ExternalPackSource:
 def manual_add_magnet_to_cloud(params):
 	show_busy_dialog()
 	provider = normalize_debrid_provider(params.get('provider', ''))
-	debrid_list_modules = [('Real-Debrid', RealDebridAPI), ('Premiumize.me', PremiumizeAPI), ('AllDebrid', AllDebridAPI), ('TorBox', TorBoxAPI)]
+	debrid_list_modules = [('Real-Debrid', RealDebridAPI), ('Premiumize.me', PremiumizeAPI), ('AllDebrid', AllDebridAPI), ('Offcloud', OffcloudAPI), ('TorBox', TorBoxAPI)]
 	function = [i[1] for i in debrid_list_modules if i[0] == provider][0]
 	api = function()
 	result = api.create_transfer(params['magnet_url'])
@@ -235,6 +238,27 @@ def _tb_cached_hash_set(api_response):
 			elif isinstance(item, str):
 				cached.add(item.lower())
 	return cached
+
+def OC_check(hash_list, cached_hashes):
+	cached_hashes, unchecked_hashes = cached_check(hash_list, cached_hashes, 'oc')
+	if unchecked_hashes:
+		results = OffcloudAPI().check_cache(unchecked_hashes)
+		if results:
+			cached_append = cached_hashes.append
+			process_list = []
+			process_append = process_list.append
+			try:
+				results = results['cachedItems']
+				for h in unchecked_hashes:
+					cached = 'False'
+					if h in results:
+						cached_append(h)
+						cached = 'True'
+					process_append((h, cached))
+			except Exception:
+				for i in unchecked_hashes: process_append((i, 'False'))
+			add_to_local_cache(process_list, 'oc')
+	return cached_hashes
 
 def TB_check(hash_list, cached_hashes):
 	expires = 24

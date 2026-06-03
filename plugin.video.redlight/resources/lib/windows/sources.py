@@ -31,8 +31,8 @@ class SourcesResults(BaseDialog):
 		self.prerelease_values, self.prerelease_key = ('CAM', 'SCR', 'TELE'), 'CAM/SCR/TELE'
 		self.item_list, self.filter_list, self.total_results = [], [], '0'
 		self.info_icons_dict = {'easynews': get_icon('easynews'), 'aiostreams': get_icon('premiumize'), 'alldebrid': get_icon('alldebrid'), 'real-debrid': get_icon('realdebrid'),
-		'premiumize': get_icon('premiumize'), 'torbox': get_icon('torbox'), 'ad_cloud': get_icon('alldebrid'), 'rd_cloud': get_icon('realdebrid'),
-		'pm_cloud': get_icon('premiumize'), 'tb_cloud': get_icon('torbox')}
+		'premiumize': get_icon('premiumize'), 'offcloud': get_icon('offcloud'), 'torbox': get_icon('torbox'), 'ad_cloud': get_icon('alldebrid'), 'rd_cloud': get_icon('realdebrid'),
+		'pm_cloud': get_icon('premiumize'), 'oc_cloud': get_icon('offcloud'), 'tb_cloud': get_icon('torbox')}
 		self.info_quality_dict = {'4k': get_icon('flag_4k', 'flags'), '1080p': get_icon('flag_1080p', 'flags'), '720p': get_icon('flag_720p', 'flags'),
 		'sd': get_icon('flag_sd', 'flags'), 'cam': get_icon('flag_sd', 'flags'), 'tele': get_icon('flag_sd', 'flags'), 'scr': get_icon('flag_sd', 'flags')}
 		self.make_items()
@@ -235,7 +235,7 @@ class SourcesResults(BaseDialog):
 		qualities = [('Show [B]%s[/B] Only | [B]%d[/B] Results' % (i, quality_totals[i]), 'quality', i) for i in qualities]
 		providers = [('Show [B]%s[/B] Only | [B]%d[/B] Results' % (i, provider_totals[i]), 'provider', i) for i in providers]
 		data = []
-		if cache_functions_debrid: data.append(('Rescrape with External Cache Check [B]%s[/B]' % ('OFF' if self.external_cache_check else 'ON'), 'special', 'cache_check_rescrape'))
+		if cache_functions_debrid: data.append(('Rescrape with External Cache Check (Real Debrid only) [B]%s[/B]' % ('OFF' if self.external_cache_check else 'ON'), 'special', 'cache_check_rescrape'))
 		if self.uncached_results: data.append(('Show [B]Uncached[/B] Only | [B]%d[/B] Results' % len(self.uncached_results), 'special', 'showuncached'))
 		data.extend(qualities)
 		data.extend(providers)

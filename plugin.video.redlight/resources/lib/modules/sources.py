@@ -27,11 +27,12 @@ class Sources():
 							('sources_sd', '', self._quality_length_sd), ('sources_total', '', self._quality_length_final))
 		self.filter_keys = include_exclude_filters()
 		self.filter_keys.pop('hybrid')
-		self.default_internal_scrapers = ('easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud', 'folders')
+		self.default_internal_scrapers = ('easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud', 'folders')
 		self.debrids = {'Real-Debrid': ('apis.real_debrid_api', 'RealDebridAPI'), 'rd_cloud': ('apis.real_debrid_api', 'RealDebridAPI'),
 		'rd_browse': ('apis.real_debrid_api', 'RealDebridAPI'), 'Premiumize.me': ('apis.premiumize_api', 'PremiumizeAPI'), 'pm_cloud': ('apis.premiumize_api', 'PremiumizeAPI'),
 		'pm_browse': ('apis.premiumize_api', 'PremiumizeAPI'), 'AllDebrid': ('apis.alldebrid_api', 'AllDebridAPI'), 'ad_cloud': ('apis.alldebrid_api', 'AllDebridAPI'),
-		'ad_browse': ('apis.alldebrid_api', 'AllDebridAPI'), 'TorBox': ('apis.torbox_api', 'TorBoxAPI'), 'tb_cloud': ('apis.torbox_api', 'TorBoxAPI'),
+		'ad_browse': ('apis.alldebrid_api', 'AllDebridAPI'), 'Offcloud': ('apis.offcloud_api', 'OffcloudAPI'), 'oc_cloud': ('apis.offcloud_api', 'OffcloudAPI'),
+		'oc_browse': ('apis.offcloud_api', 'OffcloudAPI'), 'TorBox': ('apis.torbox_api', 'TorBoxAPI'), 'tb_cloud': ('apis.torbox_api', 'TorBoxAPI'),
 		'tb_browse': ('apis.torbox_api', 'TorBoxAPI')}
 		self.retry_actions = settings.rescrape_settings()
 
@@ -188,7 +189,7 @@ class Sources():
 		else:
 			strip_uncached = all_uncached_results
 		results = [i for i in results if i not in strip_uncached]
-		cloud_scrapers = ('rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud')
+		cloud_scrapers = ('rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud')
 		cloud_results = [i for i in results if i.get('scrape_provider') in cloud_scrapers]
 		if self.ignore_scrape_filters: self.filters_ignored = True
 		else:
@@ -240,7 +241,7 @@ class Sources():
 				max_size = ((0.125 * (0.90 * string_to_float(get_setting('results.line_speed', '25'), '25'))) * duration)/1000
 			elif self.filter_size_method == 2:
 				max_size = string_to_float(get_setting('redlight.results.%s_size_max' % self.media_type, '10000'), '10000') / 1000
-			results = [i for i in results if i['scrape_provider'] == 'folders' or i['scrape_provider'] in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud') or min_size <= i['size'] <= max_size]
+			results = [i for i in results if i['scrape_provider'] == 'folders' or i['scrape_provider'] in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud') or min_size <= i['size'] <= max_size]
 		results += folder_results
 		return results
 
@@ -277,13 +278,13 @@ class Sources():
 
 	def _pin_scrapers_to_top_enabled(self):
 		if 'folders' in self.all_scrapers and settings.sort_to_top('folders'): return True
-		return any(settings.sort_to_top(p) for p in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud') if p in self.all_scrapers)
+		return any(settings.sort_to_top(p) for p in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud') if p in self.all_scrapers)
 
 	def sort_first(self, results):
 		try:
 			sort_first_scrapers = []
 			if 'folders' in self.all_scrapers and settings.sort_to_top('folders'): sort_first_scrapers.append('folders')
-			sort_first_scrapers.extend([i for i in self.all_scrapers if i in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud') and settings.sort_to_top(i)])
+			sort_first_scrapers.extend([i for i in self.all_scrapers if i in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud') and settings.sort_to_top(i)])
 			if not sort_first_scrapers: return results
 			sort_first = [i for i in results if i['scrape_provider'] in sort_first_scrapers]
 			sort_first.sort(key=lambda k: (self._sort_folder_to_top(k['scrape_provider']), k['quality_rank']))
@@ -351,7 +352,7 @@ class Sources():
 		self.active_external, self.external_providers = False, []
 
 	def internal_sources(self, prescrape=False, cloud_early=False):
-		active_sources = [i for i in self.active_internal_scrapers if i in ['easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud'] and i not in self.remove_scrapers]
+		active_sources = [i for i in self.active_internal_scrapers if i in ['easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud'] and i not in self.remove_scrapers]
 		if cloud_early:
 			active_sources = [i for i in active_sources if settings.cloud_scrape_before_external(i)]
 		else:
@@ -462,7 +463,7 @@ class Sources():
 		full_scrape = settings.rescrape_action_value('full_scrape', '2')
 		if full_scrape == 0: return False
 		if full_scrape == 2:
-			return kodi_utils.confirm_dialog(heading=self.meta.get('rootname', ''), text='Run a full source search?[CR][CR]Results limits, filters, and external scraper settings will apply.')
+			return kodi_utils.confirm_dialog(heading=self.meta.get('rootname', ''), text='Run a full source search now?[CR][CR]Continues past early prescrape results to external torrent scrapers and any remaining providers. Normal filters and limits apply.')
 		return True
 
 	def _reset_scrape_state(self, keep_disabled_ext_ignored=False):
@@ -488,7 +489,7 @@ class Sources():
 		if next_action == 'cache_ignored':
 			if next_setting in (1, 2) and self.active_external and self.orig_results and self.external_cache_check \
 																				and debrid.debrid_for_ext_cache_check(self.debrid_enabled):
-				if next_setting == 1 or kodi_utils.confirm_dialog(heading=self.meta.get('rootname', ''), text='No results.[CR]Retry With Cache Check Disabled?'):
+				if next_setting == 1 or kodi_utils.confirm_dialog(heading=self.meta.get('rootname', ''), text='No results.[CR]Retry With Cache Check Disabled? (Real Debrid only)'):
 					self.threads, self.prescrape, self.external_cache_check = [], False, False
 					return self.get_sources()
 			return self._process_post_results()
@@ -505,7 +506,7 @@ class Sources():
 			return self._process_post_results()
 		if next_action == 'with_all':
 			if next_setting in (1, 2) and self.active_external:
-				if next_setting == 1 or kodi_utils.confirm_dialog(heading=self.meta.get('rootname', ''), text='No results.[CR]Retry With All Scrapers?'):
+				if next_setting == 1 or kodi_utils.confirm_dialog(heading=self.meta.get('rootname', ''), text='No results.[CR]Retry With Disabled External Providers?'):
 					self.threads, self.disabled_ext_ignored, self.prescrape = [], True, False
 					return self.get_sources()
 			return self._process_post_results()
@@ -516,7 +517,7 @@ class Sources():
 					if self.episode_group_used:
 						self.params.update({'custom_season': None, 'custom_episode': None, 'episode_group_label': '[B]CUSTOM GROUP: S%02dE%02d[/B]' % (self.season, self.episode),
 											'skip_episode_group_check': True})
-						self.threads, self.disabled_ext_ignored, self.prescrape = [], True, True, False
+						self.threads, self.disabled_ext_ignored, self.prescrape = [], True, False
 						return self.playback_prep()
 					if next_setting == 2:
 						from indexers.dialogs import episode_groups_choice
@@ -531,7 +532,7 @@ class Sources():
 						if group_details:
 							season, episode = group_details['season'], group_details['episode']
 							self.params.update({'custom_season': season, 'custom_episode': episode, 'episode_group_label': '[B]CUSTOM GROUP: S%02dE%02d[/B]' % (season, episode)})
-							self.threads, self.disabled_ext_ignored, self.prescrape = [], True, True, False
+							self.threads, self.disabled_ext_ignored, self.prescrape = [], True, False
 							return self.playback_prep()
 			return self._process_post_results()
 		if next_action == 'ignore_filters':
@@ -622,7 +623,7 @@ class Sources():
 		names.update(i for i in self.remove_scrapers if i not in ('external',))
 		for thread in self.threads:
 			name = thread.getName()
-			if name in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'tb_cloud'):
+			if name in ('rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud'):
 				names.add(name)
 		return names
 
@@ -810,7 +811,7 @@ class Sources():
 		pack_result = ExternalPackSource(source).browse_packs(download=download)
 		if not pack_result:
 			return None
-		debrid_info = {'Real-Debrid': 'rd_browse', 'Premiumize.me': 'pm_browse', 'AllDebrid': 'ad_browse', 'TorBox': 'tb_browse'}.get(debrid_provider)
+		debrid_info = {'Real-Debrid': 'rd_browse', 'Premiumize.me': 'pm_browse', 'AllDebrid': 'ad_browse', 'Offcloud': 'oc_browse', 'TorBox': 'tb_browse'}.get(debrid_provider)
 		if download:
 			debrid_files, _pack_api = pack_result
 			return debrid_files, self.debrid_importer(debrid_info)
@@ -1053,7 +1054,7 @@ class Sources():
 						title, season, episode, pack = self.search_info['title'], self.search_info['season'], self.search_info['episode'], 'package' in item
 					else: title, season, episode, pack = self.get_ep_name(), self.get_season(), self.get_episode(), 'package' in item
 				else: title, season, episode, pack = self.get_search_title(), None, None, False
-				if cache_provider in ('Real-Debrid', 'Premiumize.me', 'AllDebrid', 'TorBox'):
+				if cache_provider in ('Real-Debrid', 'Premiumize.me', 'AllDebrid', 'Offcloud', 'TorBox'):
 					url = self.resolve_cached(cache_provider, item['url'], item['hash'], title, season, episode, pack)
 			elif item.get('scrape_provider', None) in self.default_internal_scrapers:
 				if item.get('scrape_provider') == 'aiostreams':

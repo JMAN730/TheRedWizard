@@ -1,3 +1,13 @@
+[COLOR red][B]Version 1.3.0[/B][/COLOR]
+- Offcloud support (authorise, cloud storage, cloud scrape, external cache check, resolve, packs, highlight colour) with QR OAuth Bearer API auth. Cached torrents use instant cache/download resolve. Uncached torrents add to cloud first.
+- Rescrape Actions: clearer text for Offer Full Search After Early Results (settings, results-list row, confirm dialog).
+- Rescrape With No Cache Check: labels and prompts now say (Real Debrid Only), matching external cache-check behaviour.
+- Choose Rescrape Actions: shorter title; list shows Action and Order only (help text in Settings description).
+- Rescrape With All Scrapers: renamed to clarify disabled external torrent providers only (not internal scrapers).
+- Fixed Rescrape With Episode Group crashing when a custom group was already applied.
+- Filter Results By Name (EasyNews, Debrid Cloud, Local Folders): exact episode title match before SxxExx - short show names like Wings no longer match Behind The Wings or Super Wings. TorBox Cloud TV still uses S/E-only matching; TorBox title filter applies to movies only.
+- TorBox > Search Cloud Storage > Filter Results By Name, text edited to clarify "Movies Only".
+
 [COLOR red][B]Version 1.2.9[/B][/COLOR]
 - Fixed scrape progress window staying open after a search returns no results (including unreleased episodes).
 - When a source search finds nothing, now shows a Red Light style "No results found" dialog after the scrape progress window closes, with the Kodi dialog as a fallback if the skin window cannot open.
