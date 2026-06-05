@@ -483,8 +483,19 @@ def watched_indicators():
 def sync_indicators():
 	return _resolve_provider_setting('sync_indicators')
 
+def playback_progress_provider():
+	"""Stored Playback & Progress Provider; never silently downgrade to Red Light local."""
+	return int(get_setting('redlight.sync_indicators', '0'))
+
 def migrate_sync_indicators_for_upgrade(had_existing_settings):
 	"""One-time: Playback & Progress Provider follows pre-split watched_indicators."""
+	if get_setting('redlight.sync_indicators_playback_reconciled', 'false') != 'true':
+		set_setting('sync_indicators_playback_reconciled', 'true')
+		sync_val = get_setting('redlight.sync_indicators', '0')
+		watched_val = get_setting('redlight.watched_indicators', '0')
+		if sync_val == '0' and watched_val in ('1', '2'):
+			set_setting('sync_indicators', watched_val)
+			return True
 	if get_setting('redlight.sync_indicators_migrated', 'false') == 'true': return False
 	set_setting('sync_indicators_migrated', 'true')
 	if not had_existing_settings: return False

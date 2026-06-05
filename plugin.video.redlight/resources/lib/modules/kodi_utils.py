@@ -62,7 +62,7 @@ def context_menu_items():
 
 def rescrape_items():
 	return [
-	{'name': 'Rescrape With No Cache Check (Real Debrid only)', 'value': 'cache_ignored'},
+	{'name': 'Rescrape With No Cache Check', 'value': 'cache_ignored'},
 	{'name': 'Rescrape With IMDb Year Data', 'value': 'imdb_year'},
 	{'name': 'Rescrape With All Scrapers (Disabled external providers only)', 'value': 'with_all'},
 	{'name': 'Rescrape With Episode Group', 'value': 'episode_group'},
@@ -484,6 +484,20 @@ def jsonrpc_set_system_setting(setting_id, value):
 	command = {'jsonrpc': '2.0', 'id': 1, 'method': 'Settings.SetSettingValue', 'params': {'setting': setting_id, 'value': value}}
 	try: return get_jsonrpc(command)
 	except: return None
+
+def clear_stream_file_state(play_url):
+	'''Clear Kodi HTTP stream resume (byte offset) so debrid CDN URLs always start at 0.'''
+	try:
+		if not play_url: return
+		base = play_url.split('|')[0].strip()
+		if not base.lower().startswith('http'): return
+		resume_reset = {'position': 0.0, 'total': 0.0}
+		for file_ref in (play_url, base):
+			get_jsonrpc({
+				'jsonrpc': '2.0', 'id': 1, 'method': 'Files.SetFileDetails',
+				'params': {'file': file_ref, 'media': 'video', 'filedetails': {'playcount': 0, 'lastplayed': '', 'resume': resume_reset}}
+			})
+	except: pass
 
 def open_settings():
 	try:

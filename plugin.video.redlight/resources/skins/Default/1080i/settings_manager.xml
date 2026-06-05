@@ -1703,7 +1703,7 @@
                           <property name="setting_label">Check for Cached Results (RD)</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.external.cache_check)]</property>
-                          <property name="setting_description">When enabled, Red Light checks whether external torrent results are cached on your Real Debrid account before listing them. You may see fewer links, but those shown should be instant on RD. All Debrid is not included in this check.</property>
+                          <property name="setting_description">When enabled, Red Light API-checks Real-Debrid cache status for external results (fewer RD rows, but those shown should be instant). Premiumize and AllDebrid are not API-checked by this setting — every hash is labelled cached for those providers. TorBox and Offcloud use their own Include uncached settings for API checks, not this toggle.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=external.cache_check)</onclick>
                       </item>
                       <item>

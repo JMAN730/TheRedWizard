@@ -3,7 +3,7 @@ import sys
 import json
 from threading import Lock
 from modules.metadata import tvshow_meta
-from modules.utils import get_datetime, get_current_timestamp, paginate_list, TaskPool, manual_function_import
+from modules.utils import get_datetime, get_current_timestamp, paginate_list, taskpool_tasks_enumerate, manual_function_import
 from modules import kodi_utils, settings, watched_status
 logger = kodi_utils.logger
 
@@ -308,7 +308,7 @@ class TVShows:
 			for _position, _id in enumerate(self.list, 1):
 				self.fetch_tvshow_meta(_position, _id)
 		else:
-			threads = TaskPool().tasks_enumerate(self.fetch_tvshow_meta, self.list, min(len(self.list), settings.max_threads()))
+			threads = taskpool_tasks_enumerate(self.fetch_tvshow_meta, self.list, min(len(self.list), settings.max_threads()))
 			[i.join() for i in threads]
 		self._meta_results.sort(key=lambda k: k[0])
 		for _position, meta in self._meta_results:

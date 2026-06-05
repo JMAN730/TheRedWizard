@@ -3,7 +3,7 @@ import sys
 import json
 from threading import Lock
 from modules.metadata import movie_meta, movieset_meta
-from modules.utils import get_datetime, get_current_timestamp, paginate_list, jsondate_to_datetime, TaskPool, manual_function_import
+from modules.utils import get_datetime, get_current_timestamp, paginate_list, jsondate_to_datetime, taskpool_tasks_enumerate, manual_function_import
 from modules import kodi_utils, settings, watched_status
 logger = kodi_utils.logger
 
@@ -287,7 +287,7 @@ class Movies:
 		rpdb_info = settings.rpdb_info('movie')
 		self.rpdb_api_key, self.rpdb_format = rpdb_info['rpdb_api_key'], rpdb_info['rpdb_format']
 		display_db = watched_status.get_database(self.watched_indicators)
-		sync_db = watched_status.get_database(settings.sync_indicators())
+		sync_db = watched_status.get_database(settings.playback_progress_provider())
 		self.watched_info = watched_status.watched_info_movie(display_db)
 		self.bookmarks = watched_status.get_bookmarks_movie(sync_db)
 		self.window_command = 'ActivateWindow(Videos,%s,return)' if self.is_external else 'Container.Update(%s)'
@@ -299,7 +299,7 @@ class Movies:
 			for _position, _id in enumerate(self.list, 1):
 				self.fetch_movie_meta(_position, _id)
 		else:
-			threads = TaskPool().tasks_enumerate(self.fetch_movie_meta, self.list, min(len(self.list), settings.max_threads()))
+			threads = taskpool_tasks_enumerate(self.fetch_movie_meta, self.list, min(len(self.list), settings.max_threads()))
 			[i.join() for i in threads]
 		self._meta_results.sort(key=lambda k: k[0])
 		for _position, meta in self._meta_results:

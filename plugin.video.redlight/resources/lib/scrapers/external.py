@@ -199,7 +199,7 @@ class source:
 				except: yield provider
 		final_lock = Lock()
 		def _debrid_api_check_enabled(provider):
-			# External cache check is Real Debrid only (All Debrid removed — API unreliable).
+			# External cache check API is Real-Debrid only; other debrids use local cache / instant assignment.
 			if provider == 'Real-Debrid':
 				return self.external_cache_check
 			if provider == 'TorBox':
@@ -249,7 +249,7 @@ class source:
 					batch = [dict(i, **{'cache_provider': provider, 'debrid': provider}) for i in results]
 					final_results.extend(batch)
 				return final_results
-			debrid_check_threads = [Thread(target=_process_cache_check, args=self.debrid_runners[item], name=item) for item in providers_needing_api]
+			debrid_check_threads = [Thread(target=_process_cache_check, args=self.debrid_runners[item], name=item) for item in providers_needing_api if item in self.debrid_runners]
 			debrid_deadline = time.time() + max(30, min(60, self.timeout + 15))
 			for provider in self.active_debrid:
 				if provider in providers_needing_api:

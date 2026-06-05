@@ -114,23 +114,26 @@ def build_episode_list(params):
 	show_clearlogo = meta_get('clearlogo') or ''
 	show_landscape = meta_get('landscape') or ''
 	watched_db = ws.get_database(watched_indicators)
+	progress_db = ws.get_database(settings.playback_progress_provider())
 	watched_info = ws.watched_info_episode(tmdb_id, watched_db)
 	if season == 'all':
 		total_seasons = meta_get('total_seasons')
 		episodes_data = sorted(all_episodes_meta(meta, settings.show_specials()), key=lambda x: (x['season'], x['episode']))
-		bookmarks = ws.get_bookmarks_all_episode(tmdb_id, total_seasons, watched_db)
+		bookmarks = ws.get_bookmarks_all_episode(tmdb_id, total_seasons, progress_db)
 		season_poster = show_poster
 		category_name = 'Season %s' % season if total_seasons == 1 else 'Seasons 1-%s' % total_seasons
 	else:
 		total_seasons = None
 		episodes_data = episodes_meta(season, meta)
-		bookmarks = ws.get_bookmarks_episode(tmdb_id, season, watched_db)
+		bookmarks = ws.get_bookmarks_episode(tmdb_id, season, progress_db)
 		try:
 			season_data = meta_get('season_data')
 			poster_path = next((i['poster_path'] for i in season_data if i['season_number'] == int(season)), None)
 			season_poster = 'https://image.tmdb.org/t/p/w780%s' % poster_path if poster_path is not None else show_poster
 		except: season_poster = show_poster
 		category_name = 'Season %s' % season
+	if not is_external:
+		kodi_utils.set_property('redlight.exit_params', kodi_utils.build_url({'mode': 'build_episode_list', 'season': str(season), 'tmdb_id': str(params.get('tmdb_id'))}))
 	kodi_utils.add_items(handle, list(_process()))
 	kodi_utils.set_sort_method(handle, 'episodes')
 	kodi_utils.set_content(handle, 'episodes')
@@ -227,7 +230,7 @@ def build_single_episode(list_type, params={}):
 			if not duration:
 				duration = meta_get('duration')
 				item['duration'] = duration
-			bookmarks = ws.get_bookmarks_episode(tmdb_id, season, watched_db)
+			bookmarks = ws.get_bookmarks_episode(tmdb_id, season, progress_db)
 			progress = ws.get_progress_status_episode(bookmarks, episode)
 			play_params = build_url({'mode': play_mode, 'media_type': 'episode', 'tmdb_id': tmdb_id, 'season': season, 'episode': episode, 'playcount': playcount,
 									'episode_id': episode_id, playback_key: playback_key})
@@ -300,7 +303,7 @@ def build_single_episode(list_type, params={}):
 	item_list_append = item_list.append
 	window_command = 'ActivateWindow(Videos,%s,return)' if is_external else 'Container.Update(%s)'
 	no_spoilers = settings.avoid_episode_spoilers()
-	watched_indicators, sync_indicators, display_format = settings.watched_indicators(), settings.sync_indicators(), settings.single_ep_display_format(is_external)
+	watched_indicators, sync_indicators, display_format = settings.watched_indicators(), settings.playback_progress_provider(), settings.single_ep_display_format(is_external)
 	current_date, current_time, adjust_hours = get_datetime(), get_current_timestamp(), settings.date_offset()
 	unwatched_info = settings.single_ep_unwatched_episodes()
 	api_key, mpaa_region_value = settings.tmdb_api_key(), settings.mpaa_region()
@@ -311,6 +314,7 @@ def build_single_episode(list_type, params={}):
 	playback_key = settings.playback_key()
 	play_mode = 'playback.%s' % playback_key
 	watched_db = ws.get_database(watched_indicators)
+	progress_db = ws.get_database(settings.playback_progress_provider())
 	if list_type == 'episode.next':
 		include_unwatched, include_unaired, nextep_content = settings.nextep_include_unwatched(), settings.nextep_include_unaired(), settings.nextep_method()
 		sort_key, sort_direction = settings.nextep_sort_key(), settings.nextep_sort_direction()

@@ -728,7 +728,7 @@ def playback_choice(params):
 	items = [{'line': 'Select Source', 'function': 'scrape'},
 			{'line': 'Rescrape & Select Source', 'function': 'clear_and_rescrape'}]
 	if debrid_for_ext_cache_check():
-		items.append({'line': 'Rescrape with External Cache Check (Real Debrid only) [B]%s[/B]' % check_cache_status, 'function': 'rescrape_external_cache_check'})
+		items.append({'line': 'Rescrape with External Cache Check [B]%s[/B]' % check_cache_status, 'function': 'rescrape_external_cache_check'})
 	items.extend([{'line': 'Clear Debrid Cache & Show Results', 'function': 'clear_debrid_cache_and_show'},
 				{'line': 'Scrape with Disabled External Providers', 'function': 'scrape_with_disabled'},
 				{'line': 'Scrape With All Filters Ignored', 'function': 'scrape_with_filters_ignored'}])

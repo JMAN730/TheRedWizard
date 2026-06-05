@@ -437,14 +437,22 @@ def trakt_reset_scrobble(params):
 		return kodi_utils.notification('Success', 3000)
 	except: return kodi_utils.notification('Error', 3000)
 
+def trakt_scrobble(action, media_type, tmdb_id, percent=0, season=None, episode=None):
+	if action not in ('start', 'stop', 'pause'): return
+	if media_type in ('movie', 'movies'):
+		data = {'movie': {'ids': {'tmdb': int(tmdb_id)}}, 'progress': float(percent)}
+	else:
+		data = {'show': {'ids': {'tmdb': int(tmdb_id)}}, 'episode': {'season': int(season), 'number': int(episode)}, 'progress': float(percent)}
+	call_trakt('scrobble/%s' % action, data=data)
+
 def trakt_progress(action, media, media_id, percent, season=None, episode=None, resume_id=None, refresh_trakt=False):
 	if action == 'clear_progress':
 		url = 'sync/playback/%s' % resume_id
 		result = call_trakt(url, is_delete=True)
 	else:
 		url = 'scrobble/pause'
-		if media in ('movie', 'movies'): data = {'movie': {'ids': {'tmdb': media_id}}, 'progress': float(percent)}
-		else: data = {'show': {'ids': {'tmdb': media_id}}, 'episode': {'season': int(season), 'number': int(episode)}, 'progress': float(percent)}
+		if media in ('movie', 'movies'): data = {'movie': {'ids': {'tmdb': int(media_id)}}, 'progress': float(percent)}
+		else: data = {'show': {'ids': {'tmdb': int(media_id)}}, 'episode': {'season': int(season), 'number': int(episode)}, 'progress': float(percent)}
 		call_trakt(url, data=data)
 	if refresh_trakt: trakt_sync_activities()
 

@@ -844,6 +844,7 @@ def default_settings():
 {'setting_id': 'simkl.refresh_widgets', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'simkl.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'sync_indicators_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'sync_indicators_playback_reconciled', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'tmdblist.list_sort', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'tmdblist.list_sort_name', 'setting_type': 'string', 'setting_default': 'Title'},
 {'setting_id': 'personal_list.list_sort', 'setting_type': 'string', 'setting_default': '0'},

@@ -88,30 +88,30 @@ class PremiumizeAPI:
 
 	def resolve_magnet(self, magnet_url, info_hash, store_to_cloud, title, season, episode):
 		try:
-			file_url = None
-			correct_files = []
-			append = correct_files.append
 			extensions = supported_video_extensions()
 			result = self.instant_transfer(magnet_url)
 			if not 'status' in result or result['status'] != 'success': return None
-			content = result.get('content')
-			valid_results = [i for i in content if any(i.get('path').lower().endswith(x) for x in extensions) and not i.get('link', '') == '']
-			if len(valid_results) == 0: return
+			content = result.get('content') or []
+			valid_results = [i for i in content if i.get('path') and any(i.get('path').lower().endswith(x) for x in extensions) and i.get('link')]
+			if not valid_results: return None
 			if season:
-				extras_filter = extras()
-				episode_title = re.sub(r'[^A-Za-z0-9-]+', '.', title.replace('\'', '').replace('&', 'and').replace('%', '.percent')).lower()
-				for item in valid_results:
-					if seas_ep_filter(season, episode, item['path'].split('/')[-1]): append(item)
-					if len(correct_files) == 0: continue
-					for i in correct_files:
-						compare_link = seas_ep_filter(season, episode, i['path'], split=True)
-						compare_link = re.sub(episode_title, '', compare_link)
-						if not any(x in compare_link for x in extras_filter):
-							file_url = i['link']
-							break
+				correct_files = [i for i in valid_results if seas_ep_filter(season, episode, i['path'].split('/')[-1])]
+				if not correct_files: return None
+				file_url = max(correct_files, key=lambda x: int(x.get('size') or 0)).get('link')
 			else:
-				file_url = max(valid_results, key=lambda x: int(x.get('size'))).get('link', None)
-				if not any(file_url.lower().endswith(x) for x in extensions): file_url = None
+				extras_filter = extras()
+				compare_title = re.sub(r'[^A-Za-z0-9-]+', '.', (title or '').replace('\'', '').replace('&', 'and').replace('%', '.percent')).lower()
+				file_url = None
+				for item in sorted(valid_results, key=lambda x: int(x.get('size') or 0), reverse=True):
+					filename = item['path'].split('/')[-1]
+					filename_info = re.sub(r'[^A-Za-z0-9-]+', '.', filename.replace('\'', '').replace('&', 'and').replace('%', '.percent')).lower()
+					filename_info = filename_info.replace(compare_title, '')
+					if any(x in filename_info for x in extras_filter): continue
+					file_url = item.get('link')
+					break
+				if not file_url:
+					file_url = max(valid_results, key=lambda x: int(x.get('size') or 0)).get('link')
+				if file_url and not any(file_url.lower().endswith(x) for x in extensions): file_url = None
 			if file_url:
 				if store_to_cloud: Thread(target=self.create_transfer, args=(magnet_url,)).start()
 				return self.add_headers_to_url(file_url)

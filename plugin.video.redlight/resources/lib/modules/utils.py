@@ -163,15 +163,16 @@ def subtract_dates(date1, date2):
 	return day
 
 def _parse_datetime(data, fmt):
-	import _strptime
 	try:
-		return datetime(*(time.strptime(data, fmt)[0:6]))
-	except ValueError:
+		import _strptime
+	except ImportError:
 		pass
-	strptime = getattr(datetime, 'strptime', None)
-	if callable(strptime):
-		try: return strptime(data, fmt)
-		except ValueError: pass
+	try:
+		parse = time.strptime
+		if callable(parse):
+			return datetime(*(parse(data, fmt)[0:6]))
+	except (ValueError, TypeError, AttributeError):
+		pass
 	return None
 
 def datetime_workaround(data, str_format):
