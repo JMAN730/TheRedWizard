@@ -32,27 +32,22 @@ def runner(params):
 		pack_choices, pack_api = pack_result
 		provider = downloader_provider_slug(getattr(pack_source, 'debrid', '') or source.get('cache_provider', ''))
 		pack_items = [dict(params, **{'pack_files': item, 'provider': provider}) for item in pack_choices]
-		icon = {'real-debrid': 'realdebrid', 'premiumize.me': 'premiumize', 'alldebrid': 'alldebrid', 'offcloud': 'offcloud', 'torbox': 'torbox'}.get(provider, 'box_office')
+		icon = {'real-debrid': 'realdebrid', 'premiumize.me': 'premiumize', 'alldebrid': 'alldebrid', 'torbox': 'torbox'}.get(provider, 'box_office')
 		chosen_list = select_pack_item(pack_items, kodi_utils.get_icon(icon))
 		if not chosen_list: return
 		show_package = source.get('package') == 'show'
 		image = meta.get('poster') or kodi_utils.get_icon('box_office')
 		default_name = '%s (%s)' % (clean_file_name(get_title(meta)), get_year(meta))
 		default_foldername = kodi_utils.kodi_dialog().input('Title', defaultt=default_name)
-		if not default_foldername:
-			default_foldername = default_name
 		threads = []
 		threads_append = threads.append
-		meta_json = json.dumps(meta)
 		for item in chosen_list:
-			item['default_foldername'] = default_foldername
-			item['meta'] = meta_json
 			if show_package:
 				season = find_season_in_release_title(item['pack_files']['filename'])
 				if season:
-					item_meta = dict(meta)
-					item_meta['season'] = season
-					item['meta'] = json.dumps(item_meta)
+					meta['season'] = season
+					item['meta'] = json.dumps(meta)
+					item['default_foldername'] = default_foldername
 			threads_append(Thread(target=Downloader(item).run))
 		kodi_utils.notification('Multi File Pack Download Started...', 3500, image)
 		for thread in threads:
@@ -140,22 +135,6 @@ class Downloader:
 		if not self.get_destination_folder(): return self.return_notification(_notification='Cancelled')
 		self.download_runner()
 
-	def _resolve_meta_for_source(self, source):
-		'''Use S/E parsed from the chosen release name when it differs from the search episode (e.g. S01E02 file while on S01E01).'''
-		if not self.meta or self.meta_get('media_type') != 'episode':
-			return self.meta
-		from modules.source_utils import parse_episode_from_filename, find_season_in_release_title
-		resolve_meta = dict(self.meta)
-		label = source.get('display_name') or source.get('name') or ''
-		normalized = normalize(label)
-		parsed_season = find_season_in_release_title(normalized)
-		if parsed_season is not None:
-			resolve_meta['season'] = parsed_season
-		parsed_episode = parse_episode_from_filename(normalized, resolve_meta.get('season'))
-		if parsed_episode is not None:
-			resolve_meta['episode'] = parsed_episode
-		return resolve_meta
-
 	def download_prep(self):
 		if 'meta' in self.params:
 			self.meta = json.loads(self.params_get('meta'))
@@ -217,8 +196,7 @@ class Downloader:
 				try:
 					source = json.loads(self.source)
 					if source.get('scrape_provider', '') == 'easynews': source['url_dl'] = source['down_url']
-					resolve_meta = self._resolve_meta_for_source(source)
-					url = Sources().resolve_sources(source, meta=resolve_meta)
+					url = Sources().resolve_sources(source, meta=self.meta)
 					if 'torbox' in url:
 						from apis.torbox_api import TorBoxAPI
 						url = TorBoxAPI().add_headers_to_url(url)
@@ -233,8 +211,6 @@ class Downloader:
 					from apis.alldebrid_api import AllDebridAPI as debrid_function
 				elif self.provider in ('torbox', 'TorBox', 'Torbox'):
 					from apis.torbox_api import TorBoxAPI as debrid_function
-				elif self.provider in ('offcloud', 'Offcloud'):
-					from apis.offcloud_api import OffcloudAPI as debrid_function
 				link = self.params_get('pack_files', {}).get('link')
 				if not link:
 					url = None
@@ -251,9 +227,6 @@ class Downloader:
 						url = api.add_headers_to_url(url)
 					else:
 						return self.return_notification(_notification='TorBox: Download link not ready. Wait until the torrent is finished in TorBox, then try Download Pack again.')
-				elif self.provider in ('offcloud', 'Offcloud'):
-					# display_magnet_pack / cache_download already returns direct Offcloud CDN URLs
-					url = link
 				else:
 					url = None
 		else:
@@ -305,12 +278,8 @@ class Downloader:
 			self.final_destination = self.down_folder
 		elif self.action in ('meta.single', 'meta.pack'):
 			default_name = '%s (%s)' % (self.title, self.year)
-			if self.action == 'meta.single':
-				folder_rootname = kodi_utils.kodi_dialog().input('Title', defaultt=default_name)
-				if not folder_rootname:
-					folder_rootname = default_name
-			else:
-				folder_rootname = self.params_get('default_foldername') or default_name
+			if self.action == 'meta.single': folder_rootname = kodi_utils.kodi_dialog().input('Title', defaultt=default_name)
+			else: folder_rootname = self.params_get('default_foldername', default_name)
 			if not folder_rootname: return False
 			if self.media_type == 'episode':
 				inter = os.path.join(self.down_folder, folder_rootname)

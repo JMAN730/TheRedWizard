@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import time
 import xbmc
 import json
 from threading import Thread
@@ -23,8 +22,6 @@ class RedLightPlayer(xbmc.Player):
 	def play_video(self, url, obj):
 		self.set_constants(url, obj)
 		ku.volume_checker()
-		if (self.url or '').lower().startswith('http'):
-			ku.clear_stream_file_state(self.url)
 		self.play(self.url, self.make_listing())
 		if not self.is_generic:
 			self.check_playback_start()
@@ -38,53 +35,32 @@ class RedLightPlayer(xbmc.Player):
 			try: del self.kodi_monitor
 			except: pass
 
-	def _playback_ready(self):
-		if not self.isPlayingVideo(): return False
-		if ku.get_visibility('Window.IsActive(fullscreenvideo)'): return True
-		try:
-			total = self.getTotalTime()
-			if total in ('0.0', '', 0.0, None): return False
-			if float(total) <= 0: return False
-			curr = self.getTime()
-			if curr in ('0.0', '', 0.0, None): return False
-			return float(curr) >= 0
-		except: return False
-
 	def check_playback_start(self):
 		if self.is_generic:
 			self.playback_successful = True
 			return
 		resolve_percent = 0
-		playing_item = getattr(self.sources_object, 'playing_item', None) or {}
-		heavy_cloud = playing_item.get('scrape_provider') in ('tb_cloud', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud')
-		heavy_quality = (playing_item.get('quality') or '').upper() in ('4K',)
-		startup_deadline = time.time() + (90 if heavy_cloud or heavy_quality else 45)
-		progress_dialog = getattr(self.sources_object, 'progress_dialog', None)
 		while self.playback_successful is None:
 			ku.hide_busy_dialog()
-			if progress_dialog and progress_dialog.skip_resolved():
-				self.playback_successful = False
-			elif progress_dialog and (progress_dialog.iscanceled() or self.kodi_monitor.abortRequested()):
+			if not self.sources_object.progress_dialog: self.playback_successful = True
+			elif self.sources_object.progress_dialog.skip_resolved(): self.playback_successful = False
+			elif self.sources_object.progress_dialog.iscanceled() or self.kodi_monitor.abortRequested():
 				self.sources_object.cancel_all_playback = True
 				self.sources_object._resolve_user_cancelled = True
 				self.playback_successful = False
 				break
 			elif resolve_percent >= 100:
-				if self._playback_ready():
-					self.playback_successful = True
-					break
-				if time.time() >= startup_deadline:
-					self.playback_successful = bool(self.isPlayingVideo())
-					break
-				resolve_percent = 99.0
+				self.playback_successful = False
+				break
 			elif ku.get_visibility('Window.IsTopMost(okdialog)'):
 				ku.execute_builtin('SendClick(okdialog, 11)')
 				self.playback_successful = False
-			elif self._playback_ready():
-				self.playback_successful = True
+			elif self.isPlayingVideo():
+				try:
+					if self.getTotalTime() not in ('0.0', '', 0.0, None) and ku.get_visibility('Window.IsActive(fullscreenvideo)'): self.playback_successful = True
+				except: pass
 			resolve_percent = round(resolve_percent + 0.26, 1)
-			if progress_dialog:
-				progress_dialog.update_resolver(percent=min(resolve_percent, 100))
+			self.sources_object.progress_dialog.update_resolver(percent=resolve_percent)
 			ku.sleep(50)
 
 	def playback_close_dialogs(self):
@@ -107,14 +83,10 @@ class RedLightPlayer(xbmc.Player):
 				show_stinger, stinger_use_chapters, stingers_percentage_fallback = st.stingers_show(), st.stingers_use_chapters(), st.stingers_percentage()
 				play_random_continual, self.autoplay_nextep, self.autoscrape_nextep = False, False, False
 			while total_check_time <= 30 and not ku.get_visibility('Window.IsActive(fullscreenvideo)'):
-				if self.isPlayingVideo() and not ensure_dialog_dead:
-					ensure_dialog_dead = True
-					self.playback_close_dialogs()
 				ku.sleep(100)
 				total_check_time += 0.10
 			ku.hide_busy_dialog()
 			ku.sleep(1000)
-			self._simkl_scrobble_start()
 			if st.auto_enable_subs() and not st.submaker_enabled(): self.showSubtitles(True)
 			while self.isPlayingVideo():
 				try:
@@ -194,7 +166,7 @@ class RedLightPlayer(xbmc.Player):
 				info_tag.setDuration(duration), info_tag.setCountries(country), info_tag.setTrailer(trailer), info_tag.setPremiered(premiered)
 				info_tag.setTagLine(tagline), info_tag.setStudios(studio), info_tag.setIMDBNumber(self.imdb_id), info_tag.setGenres(genre)
 				info_tag.setWriters(writer), info_tag.setDirectors(director), info_tag.setUniqueIDs({'imdb': self.imdb_id, 'tmdb': str(self.tmdb_id)})
-				ku.set_cast(info_tag, cast)
+				info_tag.setCast([ku.kodi_actor()(name=item['name'], role=item['role'], thumbnail=item['thumbnail']) for item in cast])
 			else:
 				if st.avoid_episode_spoilers() and int(self.meta_get('playcount', '0')) == 0: plot = self.meta_get('tvshow_plot') or '* Hidden to Prevent Spoilers *'
 				else: plot = self.meta_get('plot') or self.meta_get('tvshow_plot')
@@ -206,28 +178,16 @@ class RedLightPlayer(xbmc.Player):
 				info_tag.setMpaa(mpaa), info_tag.setDuration(duration), info_tag.setTrailer(trailer), info_tag.setFirstAired(premiered)
 				info_tag.setStudios(studio), info_tag.setIMDBNumber(self.imdb_id), info_tag.setGenres(genre), info_tag.setWriters(writer)
 				info_tag.setDirectors(director), info_tag.setUniqueIDs({'imdb': self.imdb_id, 'tmdb': str(self.tmdb_id), 'tvdb': str(self.tvdb_id)})
-				ku.set_cast(info_tag, cast)
+				info_tag.setCast([ku.kodi_actor()(name=item['name'], role=item['role'], thumbnail=item['thumbnail']) for item in cast])
 				info_tag.setFilenameAndPath(self.url)
 			self.set_resume_point(listitem)
 			self.set_playback_properties()
 		return listitem
 
-	def _simkl_scrobble_start(self):
-		if self.is_generic or st.sync_indicators() != 2 or not st.simkl_user_active(): return
-		from apis.simkl_api import simkl_scrobble
-		percent = self.playback_percent if self.playback_percent else 0
-		Thread(target=simkl_scrobble, args=('start', self.media_type, self.tmdb_id, percent, self.season, self.episode)).start()
-
-	def _simkl_scrobble_stop(self, percent):
-		if self.is_generic or st.sync_indicators() != 2 or not st.simkl_user_active(): return
-		from apis.simkl_api import simkl_scrobble
-		Thread(target=simkl_scrobble, args=('stop', self.media_type, self.tmdb_id, percent, self.season, self.episode)).start()
-
 	def media_watched_marker(self, force_watched=False):
 		self.media_marked = True
 		try:
 			if self.current_point >= 90 or force_watched:
-				self._simkl_scrobble_stop(100)
 				watched_function = ws.mark_movie if self.media_type == 'movie' else ws.mark_episode
 				watched_params = {'action': 'mark_as_watched', 'tmdb_id': self.tmdb_id, 'title': self.title, 'year': self.year, 'season': self.season, 'episode': self.episode,
 									'tvdb_id': self.tvdb_id, 'from_playback': 'true'}
@@ -307,7 +267,6 @@ class RedLightPlayer(xbmc.Player):
 			self.meta_get, self.kodi_monitor, self.playback_percent = self.meta.get, ku.kodi_monitor(), self.sources_object.playback_percent or 0.0
 			self.playing_filename = self.sources_object.playing_filename
 			self.media_marked, self.nextep_info_gathered, self.movie_stingers_run = False, False, False
-			self.current_point = 0
 			self.subs_searched = False
 			self.playback_successful, self.cancel_all_playback = None, False
 			self.playing_item = self.sources_object.playing_item

@@ -6,8 +6,8 @@ from threading import Thread, Lock
 from caches.external_cache import external_cache
 from caches.settings_cache import get_setting
 from modules import kodi_utils, source_utils
-from modules.debrid import RD_check, OC_check, TB_check, query_local_cache
-from modules.settings import include_uncached_torbox, include_uncached_offcloud
+from modules.debrid import RD_check, TB_check, query_local_cache
+from modules.settings import include_uncached_torbox
 from modules.utils import clean_file_name
 # logger = kodi_utils.logger
 
@@ -33,7 +33,7 @@ class source:
 							('sources_sd', '', self._quality_length_sd), ('sources_total', '', self.quality_length_final))
 		self.count_tuple_final = (('final_4k', '4K', self._quality_length), ('final_1080p', '1080p', self._quality_length), ('final_720p', '720p', self._quality_length),
 									('final_sd', '', self._quality_length_sd), ('final_total', '', self.quality_length_final))
-		self.debrid_runners = {'Real-Debrid': ('Real-Debrid', RD_check), 'Offcloud': ('Offcloud', OC_check), 'TorBox': ('TorBox', TB_check)}
+		self.debrid_runners = {'Real-Debrid': ('Real-Debrid', RD_check), 'TorBox': ('TorBox', TB_check)}
 		self.cloud_scrapers = [i for i in (cloud_scrapers or []) if i != 'external']
 		self.processed_cloud_scrapers = set()
 
@@ -199,13 +199,11 @@ class source:
 				except: yield provider
 		final_lock = Lock()
 		def _debrid_api_check_enabled(provider):
-			# External cache check API is Real-Debrid only; other debrids use local cache / instant assignment.
+			# External cache check is Real Debrid only (All Debrid removed — API unreliable).
 			if provider == 'Real-Debrid':
 				return self.external_cache_check
 			if provider == 'TorBox':
 				return include_uncached_torbox()
-			if provider == 'Offcloud':
-				return include_uncached_offcloud()
 			return False
 		def _process_cache_check(provider, function):
 			if _debrid_api_check_enabled(provider):
@@ -249,7 +247,7 @@ class source:
 					batch = [dict(i, **{'cache_provider': provider, 'debrid': provider}) for i in results]
 					final_results.extend(batch)
 				return final_results
-			debrid_check_threads = [Thread(target=_process_cache_check, args=self.debrid_runners[item], name=item) for item in providers_needing_api if item in self.debrid_runners]
+			debrid_check_threads = [Thread(target=_process_cache_check, args=self.debrid_runners[item], name=item) for item in providers_needing_api]
 			debrid_deadline = time.time() + max(30, min(60, self.timeout + 15))
 			for provider in self.active_debrid:
 				if provider in providers_needing_api:

@@ -334,11 +334,6 @@ def sync_settings(params={}):
 	if insert_list:
 		settings_cache.set_many(insert_list, load_properties=load_properties)
 		migrated = True
-	try:
-		from modules.settings import migrate_simkl_context_menu_for_upgrade, migrate_sync_indicators_for_upgrade
-		if migrate_simkl_context_menu_for_upgrade(had_existing_settings): migrated = True
-		if migrate_sync_indicators_for_upgrade(had_existing_settings): migrated = True
-	except: pass
 	if migrated and had_existing_settings:
 		kodi_utils.set_property(_SETTINGS_DB_MIGRATED, 'true')
 	if load_properties:
@@ -454,8 +449,7 @@ def default_settings():
 {'setting_id': 'update.username', 'setting_type': 'string', 'setting_default': 'The-Red-Wizard'},
 {'setting_id': 'update.location', 'setting_type': 'string', 'setting_default': 'TheRedWizard.github.io'},
 #==================== Watched Indicators
-{'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Red Light', '1': 'Trakt', '2': 'Simkl'}},
-{'setting_id': 'sync_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Red Light', '1': 'Trakt', '2': 'Simkl'}},
+{'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Red Light', '1': 'Trakt'}},
 #======+============= Trakt Cache
 {'setting_id': 'trakt.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},
 {'setting_id': 'trakt.refresh_widgets', 'setting_type': 'boolean', 'setting_default': 'true'},
@@ -536,6 +530,7 @@ def default_settings():
 #==================== Widgets
 {'setting_id': 'widget_refresh_timer', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'widget_refresh_notification', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'widget_hide_watched', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'widget_hide_next_page', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== RPDb Ratings Posters
 {'setting_id': 'rpdb_enabled', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'None', '1': 'Movies', '2': 'TV Shows', '3': 'Both'}},
@@ -543,10 +538,10 @@ def default_settings():
 #==================== Context Menu
 {'setting_id': 'context_menu.enabled', 'setting_type': 'string',
 'setting_default': 'extras,options,playback_options,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-'simkl_manager,trakt_manager,personal_manager,tmdb_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
+'trakt_manager,personal_manager,tmdb_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
 {'setting_id': 'context_menu.order', 'setting_type': 'string',
 'setting_default': 'extras,options,playback_options,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-'simkl_manager,trakt_manager,personal_manager,tmdb_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
+'trakt_manager,personal_manager,tmdb_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
 
 
 #==================================================================================#
@@ -605,7 +600,6 @@ def default_settings():
 {'setting_id': 'external_scraper.name', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'external.cache_check', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'external.include_uncached_torbox', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'external.include_uncached_offcloud', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== Real Debrid
 {'setting_id': 'rd.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'rd.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
@@ -641,18 +635,6 @@ def default_settings():
 {'setting_id': 'autoplay.ad_cloud', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'results.sort_adcloud_first', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'ad.priority', 'setting_type': 'action', 'setting_default': '10', 'min_value': '1', 'max_value': '10'},
-#==================== Offcloud
-{'setting_id': 'oc.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},
-{'setting_id': 'oc.account_id', 'setting_type': 'string', 'setting_default': 'empty_setting'},
-{'setting_id': 'oc.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'store_resolved_to_cloud.offcloud', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'None', '1': 'All', '2': 'Show Packs Only'}},
-{'setting_id': 'oc.notify_cloud_ready', 'setting_type': 'boolean', 'setting_default': 'true'},
-{'setting_id': 'provider.oc_cloud', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'oc_cloud.title_filter', 'setting_type': 'boolean', 'setting_default': 'true'},
-{'setting_id': 'check.oc_cloud', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'autoplay.oc_cloud', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'results.sort_occloud_first', 'setting_type': 'boolean', 'setting_default': 'true'},
-{'setting_id': 'oc.priority', 'setting_type': 'action', 'setting_default': '10', 'min_value': '1', 'max_value': '10'},
 #==================== TorBox
 {'setting_id': 'tb.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'tb.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
@@ -761,7 +743,6 @@ def default_settings():
 {'setting_id': 'provider.rd_highlight', 'setting_type': 'string', 'setting_default': 'FF3C9900'},
 {'setting_id': 'provider.pm_highlight', 'setting_type': 'string', 'setting_default': 'FFFF3300'},
 {'setting_id': 'provider.ad_highlight', 'setting_type': 'string', 'setting_default': 'FFE6B800'},
-{'setting_id': 'provider.oc_highlight', 'setting_type': 'string', 'setting_default': 'FF5C6BC0'},
 {'setting_id': 'provider.tb_highlight', 'setting_type': 'string', 'setting_default': 'FF01662A'},
 {'setting_id': 'scraper_4k_highlight', 'setting_type': 'string', 'setting_default': 'FFFF00FE'},
 {'setting_id': 'scraper_1080p_highlight', 'setting_type': 'string', 'setting_default': 'FFE6B800'},
@@ -837,14 +818,6 @@ def default_settings():
 {'setting_id': 'trakt.expires', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'trakt.refresh', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'trakt.token', 'setting_type': 'string', 'setting_default': '0'},
-#==================== Simkl
-{'setting_id': 'simkl.user', 'setting_type': 'string', 'setting_default': 'empty_setting'},
-{'setting_id': 'simkl.token', 'setting_type': 'string', 'setting_default': '0'},
-{'setting_id': 'simkl.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},
-{'setting_id': 'simkl.refresh_widgets', 'setting_type': 'boolean', 'setting_default': 'true'},
-{'setting_id': 'simkl.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'sync_indicators_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'sync_indicators_playback_reconciled', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'tmdblist.list_sort', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'tmdblist.list_sort_name', 'setting_type': 'string', 'setting_default': 'Title'},
 {'setting_id': 'personal_list.list_sort', 'setting_type': 'string', 'setting_default': '0'},

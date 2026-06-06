@@ -30,7 +30,7 @@ def extras_button_label_values():
 				'show_director': 'Director', 'show_options': 'Options', 'show_recommended': 'Recommended', 'show_related': 'Related', 'show_more_like_this': 'More Like This',
 				'show_similar': 'Similar', 'show_reviews': 'Reviews', 'show_comments': 'Comments', 'show_trivia': 'Trivia', 'show_blunders': 'Blunders',
 				'show_year': 'More Year', 'show_genre': 'More Genres', 'show_network': 'More Network',
-				'show_simkl_manager': 'Simkl Manager', 'show_trakt_manager': 'Trakt Manager', 'show_personallists_manager': 'Personal Lists', 'show_tmdb_manager': 'TMDb Lists',
+				'show_trakt_manager': 'Trakt Lists', 'show_personallists_manager': 'Personal Lists', 'show_tmdb_manager': 'TMDb Lists',
 				'show_favorites_manager': 'Favorites Lists', 'playback_choice': 'Play Options', 'show_plot': 'Plot', 'show_keywords': 'Keywords',
 				'show_in_trakt_lists': 'In Trakt Lists', 'close_all': 'Close'},
 			'tvshow':
@@ -38,7 +38,7 @@ def extras_button_label_values():
 				'play_nextep': 'Play Next', 'show_options': 'Options', 'show_recommended': 'Recommended', 'show_related': 'Related', 'show_more_like_this': 'More Like This',
 				'show_similar': 'Similar', 'show_reviews': 'Reviews', 'show_comments': 'Comments', 'show_trivia': 'Trivia', 'show_blunders': 'Blunders',
 				'show_year': 'More Year', 'show_genre': 'More Genres', 'show_network': 'More Network',
-				'show_simkl_manager': 'Simkl Manager', 'show_trakt_manager': 'Trakt Manager', 'show_personallists_manager': 'Personal Lists', 'show_tmdb_manager': 'TMDb Lists',
+				'show_trakt_manager': 'Trakt Lists', 'show_personallists_manager': 'Personal Lists', 'show_tmdb_manager': 'TMDb Lists',
 				'show_favorites_manager': 'Favorites Lists', 'play_random_episode': 'Play Random', 'show_plot': 'Plot', 'show_keywords': 'Keywords',
 				'show_in_trakt_lists': 'In Trakt Lists', 'close_all': 'Close'}}
 
@@ -55,8 +55,8 @@ def context_menu_items():
 	{'name': 'Browse Movie Set', 'value': 'browse_movie_set'}, {'name': 'Browse TV Seasons', 'value': 'browse_seasons'},
 	{'name': 'Browse Season Episodes', 'value': 'browse_episodes'}, {'name': 'Browse Recommended', 'value': 'recommended'}, {'name': 'Browse Related', 'value': 'related'},
 	{'name': 'Browse More Like This', 'value': 'more_like_this'}, {'name': 'Browse Similar', 'value': 'similar'}, {'name': 'In Trakt Lists', 'value': 'in_trakt_list'},
-	{'name': 'Simkl Manager', 'value': 'simkl_manager'}, {'name': 'Trakt Manager', 'value': 'trakt_manager'}, {'name': 'Personal Lists Manager', 'value': 'personal_manager'},
-	{'name': 'TMDb Lists Manager', 'value': 'tmdb_manager'}, {'name': 'Favorites Manager', 'value': 'favorites_manager'}, {'name': 'Mark Watched/Unwatched (Red Light)', 'value': 'mark_watched'},
+	{'name': 'Trakt Lists Manager', 'value': 'trakt_manager'}, {'name': 'Personal Lists Manager', 'value': 'personal_manager'},
+	{'name': 'TMDb Lists Manager', 'value': 'tmdb_manager'}, {'name': 'Favorites Manager', 'value': 'favorites_manager'}, {'name': 'Mark Watched/Unwatched', 'value': 'mark_watched'},
 	{'name': 'Unmark Previous Watched Episode', 'value': 'unmark_previous_episode'}, {'name': 'Exit List', 'value': 'exit'}, {'name': 'Refresh Widgets', 'value': 'refresh'},
 	{'name': 'Reload Widgets', 'value': 'reload'}]
 
@@ -64,10 +64,10 @@ def rescrape_items():
 	return [
 	{'name': 'Rescrape With No Cache Check', 'value': 'cache_ignored'},
 	{'name': 'Rescrape With IMDb Year Data', 'value': 'imdb_year'},
-	{'name': 'Rescrape With All Scrapers (Disabled external providers only)', 'value': 'with_all'},
+	{'name': 'Rescrape With All Scrapers', 'value': 'with_all'},
 	{'name': 'Rescrape With Episode Group', 'value': 'episode_group'},
 	{'name': 'Rescrape with Filters Ignored', 'value': 'ignore_filters'},
-	{'name': 'Offer Full Search After Early Results', 'value': 'full_scrape'}]
+	{'name': 'Start Full Scrape (After Prescrape)', 'value': 'full_scrape'}]
 
 def video_extensions():
 	return ('m4v', '3g2', '3gp', 'nsv', 'tp', 'ts', 'ty', 'pls', 'rm', 'rmvb', 'mpd', 'ifo', 'mov', 'qt', 'divx', 'xvid', 'bivx', 'vob', 'nrg', 'img', 'iso', 'udf', 'pva',
@@ -89,49 +89,7 @@ def get_infolabel(label):
 	return xbmc.getInfoLabel(label)
 
 def kodi_actor():
-	actor = getattr(xbmc, 'Actor', None)
-	if actor: return actor
-	return getattr(xbmcgui, 'Actor', None)
-
-def _android_kodi():
-	try:
-		if 'android' in xbmc.getPlatform().lower(): return True
-	except:
-		pass
-	try:
-		return os.path.exists('/system/build.prop')
-	except:
-		return False
-
-def call_method(obj, name, *args):
-	try:
-		fn = getattr(obj, name, None)
-		if callable(fn): fn(*args)
-	except Exception:
-		pass
-
-def get_video_info_tag(listitem):
-	try:
-		fn = getattr(listitem, 'getVideoInfoTag', None)
-		if fn is None: return None
-		if callable(fn): return fn(True)
-		return fn
-	except Exception:
-		return None
-
-def set_listitem_properties(listitem, properties):
-	call_method(listitem, 'setProperties', properties)
-
-def set_cast(info_tag, cast):
-	if not cast or not info_tag: return
-	actor_cls = kodi_actor()
-	try:
-		if actor_cls:
-			call_method(info_tag, 'setCast', [actor_cls(name=item.get('name', ''), role=item.get('role', ''), thumbnail=item.get('thumbnail', '')) for item in cast])
-			return
-	except Exception:
-		pass
-	call_method(info_tag, 'setCast', [{'name': item.get('name', ''), 'role': item.get('role', ''), 'thumbnail': item.get('thumbnail', '')} for item in cast])
+	return xbmc.Actor
 
 def translate_path(_path):
 	return xbmcvfs.translatePath(_path)
@@ -219,7 +177,6 @@ def add_dir(handle, url_params, list_name, icon_image='folder', fanart_image=Non
 	add_item(handle, url, listitem, isFolder)
 
 def make_listitem():
-	if _android_kodi(): return xbmcgui.ListItem()
 	return xbmcgui.ListItem(offscreen=True)
 
 def add_item(handle, url, listitem, isFolder):
@@ -484,20 +441,6 @@ def jsonrpc_set_system_setting(setting_id, value):
 	command = {'jsonrpc': '2.0', 'id': 1, 'method': 'Settings.SetSettingValue', 'params': {'setting': setting_id, 'value': value}}
 	try: return get_jsonrpc(command)
 	except: return None
-
-def clear_stream_file_state(play_url):
-	'''Clear Kodi HTTP stream resume (byte offset) so debrid CDN URLs always start at 0.'''
-	try:
-		if not play_url: return
-		base = play_url.split('|')[0].strip()
-		if not base.lower().startswith('http'): return
-		resume_reset = {'position': 0.0, 'total': 0.0}
-		for file_ref in (play_url, base):
-			get_jsonrpc({
-				'jsonrpc': '2.0', 'id': 1, 'method': 'Files.SetFileDetails',
-				'params': {'file': file_ref, 'media': 'video', 'filedetails': {'playcount': 0, 'lastplayed': '', 'resume': resume_reset}}
-			})
-	except: pass
 
 def open_settings():
 	try:
