@@ -1954,6 +1954,7 @@
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.oc.cache_check),true)</visible>
                           <property name="setting_label">Include Uncached Results (External Scrapers)</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.oc.include_uncached)]</property>
@@ -2358,6 +2359,7 @@
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.tb.cache_check),true)</visible>
                           <property name="setting_label">Include Uncached Results (External Scrapers)</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.tb.include_uncached)]</property>

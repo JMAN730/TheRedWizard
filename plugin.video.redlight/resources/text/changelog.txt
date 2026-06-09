@@ -1,3 +1,6 @@
+[COLOR red][B]Version 1.2.9f[/B][/COLOR]
+- TorBox and Offcloud: Include Uncached Results (External Scrapers) shown only when Check Cached Status is enabled, matching Premiumize (v1.2.9e). Include uncached has no effect while cache check is off.
+
 [COLOR red][B]Version 1.2.9e[/B][/COLOR]
 - Intended functionality can have unintended consequences! Reverted v1.2.6 cancel navigation: stopping playback or resolve during source selection closes the progress dialog and returns to the episode/results browser instead of reopening the sources list.
 - Resolve cancel: Fixed occasional FenLightAM behaviour where backing out of resolve causes Kodi crash.

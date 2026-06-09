@@ -345,10 +345,10 @@ def any_external_cache_check():
 	return False
 
 def include_uncached_torbox():
-	return get_setting('redlight.tb.include_uncached', 'false') == 'true'
+	return get_setting('redlight.tb.include_uncached', 'false') == 'true' and debrid_cache_check('TorBox')
 
 def include_uncached_offcloud():
-	return get_setting('redlight.oc.include_uncached', 'false') == 'true'
+	return get_setting('redlight.oc.include_uncached', 'false') == 'true' and debrid_cache_check('Offcloud')
 
 def include_uncached_premiumize():
 	return get_setting('redlight.pm.include_uncached', 'false') == 'true' and debrid_cache_check('Premiumize.me')
