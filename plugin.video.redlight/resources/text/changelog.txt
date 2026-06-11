@@ -1,3 +1,7 @@
+[COLOR red][B]Version 1.2.9i[/B][/COLOR]
+- Sources Browse (cached pack): close the results list before the pack file picker and playback so video is not hidden behind the list; Back during episode browse no longer restarts scraping when playback is already active.
+- Sources Browse: limited to pack results only (single-file torrents use click-to-play); empty pack lists fall back to the same resolve path as clicking the source; one-file packs play without an extra picker step.
+
 [COLOR red][B]Version 1.2.9h[/B][/COLOR]
 - Tools: Red Light Favorites & Progress Import & Export — backup Red Light favorites and local progress to JSON; import with merge (keep furthest progress, keep local-only items) or replace per section in the file.
 - Settings: Import & Export Directory under General, default folder for Red Light favorites and progress backup file browse. On Android, folder browse for non-empty download/backup paths starts at local root so parent navigation is not blocked (a Kodi browser quirk).

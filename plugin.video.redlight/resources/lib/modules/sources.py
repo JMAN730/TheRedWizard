@@ -623,8 +623,26 @@ class Sources():
 			return
 		action, chosen_item = window_result
 		if not action:
+			try:
+				if kodi_utils.kodi_player().isPlayingVideo():
+					self._kill_progress_dialog(join_timeout=1.0)
+					self.resolve_dialog_made = False
+					return
+			except:
+				pass
 			self._kill_progress_dialog(join_timeout=3.0)
 			self.resolve_dialog_made = False
+		elif action == 'browse_pack':
+			self.resolve_dialog_made = False
+			self.debridPacks(chosen_item.get('provider'), chosen_item.get('name'), chosen_item.get('magnet_url'), chosen_item.get('info_hash'),
+				source_item=chosen_item.get('source_item'))
+			try:
+				if kodi_utils.kodi_player().isPlayingVideo():
+					self._kill_progress_dialog(join_timeout=1.0)
+					return
+			except:
+				pass
+			return self.display_results(results)
 		elif action == 'play':
 			kodi_utils.clear_property(PROP_RESOLVE_CANCEL)
 			self.play_file(results, chosen_item)
@@ -1235,25 +1253,57 @@ class Sources():
 			return None
 		return result[0]
 
-	def debridPacks(self, debrid_provider, name, magnet_url, info_hash, download=False):
+	def _resolve_browse_pack_fallback(self, source_item, debrid_provider):
+		if not source_item:
+			return None
+		try:
+			if self.meta.get('media_type') == 'episode':
+				if hasattr(self, 'search_info'):
+					title, season, episode = self.search_info['title'], self.search_info['season'], self.search_info['episode']
+				else:
+					title, season, episode = self.get_ep_name(), self.get_season(), self.get_episode()
+				pack = 'package' in source_item
+			else:
+				title, season, episode, pack = self.get_search_title(), None, None, 'package' in source_item
+			return self.resolve_cached(debrid_provider, source_item.get('url'), source_item.get('hash'), title, season, episode, pack)
+		except:
+			return None
+
+	def debridPacks(self, debrid_provider, name, magnet_url, info_hash, download=False, source_item=None):
 		from modules.debrid import ExternalPackSource, normalize_debrid_provider
 		debrid_provider = normalize_debrid_provider(debrid_provider)
 		source = {'url': magnet_url, 'hash': info_hash, 'debrid': debrid_provider, 'cache_provider': debrid_provider, 'name': name}
 		pack_result = ExternalPackSource(source).browse_packs(download=download)
 		if not pack_result:
-			return None
+			if download:
+				return None
+			link = self._resolve_browse_pack_fallback(source_item, debrid_provider)
+			if not link:
+				return None
+			self._close_progress_before_modal()
+			link = self._ensure_play_headers(link, {'debrid': debrid_provider, 'cache_provider': debrid_provider})
+			return RedLightPlayer().run(link, 'video')
 		debrid_info = {'Real-Debrid': 'rd_browse', 'Premiumize.me': 'pm_browse', 'AllDebrid': 'ad_browse', 'Offcloud': 'oc_browse', 'TorBox': 'tb_browse'}.get(debrid_provider)
 		if download:
 			debrid_files, _pack_api = pack_result
 			return debrid_files, self.debrid_importer(debrid_info)
 		debrid_files = pack_result
-		list_items = [{'line1': '%.2f GB | %s' % (float(item['size'])/1073741824, clean_file_name(item['filename']).upper())} for item in debrid_files]
-		kwargs = {'items': json.dumps(list_items), 'heading': name, 'enumerate': 'true', 'narrow_window': 'true'}
-		chosen_result = kodi_utils.select_dialog(debrid_files, **kwargs)
-		if chosen_result is None: return None
+		self._close_progress_before_modal()
+		if len(debrid_files) == 1:
+			chosen_result = debrid_files[0]
+		else:
+			list_items = [{'line1': '%.2f GB | %s' % (float(item['size'])/1073741824, clean_file_name(item['filename']).upper())} for item in debrid_files]
+			kwargs = {'items': json.dumps(list_items), 'heading': name, 'enumerate': 'true', 'narrow_window': 'true'}
+			chosen_result = kodi_utils.select_dialog(debrid_files, **kwargs)
+			if chosen_result is None:
+				return None
 		link = self.resolve_internal(debrid_info, chosen_result['link'], '')
-		name = chosen_result['filename']
-		self._kill_progress_dialog()
+		if not link:
+			link = self._resolve_browse_pack_fallback(source_item, debrid_provider)
+		if not link:
+			return None
+		link = self._ensure_play_headers(link, {'debrid': debrid_provider, 'cache_provider': debrid_provider})
+		self._close_progress_before_modal()
 		return RedLightPlayer().run(link, 'video')
 
 	def play_file(self, results, source={}):
