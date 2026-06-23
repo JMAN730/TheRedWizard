@@ -386,7 +386,7 @@ class Navigator:
 		self.end_directory()
 
 	def set_view_modes(self):
-		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.main', 'content': '', 'name': 'menus'}, 'Set Menus', 'folder')
+		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.main', 'content': 'files', 'name': 'menus'}, 'Set Menus', 'folder')
 		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.movies', 'content': 'movies'}, 'Set Movies', 'movies')
 		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.tvshows', 'content': 'tvshows'}, 'Set TV Shows', 'tv')
 		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.seasons', 'content': 'seasons'}, 'Set Seasons', 'ontheair')
@@ -554,8 +554,9 @@ class Navigator:
 
 	def choose_view(self):
 		handle = int(sys.argv[1])
-		content = self.params['content']
-		view_type, name = self.params['view_type'], self.params.get('name') or content
+		content = self.params.get('content', 'files')
+		view_type = self.params.get('view_type', 'view.main')
+		name = self.params.get('name') or content
 		self.add({'mode': 'navigator.set_view', 'view_type': view_type, 'name': name, 'isFolder': 'false'}, 'Set view and then click here', 'settings')
 		k.set_content(handle, content)
 		k.end_directory(handle)
@@ -584,6 +585,9 @@ class Navigator:
 
 	def build_shortcut_folder_contents(self):
 		list_name = self.params_get('name')
+		if not list_name:
+			k.notification('Shortcut folder not found.', 2500)
+			return self.end_directory()
 		is_random = '[COLOR red][RANDOM][/COLOR]' in list_name
 		contents = nc.get_shortcut_folder_contents(list_name)
 		folder_icon = self.get_icon('folder')
@@ -742,8 +746,8 @@ class Navigator:
 
 	def end_directory(self, cache_to_disc=True, update_listing=False, skip_view_mode=False):
 		handle = int(sys.argv[1])
-		k.set_content(handle, '')
+		k.set_content(handle, 'files')
 		k.set_category(handle, self.category_name)
 		k.end_directory(handle, updateListing=update_listing, cacheToDisc=cache_to_disc)
 		if not skip_view_mode:
-			k.set_view_mode('view.main', '')
+			k.set_view_mode('view.main', 'files')

@@ -1,3 +1,10 @@
+[COLOR red][B]Version 1.4.5[/B][/COLOR]
+- Playback alerts (Credit Stingers, Autoplay Next Episode, Autoscrape Next Episode): **Alert Timing Source** dropdown replaces the chapter-only toggle — Off, Chapter Info, or Subtitles Info. Subtitles Info reads timing from active subtitle files (Kodi player path, A4KSubtitles temp, SubMaker, sidecar .srt, and other downloads during playback). Existing Off/Chapter settings are preserved on upgrade.
+- Improved background service shutdown during repo update (especially on Windows): cancels pending widget refresh alarms and avoids loading the main addon while Kodi disables Red Light for an update.
+- Fixed Shortcut Folders: opening a shortcut folder no longer errors (folder name was dropped from the navigation URL).
+- Fixed custom menu editor: remove and reorder now use the item position (menu names are no longer in folder URLs) and the menu reloads after a change instead of showing Success with no update.
+- Language Invoker: after an update, addon.xml is restored from your saved setting during service startup with a confirm dialog and Kodi profile reload — not from home-screen widgets. No disable/enable cycle or widget refresh on that path. Manual toggle uses the same profile reload.
+
 [COLOR red][B]Version 1.4.4[/B][/COLOR]
 - Tools > Import & Export: separate zip backup/restore for Red Light settings (custom menus, personal lists, discover lists, list images, and all addon settings).
 - Kodi favorites import/export: copy or merge the profile **Favourites.xml** file (export is a literal copy; import offers merge by action or full replace with backup of the current file); warns that favorites only work for the add-on or library path that created them; restart Kodi to refresh the Favorites menu.

@@ -243,10 +243,14 @@ def build_url(url_params):
 	return 'plugin://plugin.video.redlight/?%s' % urlencode(url_params)
 
 _FOLDER_URL_SKIP = frozenset(('iconImage', 'random_support', 'random', 'name', 'isFolder'))
+_FOLDER_URL_KEEP_NAME_MODES = frozenset(('navigator.build_shortcut_folder_contents',))
 
 def build_folder_url(url_params):
-	routing = {k: v for k, v in url_params.items() if k not in _FOLDER_URL_SKIP and v not in (None, '')}
-	mode = routing.get('mode', url_params.get('mode', ''))
+	mode = url_params.get('mode', '')
+	skip = _FOLDER_URL_SKIP
+	if mode in _FOLDER_URL_KEEP_NAME_MODES:
+		skip = skip - frozenset(('name',))
+	routing = {k: v for k, v in url_params.items() if k not in skip and v not in (None, '')}
 	if 'category_name' not in routing and url_params.get('name') and mode in ('build_movie_list', 'build_tvshow_list'):
 		routing['category_name'] = url_params['name']
 	return build_url(routing)
@@ -369,23 +373,38 @@ def set_category(handle, label):
 def end_directory(handle, updateListing=False, cacheToDisc=True):
 	xbmcplugin.endOfDirectory(handle, updateListing=updateListing, cacheToDisc=cacheToDisc)
 
+# Estuary List (50) is for movies/tvshows content only — not plugin browse folders.
+_ESTUARY_MENU_VIEW_MAP = {'50': '55'}
+
+def _resolve_view_id(view_type):
+	try:
+		from caches.settings_cache import get_setting, ensure_settings_properties_loaded
+		ensure_settings_properties_loaded()
+		view_id = get_property('redlight.%s' % view_type) or get_setting('redlight.%s' % view_type) or get_setting(view_type)
+	except: view_id = None
+	if not view_id: return None
+	view_id = str(view_id).strip()
+	if view_type == 'view.main' and 'estuary' in (current_skin() or '').lower():
+		view_id = _ESTUARY_MENU_VIEW_MAP.get(view_id, view_id)
+	return view_id
+
 def set_view_mode(view_type, content='files', is_external=None):
 	if get_property('redlight.use_viewtypes') != 'true': return
 	if is_external == None: is_external = external()
 	if is_external: return
-	view_id = get_property('redlight.%s' % view_type) or None
+	view_id = _resolve_view_id(view_type)
 	if not view_id: return
+	if content in ('', None): content = 'files'
 	try:
-		current = get_infolabel('Container.Viewmode.id') or get_infolabel('Container.Viewmode')
-		if current and str(current) == str(view_id): return
-		execute_builtin('Container.SetViewMode(%s)' % view_id)
-		if content in ('', None): return
-		if container_content() == content: return
+		sleep(100)
 		for _ in range(3000):
-			if container_content() == content:
-				execute_builtin('Container.SetViewMode(%s)' % view_id)
-				return
-			sleep(1)
+			if container_content() != content:
+				sleep(1)
+				continue
+			current = get_infolabel('Container.Viewmode.id') or get_infolabel('Container.Viewmode')
+			if current and str(current) == str(view_id): return
+			execute_builtin('Container.SetViewMode(%s)' % view_id)
+			return
 	except: return
 
 def random_integer(start=1, end=1000000):
@@ -537,11 +556,29 @@ def reload_skin():
 def kodi_refresh():
 	execute_builtin('UpdateLibrary(video,special://skin/foo)')
 
+SHUTTING_DOWN_PROP = 'redlight.shutting_down'
+
+def service_shutting_down(monitor=None):
+	if monitor and monitor.abortRequested(): return True
+	return get_property(SHUTTING_DOWN_PROP) == 'true'
+
+def cancel_widget_refresh_alarms():
+	try: execute_builtin('CancelAlarm(redlight_widget_refresh,silent)')
+	except: pass
+	try: execute_builtin('CancelAlarm(redlight_widget_skin,silent)')
+	except: pass
+
+def prepare_service_shutdown():
+	set_property(SHUTTING_DOWN_PROP, 'true')
+	cancel_widget_refresh_alarms()
+
 def schedule_widget_refresh(silent=True, reload_skin=False):
+	if service_shutting_down(): return
 	url = 'plugin://plugin.video.redlight/?mode=refresh_widgets&silent=%s&reload_skin=%s' % ('true' if silent else 'false', 'true' if reload_skin else 'false')
 	execute_builtin('AlarmClock(redlight_widget_refresh,RunPlugin(%s),00:00:02,silent)' % url)
 
 def refresh_widgets(silent=False, reload_skin=False):
+	if service_shutting_down(): return
 	from caches.settings_cache import get_setting
 	from caches.random_widgets_cache import RandomWidgets
 	from caches.lists_cache import lists_cache
@@ -661,36 +698,79 @@ def sync_addon_xml_from_settings(addon_name='plugin.video.redlight'):
 		with open(addon_xml, 'w') as f: f.write(new_xml)
 	return changed, invoker_changed
 
-def apply_addon_xml_reload(invoker_changed=False):
-	try: update_local_addons()
-	except: pass
-	if invoker_changed:
-		disable_enable_addon()
-		logger('Red Light', 'Language invoker synced from settings')
-	else:
-		logger('Red Light', 'addon.xml synced from settings')
-	try:
-		from caches.settings_cache import schedule_widget_refresh_once
-		schedule_widget_refresh_once(reload_skin=False)
-	except: pass
+def addon_xml_settings_diff(addon_name='plugin.video.redlight'):
+	from xml.dom.minidom import parse as mdParse
+	from caches.settings_cache import get_setting
+	addon_xml = translate_path('special://home/addons/%s/addon.xml' % addon_name)
+	invoker_mismatch = icon_mismatch = False
+	if not path_exists(addon_xml): return invoker_mismatch, icon_mismatch
+	invoker_setting = get_setting('redlight.reuse_language_invoker', None)
+	icon_setting = get_setting('redlight.addon_icon_choice', None)
+	root = mdParse(addon_xml)
+	if invoker_setting is not None:
+		tags = root.getElementsByTagName('reuselanguageinvoker')
+		if tags:
+			node = tags[0].firstChild
+			current = (node.data or '').strip().lower() if node else ''
+			target = str(invoker_setting).strip().lower()
+			invoker_mismatch = current != target
+	if icon_setting is not None:
+		tags = root.getElementsByTagName('icon')
+		if tags:
+			node = tags[0].firstChild
+			current = (node.data or '').strip() if node else ''
+			target = str(icon_setting).strip()
+			icon_mismatch = current != target
+	return invoker_mismatch, icon_mismatch
 
-def ensure_addon_xml_from_settings(force=False):
-	"""Sync addon.xml from settings when Red Light opens (Fen-style disable/enable for invoker)."""
+def finish_addon_xml_sync():
+	mark_addon_xml_synced()
+	set_property(_ADDON_XML_APPLIED, 'true')
+
+def reload_profile_for_addon_xml():
+	execute_builtin('LoadProfile(%s)' % get_infolabel('system.profilename'))
+
+def reuse_language_invoker_check(force=False):
+	"""POV-style service check: restore addon.xml from settings; LoadProfile when invoker differs."""
 	try:
 		if not force and get_property(_ADDON_XML_APPLIED) == 'true' and not addon_xml_sync_needed():
 			return False
-		changed, invoker_changed = sync_addon_xml_from_settings()
-		if not changed:
-			mark_addon_xml_synced()
-			set_property(_ADDON_XML_APPLIED, 'true')
+		invoker_mismatch, icon_mismatch = addon_xml_settings_diff()
+		if not invoker_mismatch and not icon_mismatch:
+			finish_addon_xml_sync()
 			return False
-		apply_addon_xml_reload(invoker_changed=invoker_changed)
-		mark_addon_xml_synced()
-		set_property(_ADDON_XML_APPLIED, 'true')
+		if invoker_mismatch:
+			text = (
+				'Your saved [B]Language Invoker[/B] setting does not match the addon.xml after a Red Light update. '
+				'This is normal when set to [B]FALSE[/B].[CR][CR]'
+				'[B]Reload profile now[/B] - Applies your setting straight away. '
+				'Your skin and home screen will refresh for a few seconds.[CR][CR]'
+				'[B]On next Kodi restart[/B] - Applies when you next start Kodi. '
+				'You may see this message again until then.')
+			if not force and not confirm_dialog(text=text, ok_label='Reload Profile Now', cancel_label='On Next Kodi Restart', scroll=True):
+				logger('Red Light', 'ReuseLanguageInvokerCheck - profile reload deferred by user')
+				return False
+			changed, invoker_changed = sync_addon_xml_from_settings()
+			if not changed or not invoker_changed:
+				logger('Red Light', 'ReuseLanguageInvokerCheck - invoker write failed')
+				return False
+			logger('Red Light', 'ReuseLanguageInvokerCheck - reloading profile for language invoker')
+			finish_addon_xml_sync()
+			reload_profile_for_addon_xml()
+			return True
+		sync_addon_xml_from_settings()
+		try: update_local_addons()
+		except: pass
+		logger('Red Light', 'ReuseLanguageInvokerCheck - addon icon restored in addon.xml')
+		finish_addon_xml_sync()
 		return True
 	except Exception as e:
-		logger('ensure_addon_xml_from_settings', str(e))
+		logger('reuse_language_invoker_check', str(e))
 		return False
+
+def ensure_addon_xml_from_settings(force=False):
+	"""Settings import / forced restore only — not used from plugin routing."""
+	return reuse_language_invoker_check(force=force)
 
 def update_kodi_addons_db(addon_name='plugin.video.redlight'):
 	import time

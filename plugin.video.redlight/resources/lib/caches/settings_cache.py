@@ -418,6 +418,20 @@ def sync_settings(params={}):
 		settings_cache.remove_setting(old_id)
 		currentsettings.pop(old_id, None)
 		migrated = True
+	_alert_timing_migrations = (
+		('stinger_alert.use_chapters', 'stinger_alert.alert_timing'),
+		('autoplay_use_chapters', 'autoplay_alert_timing'),
+		('autoscrape_use_chapters', 'autoscrape_alert_timing'),
+	)
+	for old_id, new_id in _alert_timing_migrations:
+		if old_id not in currentsettings: continue
+		new_val = '1' if str(currentsettings[old_id]).lower() == 'true' else '0'
+		settings_cache.write_db(new_id, new_val, defaults_map.get(new_id))
+		currentsettings[new_id] = new_val
+		if load_properties: settings_cache.set_memory_cache(new_id, new_val)
+		settings_cache.remove_setting(old_id)
+		currentsettings.pop(old_id, None)
+		migrated = True
 	if had_existing_settings and currentsettings.get('migration.cache_check_pm_oc_tb_v129e') != 'true':
 		for cache_key in ('pm.cache_check', 'oc.cache_check', 'tb.cache_check'):
 			if currentsettings.get(cache_key) == 'true': continue
@@ -974,7 +988,7 @@ def default_settings():
 {'setting_id': 'auto_resume_movie', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Never', '1': 'Always', '2': 'Autoplay Only'}},
 {'setting_id': 'stinger_alert.show', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'stinger_alert.window_percentage', 'setting_type': 'action', 'setting_default': '90', 'min_value': '1', 'max_value': '99'},
-{'setting_id': 'stinger_alert.use_chapters', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'stinger_alert.alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Off', '1': 'Chapter Info', '2': 'Subtitles Info'}},
 #==================== Playback Episodes
 {'setting_id': 'auto_play_episode', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'results_quality_episode', 'setting_type': 'string', 'setting_default': 'SD, 720p, 1080p, 4K'},
@@ -983,11 +997,11 @@ def default_settings():
 {'setting_id': 'autoplay_alert_method', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Window', '1': 'Notification'}},
 {'setting_id': 'autoplay_default_action', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Play', '1': 'Cancel', '2': 'Pause & Wait'}},
 {'setting_id': 'autoplay_next_window_percentage', 'setting_type': 'action', 'setting_default': '95', 'min_value': '75', 'max_value': '99'},
-{'setting_id': 'autoplay_use_chapters', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'autoplay_alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Off', '1': 'Chapter Info', '2': 'Subtitles Info'}},
 {'setting_id': 'autoplay_watching_check', 'setting_type': 'action', 'setting_default': '3', 'min_value': '0', 'max_value': '5'},
 {'setting_id': 'autoscrape_next_episode', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'autoscrape_next_window_percentage', 'setting_type': 'action', 'setting_default': '95', 'min_value': '75', 'max_value': '99'},
-{'setting_id': 'autoscrape_use_chapters', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'autoscrape_alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Off', '1': 'Chapter Info', '2': 'Subtitles Info'}},
 {'setting_id': 'autoscrape_confirm', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'auto_resume_episode', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Never', '1': 'Always', '2': 'Autoplay Only'}},
 #==================== Playback Utilities

@@ -13,6 +13,9 @@ trakt_service_string = 'TraktMonitor Service Update %s - %s'
 trakt_success_line_dict = {'success': 'Trakt Update Performed', 'no account': '(Unauthorised) Trakt Update Performed'}
 update_string = 'Next Update in %s minutes...'
 
+def _start_daemon(target):
+	Thread(target=target, daemon=True).start()
+
 class SetAddonConstants:
 	def run(self):
 		kodi_utils.logger('Red Light', 'SetAddonConstants Service Starting')
@@ -40,6 +43,7 @@ class SetAddonConstants:
 		kodi_utils.clear_property('redlight.widgets_refresh_scheduled')
 		kodi_utils.clear_property('redlight.language_invoker_ready')
 		kodi_utils.clear_property('redlight.addon_xml_applied')
+		kodi_utils.clear_property(kodi_utils.SHUTTING_DOWN_PROP)
 		try:
 			from modules.utils import _prune_qr_cache
 			_prune_qr_cache(kodi_utils.translate_path(kodi_utils.addon_info('profile')))
@@ -60,15 +64,15 @@ class SyncSettings:
 		return kodi_utils.logger('Red Light', 'SyncSettings Service Finished')
 
 class BootstrapSettings:
-	def run(self):
+	def run(self, monitor):
 		kodi_utils.logger('Red Light', 'BootstrapSettings Service Starting')
-		monitor = kodi_utils.kodi_monitor()
 		monitor.waitForAbort(2)
-		if monitor.abortRequested(): return
+		if kodi_utils.service_shutting_down(monitor): return
 		try:
 			from caches.settings_cache import bootstrap_settings_properties, refresh_widgets_after_db_migration, run_deferred_setup_background_if_needed
 			bootstrap_settings_properties()
-			refresh_widgets_after_db_migration()
+			if not kodi_utils.service_shutting_down(monitor):
+				refresh_widgets_after_db_migration()
 			run_deferred_setup_background_if_needed()
 		except Exception as e:
 			kodi_utils.logger('BootstrapSettings', str(e))
@@ -76,11 +80,11 @@ class BootstrapSettings:
 
 _custom_windows_thread_started = False
 
-def start_custom_windows_prepare():
+def start_custom_windows_prepare(monitor):
 	global _custom_windows_thread_started
 	if _custom_windows_thread_started: return
 	_custom_windows_thread_started = True
-	Thread(target=CustomWindowsPrepare().run, daemon=True).start()
+	_start_daemon(lambda: CustomWindowsPrepare().run(monitor))
 
 def run_deferred_service_setup():
 	global _custom_windows_thread_started
@@ -92,28 +96,26 @@ def run_deferred_service_setup():
 	return kodi_utils.logger('Red Light', 'Deferred Service Setup Finished')
 
 class CustomWindowsPrepare:
-	def run(self):
+	def run(self, monitor):
 		kodi_utils.logger('Red Light', 'CustomWindowsPrepare Service Starting')
 		from windows.base_window import FontUtils
-		monitor, player = kodi_utils.kodi_monitor(), kodi_utils.kodi_player()
+		player = kodi_utils.kodi_player()
 		wait_for_abort, is_playing = monitor.waitForAbort, player.isPlayingVideo
 		kodi_utils.clear_property(current_skin_prop)
 		font_utils = FontUtils()
 		while not monitor.abortRequested():
 			font_utils.execute_custom_fonts()
 			wait_for_abort(20)
-		try: del monitor
-		except: pass
 		try: del player
 		except: pass
 		return kodi_utils.logger('Red Light', 'CustomWindowsPrepare Service Finished')
 
 class TraktMonitor:
-	def run(self):
+	def run(self, monitor):
 		kodi_utils.logger('Red Light', 'TraktMonitor Service Starting')
 		from apis.trakt_api import trakt_sync_activities
 		from modules.settings import trakt_user_active, trakt_sync_interval
-		monitor, player = kodi_utils.kodi_monitor(), kodi_utils.kodi_player()
+		player = kodi_utils.kodi_player()
 		wait_for_abort, is_playing = monitor.waitForAbort, player.isPlayingVideo
 		wait_for_abort(45)
 		while not monitor.abortRequested():
@@ -131,22 +133,20 @@ class TraktMonitor:
 						kodi_utils.logger('Red Light', trakt_service_string % ('Success. %s' % trakt_success_line_dict[status], next_update_string))
 					else:
 						kodi_utils.logger('Red Light', trakt_service_string % ('Success. No Changes Needed', next_update_string))# 'not needed'
-					if status == 'success' and get_setting('redlight.trakt.refresh_widgets', 'false') == 'true':
+					if status == 'success' and get_setting('redlight.trakt.refresh_widgets', 'false') == 'true' and not kodi_utils.service_shutting_down(monitor):
 						kodi_utils.run_plugin({'mode': 'kodi_refresh'})
 			except Exception as e: kodi_utils.logger('Red Light', trakt_service_string % ('Failed', 'The following Error Occured: %s' % str(e)))
 			wait_for_abort(wait_time)
-		try: del monitor
-		except: pass
 		try: del player
 		except: pass
 		return kodi_utils.logger('Red Light', 'TraktMonitor Service Finished')
 
 class SimklMonitor:
-	def run(self):
+	def run(self, monitor):
 		kodi_utils.logger('Red Light', 'SimklMonitor Service Starting')
 		from apis.simkl_api import simkl_sync_activities
 		from modules.settings import simkl_user_active, simkl_sync_interval
-		monitor, player = kodi_utils.kodi_monitor(), kodi_utils.kodi_player()
+		player = kodi_utils.kodi_player()
 		wait_for_abort, is_playing = monitor.waitForAbort, player.isPlayingVideo
 		wait_for_abort(45)
 		while not monitor.abortRequested():
@@ -160,18 +160,20 @@ class SimklMonitor:
 				if status == 'failed': kodi_utils.logger('Red Light', 'Simkl Sync Failed')
 				elif status == 'no_auth': kodi_utils.logger('Red Light', 'Simkl Sync Not Run - No Account')
 				else: kodi_utils.logger('Red Light', 'Simkl Sync %s - %s' % ('OK' if status == 'success' else 'No Changes', next_update_string))
-				if status == 'success' and get_setting('redlight.simkl.refresh_widgets', 'false') == 'true':
+				if status == 'success' and get_setting('redlight.simkl.refresh_widgets', 'false') == 'true' and not kodi_utils.service_shutting_down(monitor):
 					kodi_utils.run_plugin({'mode': 'kodi_refresh'})
 			except Exception as e: kodi_utils.logger('Red Light', 'Simkl Sync Failed: %s' % str(e))
 			wait_for_abort(wait_time)
+		try: del player
+		except: pass
 		return kodi_utils.logger('Red Light', 'SimklMonitor Service Finished')
 
 class MdblistMonitor:
-	def run(self):
+	def run(self, monitor):
 		kodi_utils.logger('Red Light', 'MDBListMonitor Service Starting')
 		from apis.mdblist_api import mdblist_sync_activities
 		from modules.settings import mdblist_user_active, mdblist_sync_interval
-		monitor, player = kodi_utils.kodi_monitor(), kodi_utils.kodi_player()
+		player = kodi_utils.kodi_player()
 		wait_for_abort, is_playing = monitor.waitForAbort, player.isPlayingVideo
 		wait_for_abort(60)
 		while not monitor.abortRequested():
@@ -185,23 +187,26 @@ class MdblistMonitor:
 				if status == 'failed': kodi_utils.logger('Red Light', 'MDBList Sync Failed')
 				elif status == 'no_auth': kodi_utils.logger('Red Light', 'MDBList Sync Not Run - No Account')
 				else: kodi_utils.logger('Red Light', 'MDBList Sync %s - %s' % ('OK' if status == 'success' else 'No Changes', next_update_string))
-				if status == 'success' and get_setting('redlight.mdblist.refresh_widgets', 'false') == 'true':
+				if status == 'success' and get_setting('redlight.mdblist.refresh_widgets', 'false') == 'true' and not kodi_utils.service_shutting_down(monitor):
 					kodi_utils.run_plugin({'mode': 'kodi_refresh'})
 			except Exception as e: kodi_utils.logger('Red Light', 'MDBList Sync Failed: %s' % str(e))
 			wait_for_abort(wait_time)
+		try: del player
+		except: pass
 		return kodi_utils.logger('Red Light', 'MDBListMonitor Service Finished')
 
 class WidgetRefresher:
-	def run(self):
+	def run(self, monitor):
 		kodi_utils.logger('Red Light', 'WidgetRefresher Service Starting')
 		from time import time
-		monitor, player = kodi_utils.kodi_monitor(), kodi_utils.kodi_player()
+		player = kodi_utils.kodi_player()
 		wait_for_abort, self.is_playing = monitor.waitForAbort, player.isPlayingVideo
 		wait_for_abort(10)
 		self.set_next_refresh(time())
 		while not monitor.abortRequested():
 			try:
 				wait_for_abort(10)
+				if kodi_utils.service_shutting_down(monitor): continue
 				offset = int(get_setting('redlight.widget_refresh_timer', '60'))
 				if offset != self.offset:
 					self.set_next_refresh(time())
@@ -212,8 +217,6 @@ class WidgetRefresher:
 					kodi_utils.refresh_widgets()
 					self.set_next_refresh(time())
 			except: pass
-		try: del monitor
-		except: pass
 		try: del player
 		except: pass
 		return kodi_utils.logger('Red Light', 'WidgetRefresher Service Finished')
@@ -238,10 +241,10 @@ class WidgetRefresher:
 		return 'plugin' not in kodi_utils.get_infolabel('Container.PluginName')
 
 class AutoStart:
-	def run(self):
+	def run(self, monitor):
 		kodi_utils.logger('Red Light', 'AutoStart Service Starting')
 		from modules.settings import auto_start_redlight
-		if auto_start_redlight():
+		if auto_start_redlight() and not kodi_utils.service_shutting_down(monitor):
 			try:
 				from caches.settings_cache import ensure_settings_properties_loaded
 				ensure_settings_properties_loaded()
@@ -249,6 +252,13 @@ class AutoStart:
 				kodi_utils.logger('AutoStart', 'bootstrap: %s' % e)
 			kodi_utils.run_addon()
 		return kodi_utils.logger('Red Light', 'AutoStart Service Finished')
+
+class ReuseLanguageInvokerCheck:
+	def run(self):
+		kodi_utils.logger('Red Light', 'ReuseLanguageInvokerCheck Service Starting')
+		try: kodi_utils.reuse_language_invoker_check()
+		except Exception as e: kodi_utils.logger('ReuseLanguageInvokerCheck', str(e))
+		return kodi_utils.logger('Red Light', 'ReuseLanguageInvokerCheck Service Finished')
 
 class RedLightMonitor(Monitor):
 	def __init__ (self):
@@ -262,13 +272,15 @@ class RedLightMonitor(Monitor):
 		except Exception as e: kodi_utils.logger('DatabaseMaintenance', str(e))
 		try: SyncSettings().run()
 		except Exception as e: kodi_utils.logger('SyncSettings', str(e))
-		Thread(target=BootstrapSettings().run).start()
-		start_custom_windows_prepare()
-		Thread(target=TraktMonitor().run).start()
-		Thread(target=SimklMonitor().run).start()
-		Thread(target=MdblistMonitor().run).start()
-		Thread(target=WidgetRefresher().run).start()
-		try: AutoStart().run()
+		try: ReuseLanguageInvokerCheck().run()
+		except Exception as e: kodi_utils.logger('ReuseLanguageInvokerCheck', str(e))
+		_start_daemon(lambda: BootstrapSettings().run(self))
+		start_custom_windows_prepare(self)
+		_start_daemon(lambda: TraktMonitor().run(self))
+		_start_daemon(lambda: SimklMonitor().run(self))
+		_start_daemon(lambda: MdblistMonitor().run(self))
+		_start_daemon(lambda: WidgetRefresher().run(self))
+		try: AutoStart().run(self)
 		except Exception as e: kodi_utils.logger('AutoStart', str(e))
 
 	def onNotification(self, sender, method, data):
@@ -278,6 +290,13 @@ class RedLightMonitor(Monitor):
 		elif method in ('GUI.OnScreensaverDeactivated', 'System.OnWake'):
 			kodi_utils.clear_property(pause_services_prop)
 			kodi_utils.logger('OnNotificationActions', 'UNPAUSING Red Light Services Due to Device Awake')
+		elif method in ('Addon.OnDisabled', 'Addon.OnUninstalled'):
+			try:
+				info = json.loads(data)
+				if info.get('id') == 'plugin.video.redlight':
+					kodi_utils.prepare_service_shutdown()
+					kodi_utils.logger('Red Light', 'Service shutdown - addon disabled for update or uninstall')
+			except: pass
 
 if __name__ == '__main__':
 	# ----- AM Lite Trakt startup sync patch BEGIN -----

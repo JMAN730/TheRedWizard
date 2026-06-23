@@ -26,8 +26,6 @@ def prepare_directory_listing(mode):
 def routing(sys):
 	params = dict(parse_qsl(sys.argv[2][1:], keep_blank_values=True))
 	mode = params.get('mode', 'navigator.main')
-	try: kodi_utils.ensure_addon_xml_from_settings()
-	except Exception as e: kodi_utils.logger('routing', 'addon.xml: %s' % e)
 	prepare_directory_listing(mode)
 	if not external():
 		from caches.settings_cache import ensure_settings_properties_loaded, should_block_bootstrap_on_entry

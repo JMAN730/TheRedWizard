@@ -187,8 +187,15 @@ def submaker_prefer_local():
 def stingers_show():
 	return get_setting('redlight.stinger_alert.show', 'false') == 'true'
 
+def _alert_timing_mode(setting_id, default='1'):
+	value = get_setting('redlight.%s' % setting_id, default)
+	return {'0': 'off', '1': 'chapters', '2': 'subtitles'}.get(str(value), 'chapters')
+
+def stingers_alert_timing():
+	return _alert_timing_mode('stinger_alert.alert_timing', '1')
+
 def stingers_use_chapters():
-	return get_setting('redlight.stinger_alert.use_chapters', 'false') == 'true'
+	return stingers_alert_timing() == 'chapters'
 
 def stingers_percentage():
 	return int(get_setting('redlight.stinger_alert.window_percentage', '90'))
@@ -216,7 +223,7 @@ def autoplay_prescrape(scrape_provider):
 def auto_nextep_settings(play_type):
 	play_type = 'autoplay' if play_type == 'autoplay_nextep' else 'autoscrape'
 	window_percentage = 100 - int(get_setting('redlight.%s_next_window_percentage' % play_type, '95'))
-	use_chapters = get_setting('redlight.%s_use_chapters' % play_type, 'true') == 'true'
+	alert_timing = _alert_timing_mode('%s_alert_timing' % play_type, '1')
 	watching_check = int(get_setting('redlight.autoplay_watching_check', '3'))
 	scraper_time = int(get_setting('redlight.results.timeout', '60')) + 20
 	if play_type == 'autoplay':
@@ -224,7 +231,7 @@ def auto_nextep_settings(play_type):
 		default_action = {'0': 'play', '1': 'cancel', '2': 'pause'}[get_setting('redlight.autoplay_default_action', '1')]
 	else: alert_method, default_action = '', ''
 	return {'scraper_time': scraper_time, 'window_percentage': window_percentage, 'alert_method': alert_method,
-			'default_action': default_action, 'use_chapters': use_chapters, 'watching_check': watching_check}
+			'default_action': default_action, 'alert_timing': alert_timing, 'watching_check': watching_check}
 
 def filter_status(filter_type):
 	return int(get_setting('redlight.filter.%s' % filter_type, '0'))

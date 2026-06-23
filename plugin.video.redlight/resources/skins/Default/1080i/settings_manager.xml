@@ -3279,11 +3279,11 @@
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.stinger_alert.show),true)</visible>
-                          <property name="setting_label">    - Use Chapter Info For Alert When Available</property>
-                          <property name="setting_type">boolean</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(redlight.stinger_alert.use_chapters)]</property>
-                          <property name="setting_description">Enable this and Red Light will attempt to use video file Chapter information to ascertain when to show the Credit Stingers Alert. If unsuccessful, then the percentage of playback value will be used instead</property>
-                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=stinger_alert.use_chapters)</onclick>
+                          <property name="setting_label">    - Alert Timing Source</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.stinger_alert.alert_timing_name)]</property>
+                          <property name="setting_description">Choose how Red Light decides when to show the Credit Stingers Alert. Off uses the playback percentage only. Chapter Info uses video chapter markers when available. Subtitles Info uses timing from active subtitles when a subtitle file is available (bundled sidecar, Kodi or A4KSubtitles download, SubMaker, or other external .srt). If subtitle timing is unavailable, the playback percentage is used instead</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=stinger_alert.alert_timing)</onclick>
                       </item>
         <!-- Playback Episodes -->
                       <item>
@@ -3358,11 +3358,11 @@
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.auto_play_episode),true) + String.IsEqual(Window(10000).Property(redlight.autoplay_next_episode),true)</visible>
-                          <property name="setting_label">    - Use Chapter Info For Alert When Available</property>
-                          <property name="setting_type">boolean</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(redlight.autoplay_use_chapters)]</property>
-                          <property name="setting_description">Enable this and Red Light will attempt to use video file Chapter information to ascertain when to show the Next Episode alert. If unsuccessful, then the percentage of playback value will be used instead</property>
-                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay_use_chapters)</onclick>
+                          <property name="setting_label">    - Alert Timing Source</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.autoplay_alert_timing_name)]</property>
+                          <property name="setting_description">Choose how Red Light decides when to show the Next Episode alert. Off uses the playback percentage only. Chapter Info uses video chapter markers when available. Subtitles Info uses timing from active subtitles when a subtitle file is available (bundled sidecar, Kodi or A4KSubtitles download, SubMaker, or other external .srt). If subtitle timing is unavailable, the playback percentage is used instead</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=autoplay_alert_timing)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
@@ -3394,11 +3394,11 @@
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.auto_play_episode),false) + String.IsEqual(Window(10000).Property(redlight.autoscrape_next_episode),true)</visible>
-                          <property name="setting_label">    - Use Chapter Info For Alert When Available</property>
-                          <property name="setting_type">boolean</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(redlight.autoscrape_use_chapters)]</property>
-                          <property name="setting_description">Enable this and Red Light will attempt to use video file Chapter information to ascertain when to show the Next Episode alert. If unsuccessful, then the percentage of playback value will be used instead</property>
-                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoscrape_use_chapters)</onclick>
+                          <property name="setting_label">    - Alert Timing Source</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.autoscrape_alert_timing_name)]</property>
+                          <property name="setting_description">Choose how Red Light decides when to show the Next Episode alert. Off uses the playback percentage only. Chapter Info uses video chapter markers when available. Subtitles Info uses timing from active subtitles when a subtitle file is available (bundled sidecar, Kodi or A4KSubtitles download, SubMaker, or other external .srt). If subtitle timing is unavailable, the playback percentage is used instead</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=autoscrape_alert_timing)</onclick>
                       </item>
                       
                       <item>
