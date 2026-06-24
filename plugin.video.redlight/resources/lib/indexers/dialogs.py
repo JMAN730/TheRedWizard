@@ -68,19 +68,21 @@ def list_display_order_choice(params):
 	set_setting('%s.list_sort' % info['setting'], choice[1])
 
 def language_invoker_choice(params):
+	from xml.dom.minidom import parse as mdParse
 	kodi_utils.close_all_dialog()
-	current = get_setting('redlight.reuse_language_invoker', 'true')
-	new_value = {'true': 'false', 'false': 'true'}[current]
+	addon_xml = kodi_utils.translate_path('special://home/addons/plugin.video.redlight/addon.xml')
+	root = mdParse(addon_xml)
+	invoker_instance = root.getElementsByTagName('reuselanguageinvoker')[0].firstChild
+	current_invoker_setting = (invoker_instance.data or 'true').strip().lower()
+	new_value = {'true': 'false', 'false': 'true'}[current_invoker_setting]
 	if not kodi_utils.confirm_dialog(text='Turn [B]Reuse Language Invoker[/B] %s?' % ('On' if new_value == 'true' else 'Off')): return
-	if new_value == 'true' and not kodi_utils.confirm_dialog(text='Enabling this setting may cause instability on some devices.[CR]Continue?'): return
+	if new_value == 'true' and not kodi_utils.confirm_dialog(text='Enabling this setting may cause instability on some devices.[CR][CR]Continue?'): return
+	invoker_instance.data = new_value
+	new_xml = str(root.toxml()).replace('<?xml version="1.0" ?>', '')
+	with open(addon_xml, 'w') as f: f.write(new_xml)
 	set_setting('reuse_language_invoker', new_value)
-	_, invoker_changed = kodi_utils.sync_addon_xml_from_settings()
-	invoker_mismatch, _ = kodi_utils.addon_xml_settings_diff()
-	if invoker_mismatch:
-		return kodi_utils.ok_dialog(text='Could not update addon.xml')
 	kodi_utils.finish_addon_xml_sync()
-	if invoker_changed:
-		kodi_utils.reload_profile_for_addon_xml()
+	kodi_utils.restart_addon_for_addon_xml_change(notify=False)
 
 def addon_icon_choice(params):
 	import os

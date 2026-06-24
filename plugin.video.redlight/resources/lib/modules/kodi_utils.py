@@ -727,11 +727,15 @@ def finish_addon_xml_sync():
 	mark_addon_xml_synced()
 	set_property(_ADDON_XML_APPLIED, 'true')
 
-def reload_profile_for_addon_xml():
-	execute_builtin('LoadProfile(%s)' % get_infolabel('system.profilename'))
+def restart_addon_for_addon_xml_change(notify=True):
+	if notify:
+		notification('Refreshing addon.xml. Restarting Red Light.', 8000)
+	execute_builtin('ActivateWindow(Home)', True)
+	update_local_addons()
+	disable_enable_addon()
 
 def reuse_language_invoker_check(force=False):
-	"""POV-style service check: restore addon.xml from settings; LoadProfile when invoker differs."""
+	"""Fen-style: restore addon.xml from settings; disable/enable when invoker or icon differs."""
 	try:
 		if not force and get_property(_ADDON_XML_APPLIED) == 'true' and not addon_xml_sync_needed():
 			return False
@@ -739,30 +743,13 @@ def reuse_language_invoker_check(force=False):
 		if not invoker_mismatch and not icon_mismatch:
 			finish_addon_xml_sync()
 			return False
-		if invoker_mismatch:
-			text = (
-				'Your saved [B]Language Invoker[/B] setting does not match the addon.xml after a Red Light update. '
-				'This is normal when set to [B]FALSE[/B].[CR][CR]'
-				'[B]Reload profile now[/B] - Applies your setting straight away. '
-				'Your skin and home screen will refresh for a few seconds.[CR][CR]'
-				'[B]On next Kodi restart[/B] - Applies when you next start Kodi. '
-				'You may see this message again until then.')
-			if not force and not confirm_dialog(text=text, ok_label='Reload Profile Now', cancel_label='On Next Kodi Restart', scroll=True):
-				logger('Red Light', 'ReuseLanguageInvokerCheck - profile reload deferred by user')
-				return False
-			changed, invoker_changed = sync_addon_xml_from_settings()
-			if not changed or not invoker_changed:
-				logger('Red Light', 'ReuseLanguageInvokerCheck - invoker write failed')
-				return False
-			logger('Red Light', 'ReuseLanguageInvokerCheck - reloading profile for language invoker')
-			finish_addon_xml_sync()
-			reload_profile_for_addon_xml()
-			return True
-		sync_addon_xml_from_settings()
-		try: update_local_addons()
-		except: pass
-		logger('Red Light', 'ReuseLanguageInvokerCheck - addon icon restored in addon.xml')
+		changed, _invoker_changed = sync_addon_xml_from_settings()
+		if not changed:
+			logger('Red Light', 'AddonXMLCheck - addon.xml sync failed')
+			return False
+		logger('Red Light', 'AddonXMLCheck - Change Detected. Restarting Red Light')
 		finish_addon_xml_sync()
+		restart_addon_for_addon_xml_change(notify=not force)
 		return True
 	except Exception as e:
 		logger('reuse_language_invoker_check', str(e))

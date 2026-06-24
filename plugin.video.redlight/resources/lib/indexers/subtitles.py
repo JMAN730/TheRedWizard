@@ -9,6 +9,57 @@ timeout = 20.0
 _ALERT_SUB_MAX_REMAINING = 600
 _SUB_EXTS = ('.srt', '.ass', '.ssa', '.sub', '.vtt')
 _ACTIVE_SUB_PROP = 'redlight.active_subtitle_path'
+_SUBMAKER_SKIP_LANGS = frozenset(('sub toolbox',))
+
+def _submaker_api_url(manifest, params):
+	return manifest.replace('manifest', params)
+
+def _submaker_language_matches(candidate_lang, preferred_language):
+	if not candidate_lang: return False
+	lang = candidate_lang.strip()
+	if lang.lower() in _SUBMAKER_SKIP_LANGS: return False
+	if lang == preferred_language: return True
+	try: pref_iso = xbmc.convertLanguage(preferred_language, xbmc.ISO_639_1)
+	except: pref_iso = ''
+	if not pref_iso: return False
+	if lang.lower() == pref_iso.lower(): return True
+	try:
+		if xbmc.convertLanguage(lang, xbmc.ENGLISH_NAME).lower() == preferred_language.lower(): return True
+	except: pass
+	return False
+
+def _submaker_usable_subs(subs):
+	results = []
+	for item in subs or []:
+		if not item.get('url'): continue
+		lang = (item.get('lang') or '').strip()
+		if lang.lower() in _SUBMAKER_SKIP_LANGS or item.get('id') == 'sub_toolbox': continue
+		results.append(item)
+	return results
+
+def _submaker_ranked_subs(subs, language):
+	usable = _submaker_usable_subs(subs)
+	preferred = [i for i in usable if _submaker_language_matches(i.get('lang'), language)]
+	other = [i for i in usable if i not in preferred]
+	return preferred + other
+
+def _looks_like_subtitle_content(content):
+	if not content: return False
+	if not isinstance(content, str):
+		try: content = content.decode('utf-8', 'ignore')
+		except: return False
+	sample = content.lstrip()[:256].lower()
+	if sample.startswith('<!doctype') or sample.startswith('<html'): return False
+	return bool(re.search(r'\d{1,2}:\d{2}:\d{2}', content))
+
+def _download_submaker_content(download_fn, subs, language):
+	for item in _submaker_ranked_subs(subs, language):
+		response = download_fn(item.get('url'))
+		if isinstance(response, str) or not getattr(response, 'ok', False): continue
+		try: content = response.text
+		except: content = response.content
+		if _looks_like_subtitle_content(content): return content
+	return None
 
 def _get(url, stream=False, retry=False, quiet=False):
 	response = requests.get(url, stream=stream, timeout=timeout)
@@ -168,6 +219,7 @@ def _subtitle_last_end_seconds(content):
 def _seconds_remaining_before_end(sub_path, total_time):
 	try:
 		with ku.open_file(sub_path) as file: content = file.read()
+		if not _looks_like_subtitle_content(content): return None
 		end_seconds = _subtitle_last_end_seconds(content)
 		if end_seconds is None: return None
 		remaining = float(total_time) - end_seconds
@@ -182,19 +234,12 @@ def _fetch_alert_subtitle(imdb_id, season, episode):
 	final_path = '%s%s' % ('special://temp/', search_filename)
 	if season: params = 'subtitles/series/%s:%s:%s' % (imdb_id, season, episode)
 	else: params = 'subtitles/movie/%s' % imdb_id
-	try: response = _get(manifest.replace('manifest', params), retry=True, quiet=True)
+	try: response = _get(_submaker_api_url(manifest, params), retry=True, quiet=True)
 	except requests.RequestException: return None
 	if not response.ok: return None
 	subs = response.json().get('subtitles', [])
-	if not subs: return None
-	language = st.submaker_language()
-	choices = (i for i in subs if i.get('lang') == language)
-	try: chosen_sub = next(choices, None) or next(iter(subs))
-	except: return None
-	response = _get(chosen_sub.get('url'), stream=True, retry=True, quiet=True)
-	if not response.ok: return None
-	try: content = response.text
-	except: content = response.content
+	content = _download_submaker_content(lambda url: _get(url, stream=True, retry=True, quiet=True), subs, st.submaker_language())
+	if not content: return None
 	try:
 		with ku.open_file(final_path, 'w') as file: file.write(content)
 		ku.set_property(_ACTIVE_SUB_PROP, final_path)
@@ -226,7 +271,7 @@ class Subtitles(xbmc.Player):
 	def subtitles_search(self):
 		if self.season: params = 'subtitles/series/%s:%s:%s' % (self.imdb_id, self.season, self.episode)
 		else: params = 'subtitles/movie/%s' % self.imdb_id
-		try: response = _get(self.manifest.replace('manifest', params), retry=True)
+		try: response = _get(_submaker_api_url(self.manifest, params), retry=True)
 		except requests.RequestException as e: return str(e)
 		return response.json().get('subtitles', []) if response.ok else response.reason
 
@@ -243,6 +288,10 @@ class Subtitles(xbmc.Player):
 		final_match = next((i for i in files if i == self.search_filename), None)
 		if not final_match: return False
 		subtitle = '%s%s' % (self.subtitle_path, final_match)
+		try:
+			with ku.open_file(subtitle) as file: content = file.read()
+			if not _looks_like_subtitle_content(content): return False
+		except: return False
 		ku.notification('Downloaded subtitles found', icon=self.poster, settle_ms=150)
 		return subtitle
 
@@ -252,15 +301,10 @@ class Subtitles(xbmc.Player):
 			return ku.notification('SubMaker error: %s' % subs, settle_ms=150)
 		if not subs:
 			return ku.notification('No subtitles found', icon=self.poster, settle_ms=150)
-		choices = (i for i in subs if i.get('lang') == self.language)
-		try: chosen_sub = next(choices, None) or next(iter(subs))
-		except: return ku.notification('No subtitles found', icon=self.poster, settle_ms=150)
-		response = self.subtitles_download(chosen_sub.get('url'))
-		if isinstance(response, str):
-			return ku.notification('SubMaker error: %s' % response, settle_ms=150)
+		content = _download_submaker_content(self.subtitles_download, subs, self.language)
+		if not content:
+			return ku.notification('No subtitles found', icon=self.poster, settle_ms=150)
 		final_path = '%s%s' % (self.subtitle_path, self.search_filename)
-		try: content = response.text
-		except: content = response.content
 		with ku.open_file(final_path, 'w') as file: file.write(content)
 		ku.sleep(1000)
 		return final_path

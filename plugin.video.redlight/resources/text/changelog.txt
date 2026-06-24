@@ -1,178 +1,184 @@
+[COLOR red][B]Version 1.4.7[/B][/COLOR]
+- [B]SubMaker[/B]: skip [B]Sub Toolbox[/B] HTML entries, match [B]eng[/B] (and other ISO codes) to your chosen language name, and reject non-subtitle downloads so playback and [B]Subtitles Info[/B] timing use a real .srt file. [B]Manifest URL[/B] is trimmed on save and read (avoids trailing-space 404s).
+- [B]Language Invoker[/B]: Simpler style [B]AddonXMLCheck[/B] on service startup and manual toggle — your saved setting is written to [B]addon.xml[/B], then Red Light restarts with a short toast ([B]Restarting Red Light[/B]; no post-update confirm dialog, no [B]Load Profile[/B], no full skin reload). [B]Tools > Toggle Language Invoker[/B] keeps a confirm when you change it yourself; turning invoker back [B]On[/B] still warns about device instability.
+- Faster boot after the first sync: [B]SyncSettings[/B] skips the heavy [B]settings.db[/B] pass when nothing changed; [B]BootstrapSettings[/B] runs only when window properties, migration, or deferred setup need it. A repo upgrade still runs a full sync once, then returns to the quiet path.
+- Settings DB upgrade widget refresh: [B]ReloadSkin[/B] after migration runs on Windows only when new user-facing settings rows were added (internal [B]migration.*[/B] keys alone no longer trigger it). Android TV gets [B]UpdateLibrary[/B] without a full skin reload.
+
 [COLOR red][B]Version 1.4.6[/B][/COLOR]
-- Fixed Autoplay/Autoscrape Next Episode with [B]Subtitles Info[/B] alert timing: the next-episode window no longer opens at the start of playback when subtitles run to the end of the episode. Timing now uses seconds remaining after the last subtitle cue, and retries when subtitles become available later in playback.
+- Fixed [B]Autoplay[/B]/[B]Autoscrape Next Episode[/B] with [B]Subtitles Info[/B] alert timing: the next-episode window no longer opens at the start of playback when subtitles run to the end of the episode. Timing now uses seconds remaining after the last subtitle cue, and retries when subtitles become available later in playback.
 
 [COLOR red][B]Version 1.4.5[/B][/COLOR]
-- Playback alerts (Credit Stingers, Autoplay Next Episode, Autoscrape Next Episode): [B]Alert Timing Source[/B] dropdown replaces the chapter-only toggle - Off, Chapter Info, or Subtitles Info. Subtitles Info reads timing from active subtitle files (Kodi player path, A4KSubtitles temp, SubMaker, sidecar .srt, and other downloads during playback). Existing Off/Chapter settings are preserved on upgrade.
+- Playback alerts ([B]Credit Stingers[/B], [B]Autoplay Next Episode[/B], [B]Autoscrape Next Episode[/B]): [B]Alert Timing Source[/B] dropdown replaces the chapter-only toggle - [B]Off[/B], [B]Chapter Info[/B], or [B]Subtitles Info[/B]. [B]Subtitles Info[/B] reads timing from active subtitle files (Kodi player path, [B]A4KSubtitles[/B] temp, [B]SubMaker[/B], sidecar .srt, and other downloads during playback). Existing [B]Off[/B]/[B]Chapter[/B] settings are preserved on upgrade.
 - Improved background service shutdown during repo update (especially on Windows): cancels pending widget refresh alarms and avoids loading the main addon while Kodi disables Red Light for an update.
-- Fixed Shortcut Folders: opening a shortcut folder no longer errors (folder name was dropped from the navigation URL).
-- Fixed custom menu editor: remove and reorder now use the item position (menu names are no longer in folder URLs) and the menu reloads after a change instead of showing Success with no update.
-- Language Invoker: after an update, addon.xml is restored from your saved setting during service startup with a confirm dialog and Kodi profile reload - not from home-screen widgets. No disable/enable cycle or widget refresh on that path. Manual toggle uses the same profile reload.
+- Fixed [B]Shortcut Folders[/B]: opening a shortcut folder no longer errors (folder name was dropped from the navigation URL).
+- Fixed [B]custom menu editor[/B]: remove and reorder now use the item position (menu names are no longer in folder URLs) and the menu reloads after a change instead of showing [B]Success[/B] with no update.
+- [B]Language Invoker[/B]: after an update, addon.xml is restored from your saved setting during service startup with a confirm dialog and Kodi profile reload - not from home-screen widgets. No disable/enable cycle or widget refresh on that path. Manual toggle uses the same profile reload.
 
 [COLOR red][B]Version 1.4.4[/B][/COLOR]
-- Tools > Import & Export: separate zip backup/restore for Red Light settings (custom menus, personal lists, discover lists, list images, and all addon settings).
-- Kodi favorites import/export: copy or merge the profile [B]Favourites.xml[/B] file (export is a literal copy; import offers merge by action or full replace with backup of the current file); warns that favorites only work for the add-on or library path that created them; restart Kodi to refresh the Favorites menu.
-- Tools > Import & Export: [B]Red Light Favorites & History[/B] JSON backup/restore (renamed from Favorites & Progress) - exports favorites plus local in-progress and watched rows when Watched Indicators is Red Light; import merge keeps furthest progress, newer watched dates, and local-only items; replace clears each section present in the file; older backups without watched still import.
-- Import & Export browse: cancelling folder or file browse no longer continues to confirm; export and import folder browse open at your default; after a successful export you can save the chosen folder as your default; [B]Import & Export Directory[/B] under Settings > General; default backup folder is addon profile [B]Import Export[/B] (special://profile/.../Import Export/) on all platforms when unset; settings backup preview/import text clarifies that settings.db includes debrids, EasyNews, and TMDb lists as well as Trakt, Simkl, and MDBList.
+- [B]Tools > Import & Export[/B]: separate zip backup/restore for Red Light settings (custom menus, personal lists, discover lists, list images, and all addon settings).
+- Kodi favorites import/export: copy or merge the profile [B]Favourites.xml[/B] file (export is a literal copy; import offers merge by action or full replace with backup of the current file); warns that favorites only work for the add-on or library path that created them; restart Kodi to refresh the [B]Favorites[/B] menu.
+- [B]Tools > Import & Export[/B]: [B]Red Light Favorites & History[/B] JSON backup/restore (renamed from [B]Favorites & Progress[/B]) - exports favorites plus local in-progress and watched rows when [B]Watched Indicators[/B] is [B]Red Light[/B]; import merge keeps furthest progress, newer watched dates, and local-only items; replace clears each section present in the file; older backups without watched still import.
+- [B]Import & Export[/B] browse: cancelling folder or file browse no longer continues to confirm; export and import folder browse open at your default; after a successful export you can save the chosen folder as your default; [B]Import & Export Directory[/B] under [B]Settings > General[/B]; default backup folder is addon profile [B]Import Export[/B] (special://profile/.../Import Export/) on all platforms when unset; settings backup preview/import text clarifies that [B]settings.db[/B] includes debrids, EasyNews, and TMDb lists as well as Trakt, Simkl, and MDBList.
 - Fixed auth QR codes sometimes missing or blank on device authorise dialogs (Trakt, Simkl, MDBList, debrids, EasyNews, TMDb lists, log uploader).
-- Fixed Custom Sort to Top: HDR preference no longer matches HDrip releases (HDrip was treated as HDR because of substring matching in source info tags).
-- Fixed Tools > Set Views: saving a view no longer errors (view name was dropped from the save action URL).
-- Language Invoker: after an update or settings import, your saved choice is written back to addon.xml the first time you open Red Light (disable/enable when the value changes). Widgets refresh lightly only - not a full skin reload.
+- Fixed [B]Custom Sort to Top[/B]: [B]HDR[/B] preference no longer matches [B]HDrip[/B] releases ([B]HDrip[/B] was treated as [B]HDR[/B] because of substring matching in source info tags).
+- Fixed [B]Tools > Set Views[/B]: saving a view no longer errors (view name was dropped from the save action URL).
+- [B]Language Invoker[/B]: after an update or settings import, your saved choice is written back into addon.xml the first time you open Red Light (disable/enable when the value changes). Widgets refresh lightly only - not a full skin reload.
 
 [COLOR red][B]Version 1.4.3[/B][/COLOR]
-- Improved browse menu navigation: Back and Exit return to the correct parent menu (Movies, TV Shows, Anime, My Lists, MDBList, Trakt, TMDb, genres, and more) with list view preserved.
-- Refined menu folder links for smoother navigation through Trending, watchlists, collections, and other browse shortcuts.
+- Improved browse menu navigation: [B]Back[/B] and [B]Exit[/B] return to the correct parent menu ([B]Movies[/B], [B]TV Shows[/B], [B]Anime[/B], [B]My Lists[/B], [B]MDBList[/B], [B]Trakt[/B], [B]TMDb[/B], genres, and more) with list view preserved.
+- Refined menu folder links for smoother navigation through [B]Trending[/B], watchlists, collections, and other browse shortcuts.
 
 [COLOR red][B]Version 1.4.2[/B][/COLOR]
-- MDBList: optional watched status provider (API key auth) with sync, scrobble/progress, watchlist, library (collection), dropped, and list browse under My Lists > MDBList Lists.
-- MDBList Manager on movie/TV rows (watch/unwatch, reset scrobble, watchlist add/remove) when authorised.
-- Settings: Meta Accounts > MDBList; My Data > MDBList Cache (sync interval, force sync, clear cache).
-- Settings: Meta Accounts > Simkl > clear cache; Trakt > clear cache.
-- Play Random (continuous): episode handoff timing now follows your autoscrape/autoplay next-episode window for smoother transitions between episodes.
+- [B]MDBList[/B]: optional watched status provider (API key auth) with sync, scrobble/progress, watchlist, library (collection), dropped, and list browse under [B]My Lists > MDBList Lists[/B].
+- [B]MDBList Manager[/B] on movie/TV rows (watch/unwatch, reset scrobble, watchlist add/remove) when authorised.
+- [B]Settings: Meta Accounts > MDBList[/B]; [B]My Data > MDBList Cache[/B] (sync interval, force sync, clear cache).
+- [B]Settings: Meta Accounts > Simkl > clear cache[/B]; [B]Trakt > clear cache[/B].
+- [B]Play Random[/B] (continuous): episode handoff timing now follows your autoscrape/autoplay next-episode window for smoother transitions between episodes.
 
 [COLOR red][B]Version 1.4.1[/B][/COLOR]
-- Fixed Autoscrape confirm dialog: countdown expiry no longer shows a redundant Cancel Autoscrape notification.
+- Fixed [B]Autoscrape confirm dialog[/B]: countdown expiry no longer shows a redundant [B]Cancel Autoscrape[/B] notification.
 
 [COLOR red][B]Version 1.4.0[/B][/COLOR]
-- Fixed Autoscrape confirm dialog: 10-second countdown restored to original behaviour - press Yes during the countdown to scrape; if it reaches 0 (or playback ends) the dialog closes and autoscrape is cancelled.
-- Fixed addon update resetting Language Invoker and icon: saved settings are written back into addon.xml after a repo update (no notification or forced trip to Home).
+- Fixed [B]Autoscrape confirm dialog[/B]: 10-second countdown restored to original behaviour - press [B]Yes[/B] during the countdown to scrape; if it reaches 0 (or playback ends) the dialog closes and autoscrape is cancelled.
+- Fixed addon update resetting [B]Language Invoker[/B] and icon: saved settings are written back into addon.xml after a repo update (no notification or forced trip to [B]Home[/B]).
 
 [COLOR red][B]Version 1.3.9[/B][/COLOR]
 - Fixed autoscrape/autoplay binge playback: next-episode prep no longer blocks scheduling the following episode while the current next one is still playing.
-- Fixed Still Watching and Autoplay Next Episode dialogs: countdown timers restored (no longer depend on Kodi player infolabels or active playback).
+- Fixed [B]Still Watching[/B] and [B]Autoplay Next Episode[/B] dialogs: countdown timers restored (no longer depend on Kodi player infolabels or active playback).
 
 [COLOR red][B]Version 1.3.8[/B][/COLOR]
-- Fixed Autoscrape confirm dialog: uses the same layout as the Autoplay Next Episode alert (poster, dim band, heading, Yes/No buttons); waits for your choice instead of auto-closing.
+- Fixed [B]Autoscrape confirm dialog[/B]: uses the same layout as the [B]Autoplay Next Episode[/B] alert (poster, dim band, heading, Yes/No buttons); waits for your choice instead of auto-closing.
 - Fixed autoscrape/autoplay binge playback: next-episode prep runs in the background, waits for valid duration before triggering, and avoids stopping a stream that is still opening.
 
 [COLOR red][B]Version 1.3.7[/B][/COLOR]
-- Results: optional Tint Focused Result Background (off by default) tints the focused row using your provider/quality highlight color; Results Background Opacity (20%-80%) when enabled. Credits and with thanks: Polgara01 (#13).
+- [B]Results[/B]: optional [B]Tint Focused Result Background[/B] (off by default) tints the focused row using your provider/quality highlight color; [B]Results Background Opacity[/B] (20%-80%) when enabled. Credits and with thanks: Polgara01 (#13).
 
 [COLOR red][B]Version 1.3.6[/B][/COLOR]
-- Fixed My Lists failing to open when a saved menu still used the old navigator.my_content route (alias plus one-time menu migration).
-- Simkl: single Simkl Lists entry under My Lists (removed duplicate Simkl My Content menu).
-- Simkl: Force Simkl Sync now shows a success notification like Force Trakt Sync.
-- Search: main Search menu keeps Search Trakt User Lists only (no Simkl entry; Simkl list search remains under Simkl Lists).
-- Trakt Lists (personal): Search My Trakt Lists filters your own lists by name.
-- Fixed Autoscrape confirm dialog: compact top-right card without the full-width dim tint band.
-- Fixed settings bootstrap / Remake Settings Cache error that could leave the settings UI on a white background.
+- Fixed [B]My Lists[/B] failing to open when a saved menu still used the old navigator.my_content route (alias plus one-time menu migration).
+- [B]Simkl[/B]: single [B]Simkl Lists[/B] entry under [B]My Lists[/B] (removed duplicate [B]Simkl My Content[/B] menu).
+- [B]Simkl[/B]: [B]Force Simkl Sync[/B] now shows a success notification like [B]Force Trakt Sync[/B].
+- [B]Search[/B]: main [B]Search[/B] menu keeps [B]Search Trakt User Lists[/B] only (no Simkl entry; Simkl list search remains under [B]Simkl Lists[/B]).
+- [B]Trakt Lists[/B] (personal): [B]Search My Trakt Lists[/B] filters your own lists by name.
+- Fixed [B]Autoscrape confirm dialog[/B]: compact top-right card without the full-width dim tint band.
+- Fixed settings bootstrap / [B]Remake Settings Cache[/B] error that could leave the settings UI on a white background.
 
 [COLOR red][B]Version 1.3.5[/B][/COLOR]
-- Simkl Lists Manager: dynamic add/remove for Plan to Watch, Watching, Completed, On Hold, and Dropped (from cached list data); shortcuts to open status lists; lighter refresh after list changes (no full sync on every edit).
-- Simkl lists: Search My Simkl Lists finds titles across your status lists (includes anime).
-- Simkl lists: new Simkl Lists sort under Contents Sort Order For Simkl Lists (Plan to Watch, Watching, Completed, On Hold, Dropped), including Release Date (asc).
-- Simkl: Import Trakt to Simkl under Meta Accounts (official Simkl import page via QR or link); prompt when switching Watched Status Provider to Simkl while Trakt is authorised.
-- Trakt Collection and Watchlist: added Date Added (asc) and Release Date (asc) sort options (earliest air/release or added date first).
-- Meta Accounts: Trakt Authorise now explains when custom Client ID/Secret are rejected; new Test Client Credentials action under Trakt.
-- Meta Accounts: TMDb API key entry trims whitespace, warns when a v4 Read Access Token is pasted into the v3 API Key field, and Test API Key checks for the same mistake.
-- Fixed Play Random: auto-starts a source when global Autoplay Episodes is off (random play keeps its own autoplay path; continual random chains in the background).
-- Autoscrape: confirm-before-scrape prompt now uses an Autoscrape Next Episode heading and aligns top-right to match the post-scrape flow.
-- Prescrape: debrid cloud scrapers (e.g. Premiumize) no longer run again during the full scrape when they already ran in prescrape.
-- Prescrape: playback failure no longer restarts the full scrape when prescrape already returned results (avoids duplicate Premiumize cloud passes).
-- Prescrape: removed empty-prescrape notice from the results list and autoplay toast (search continues with other scrapers automatically).
-- EasyNews: Autoplay Result queue continues to the next hit after a failed stream instead of stopping at the first failure.
-- Resolve queue: failed playback no longer closes the resolver between attempts (same walk-the-list behaviour for EasyNews, cloud library, and external debrid).
-- EasyNews: Autoplay Result (per-provider prescrape toggle) now starts playback like debrid cloud autoplay.
-- Playback: show the playback-failed message once per resolve attempt (no duplicate alerts on EasyNews retries or end-of-queue fallback).
-- Playback: failed dialog notes when an external source was unchecked (cache check was off) and may not be on your debrid.
+- [B]Simkl Lists Manager[/B]: dynamic add/remove for [B]Plan to Watch[/B], [B]Watching[/B], [B]Completed[/B], [B]On Hold[/B], and [B]Dropped[/B] (from cached list data); shortcuts to open status lists; lighter refresh after list changes (no full sync on every edit).
+- [B]Simkl[/B] lists: [B]Search My Simkl Lists[/B] finds titles across your status lists (includes anime).
+- [B]Simkl[/B] lists: new [B]Simkl Lists[/B] sort under [B]Contents Sort Order For Simkl Lists[/B] ([B]Plan to Watch[/B], [B]Watching[/B], [B]Completed[/B], [B]On Hold[/B], [B]Dropped[/B]), including [B]Release Date (asc)[/B].
+- [B]Simkl[/B]: [B]Import Trakt to Simkl[/B] under [B]Meta Accounts[/B] (official Simkl import page via QR or link); prompt when switching [B]Watched Status Provider[/B] to Simkl while Trakt is authorised.
+- [B]Trakt Collection[/B] and [B]Watchlist[/B]: added [B]Date Added (asc)[/B] and [B]Release Date (asc)[/B] sort options (earliest air/release or added date first).
+- [B]Meta Accounts[/B]: [B]Trakt Authorise[/B] now explains when custom Client ID/Secret are rejected; new [B]Test Client Credentials[/B] action under Trakt.
+- [B]Meta Accounts[/B]: [B]TMDb API[/B] key entry trims whitespace, warns when a v4 Read Access Token is pasted into the v3 API Key field, and [B]Test API Key[/B] checks for the same mistake.
+- Fixed [B]Play Random[/B]: auto-starts a source when global [B]Autoplay Episodes[/B] is off (random play keeps its own autoplay path; continual random chains in the background).
+- [B]Autoscrape[/B]: confirm-before-scrape prompt now uses an [B]Autoscrape Next Episode[/B] heading and aligns top-right to match the post-scrape flow.
+- [B]Prescrape[/B]: debrid cloud scrapers (e.g. Premiumize) no longer run again during the full scrape when they already ran in prescrape.
+- [B]Prescrape[/B]: playback failure no longer restarts the full scrape when prescrape already returned results (avoids duplicate Premiumize cloud passes).
+- [B]Prescrape[/B]: removed empty-prescrape notice from the results list and autoplay toast (search continues with other scrapers automatically).
+- [B]EasyNews[/B]: [B]Autoplay Result[/B] queue continues to the next hit after a failed stream instead of stopping at the first failure.
+- [B]Resolve queue[/B]: failed playback no longer closes the resolver between attempts (same walk-the-list behaviour for EasyNews, cloud library, and external debrid).
+- [B]EasyNews[/B]: [B]Autoplay Result[/B] (per-provider prescrape toggle) now starts playback like debrid cloud autoplay.
+- [B]Playback[/B]: show the playback-failed message once per resolve attempt (no duplicate alerts on EasyNews retries or end-of-queue fallback).
+- [B]Playback[/B]: failed dialog notes when an external source was unchecked (cache check was off) and may not be on your debrid.
 
 [COLOR red][B]Version 1.3.4[/B][/COLOR]
-- Simkl: PIN OAuth under Meta Accounts; optional Watched Status Provider prompt on authorise (Trakt or Simkl); revoke falls back to the other service or Red Light when the revoked account was the active provider.
-- Simkl lists (parallel to Trakt): Plan to Watch, Watching, Completed, On Hold, Dropped under My Content; Random Simkl Lists; Simkl Lists Manager on context menu and Options.
-- Simkl sync: background SimklMonitor, simklcache.db, scrobble/progress/watched when Simkl is the Watched Status Provider; Clear Simkl Cache in maintenance.
-- Watched Status Provider picker: lists Red Light, Simkl, and Trakt alphabetically (values unchanged).
-- Context menu: TMDb Lists Manager appears above Personal Lists Manager; existing order migrates on upgrade.
-- Trakt Cache: Force Trakt Sync for a full re-sync (parallel to Force Simkl Sync).
-- Most Watched: when Simkl is the Watched Status Provider, Movies/TV/Anime Most Watched use Simkl trending charts; otherwise Trakt (unchanged).
-- Tools - Red Light Import & Export: scrollable preview dialogs for long backup summaries; progress sections name the active Trakt or Simkl provider when local progress is skipped.
-- Anime Providers: fixed empty lists when browsing Anime by streaming provider.
+- [B]Simkl[/B]: PIN OAuth under [B]Meta Accounts[/B]; optional [B]Watched Status Provider[/B] prompt on authorise (Trakt or Simkl); revoke falls back to the other service or [B]Red Light[/B] when the revoked account was the active provider.
+- [B]Simkl[/B] lists (parallel to Trakt): [B]Plan to Watch[/B], [B]Watching[/B], [B]Completed[/B], [B]On Hold[/B], [B]Dropped[/B] under [B]My Content[/B]; [B]Random Simkl Lists[/B]; [B]Simkl Lists Manager[/B] on context menu and [B]Options[/B].
+- [B]Simkl[/B] sync: background [B]SimklMonitor[/B], [B]simklcache.db[/B], scrobble/progress/watched when Simkl is the [B]Watched Status Provider[/B]; [B]Clear Simkl Cache[/B] in maintenance.
+- [B]Watched Status Provider[/B] picker: lists [B]Red Light[/B], [B]Simkl[/B], and [B]Trakt[/B] alphabetically (values unchanged).
+- Context menu: [B]TMDb Lists Manager[/B] appears above [B]Personal Lists Manager[/B]; existing order migrates on upgrade.
+- [B]Trakt Cache[/B]: [B]Force Trakt Sync[/B] for a full re-sync (parallel to [B]Force Simkl Sync[/B]).
+- [B]Most Watched[/B]: when Simkl is the [B]Watched Status Provider[/B], [B]Movies[/B]/[B]TV[/B]/[B]Anime Most Watched[/B] use Simkl trending charts; otherwise Trakt (unchanged).
+- [B]Tools > Red Light Import & Export[/B]: scrollable preview dialogs for long backup summaries; progress sections name the active Trakt or Simkl provider when local progress is skipped.
+- [B]Anime Providers[/B]: fixed empty lists when browsing [B]Anime[/B] by streaming provider.
 
 [COLOR red][B]Version 1.3.0 - 1.3.3[/B][/COLOR]
 - Test releases for v1.2.9x and v1.3.4.
 
 [COLOR red][B]Version 1.2.9l[/B][/COLOR]
-- Sources Browse: after browse playback, return to the sources results list without re-scraping.
-- Sources Browse: close the results list when playback starts so fullscreen is not blocked.
-- Sources Browse: clear the video playlist before generic browse play so stale episode entries do not interrupt pack playback; playback failure shows a toast; empty browse lists do not fall back to full magnet resolve/play.
-- Select dialog: initialise control_id so keyboard/remote selection before a list click does not break browse pickers.
+- [B]Sources Browse[/B]: after browse playback, return to the sources results list without re-scraping.
+- [B]Sources Browse[/B]: close the results list when playback starts so fullscreen is not blocked.
+- [B]Sources Browse[/B]: clear the video playlist before generic browse play so stale episode entries do not interrupt pack playback; playback failure shows a toast; empty browse lists do not fall back to full magnet resolve/play.
+- [B]Select dialog[/B]: initialise control_id so keyboard/remote selection before a list click does not break browse pickers.
 
 [COLOR red][B]Version 1.2.9k[/B][/COLOR]
-- Sources Browse (pack): fix playback when picking a file - defer TorBox/Offcloud browse cleanup until after playback starts; close the results list from the window handler when play begins.
-- Sources Browse (single-file torrent): picking a file from the list now plays (cancel still returns to sources); only marked packs skip the picker when there is one file; empty lists on non-pack sources still do not fall back to autoplay.
-- Sources Browse: shared empty-list messages for Browse/Download (TorBox uses “No video file(s) yet” when listing is empty); resolve picked files via direct URLs where possible; notify when a picked file cannot be resolved; non-pack browse no longer falls back to full magnet resolve after a failed file pick (avoids surprise playback).
-- Sources Browse (verify): drop the extra Source viable OK dialog; seeing the file list (or picking a file) is enough confirmation and avoids focus bouncing back into Browse.
+- [B]Sources Browse[/B] (pack): fix playback when picking a file - defer TorBox/Offcloud browse cleanup until after playback starts; close the results list from the window handler when play begins.
+- [B]Sources Browse[/B] (single-file torrent): picking a file from the list now plays (cancel still returns to sources); only marked packs skip the picker when there is one file; empty lists on non-pack sources still do not fall back to autoplay.
+- [B]Sources Browse[/B]: shared empty-list messages for [B]Browse[/B]/[B]Download[/B] (TorBox uses [B]No video file(s) yet[/B] when listing is empty); resolve picked files via direct URLs where possible; notify when a picked file cannot be resolved; non-pack browse no longer falls back to full magnet resolve after a failed file pick (avoids surprise playback).
+- [B]Sources Browse[/B] (verify): drop the extra [B]Source viable[/B] OK dialog; seeing the file list (or picking a file) is enough confirmation and avoids focus bouncing back into [B]Browse[/B].
 
 [COLOR red][B]Version 1.2.9j[/B][/COLOR]
-- Prescrape (Check Before Full Search): restore early cloud results with Run External Scraper Search when prescrape finds hits but does not autoplay; No Cloud Results Found notice only when prescrape truly found nothing, with a notification when Autoplay continues to external search.
-- Prescrape: empty-cloud notice subtitle says Results from other enabled scrapers (not results below) when global Autoplay Movie/Episode continues to external search.
-- Playback: Autoplay Episode/Movie off no longer autoplays external torrent results; per-provider Autoplay Cloud Result still autoplays cloud prescrape hits when the global setting is off.
-- Playback: Autoplay Cloud Result now applies on full-scrape cloud hits (not only the prescrape phase), uses provider autoplay settings instead of the active-scraper list, and no longer clears cloud autoplay when falling through to external; failed cloud autoplay shows cloud results instead of jumping straight to external.
-- Playback: prescrape no longer blocks cloud scrapers from the full scrape when they returned no hits; play_source again autoplays cloud hits from per-provider settings at play time (restores pre-v1.2.9j behaviour while keeping global Autoplay Episode/Movie gating external only).
-- Playback: Autoplay Cloud Result now switches to a fresh resolver dialog after prescrape (scraper UI was blocking resolve) and falls back to the cloud results list if resolve fails.
-- Playback: when Check Before Full Search finds no cloud results but Autoplay is on and external scrapers are enabled, external results now autoplay instead of always opening the results list (cloud autoplay > external autoplay cascade).
-- Autoplay Next Episode: release the resolve lock once playback has started so the next episode can scrape in the background while the current episode is still playing; background next-episode searches bypass the resolve/sources busy gate that previously aborted silently.
-- Autoplay Next Episode: keep the current episode playing until the Next Episode alert is answered (resolve no longer stops playback before the window); the alert dialog no longer crashes when the player is idle and runs its timer on a background thread so Cancel / Play / Close work reliably.
-- Sources Browse (cached pack): close the results window before the pack picker; skip reopening results after pack playback; ignore playback.media while video is already playing (fixes episode browse Back rescraping over fullscreen).
-- Sources Browse: restore Browse on all cached debrid torrents (not only packs) to verify link viability.
-- Sources Browse: TorBox and Offcloud no longer leave browse transfers in cloud when Store Resolved to Cloud is off (Real-Debrid, AllDebrid, and Premiumize already avoided this).
+- [B]Prescrape[/B] ([B]Check Before Full Search[/B]): restore early cloud results with [B]Run External Scraper Search[/B] when prescrape finds hits but does not autoplay; [B]No Cloud Results Found[/B] notice only when prescrape truly found nothing, with a notification when [B]Autoplay[/B] continues to external search.
+- [B]Prescrape[/B]: empty-cloud notice subtitle says [B]Results from other enabled scrapers[/B] (not results below) when global [B]Autoplay Movie[/B]/[B]Episode[/B] continues to external search.
+- [B]Playback[/B]: [B]Autoplay Episode[/B]/[B]Movie[/B] off no longer autoplays external torrent results; per-provider [B]Autoplay Cloud Result[/B] still autoplays cloud prescrape hits when the global setting is off.
+- [B]Playback[/B]: [B]Autoplay Cloud Result[/B] now applies on full-scrape cloud hits (not only the prescrape phase), uses provider autoplay settings instead of the active-scraper list, and no longer clears cloud autoplay when falling through to external; failed cloud autoplay shows cloud results instead of jumping straight to external.
+- [B]Playback[/B]: prescrape no longer blocks cloud scrapers from the full scrape when they returned no hits; play_source again autoplays cloud hits from per-provider settings at play time (restores pre-v1.2.9j behaviour while keeping global [B]Autoplay Episode[/B]/[B]Movie[/B] gating external only).
+- [B]Playback[/B]: [B]Autoplay Cloud Result[/B] now switches to a fresh resolver dialog after prescrape (scraper UI was blocking resolve) and falls back to the cloud results list if resolve fails.
+- [B]Playback[/B]: when [B]Check Before Full Search[/B] finds no cloud results but [B]Autoplay[/B] is on and external scrapers are enabled, external results now autoplay instead of always opening the results list (cloud autoplay > external autoplay cascade).
+- [B]Autoplay Next Episode[/B]: release the resolve lock once playback has started so the next episode can scrape in the background while the current episode is still playing; background next-episode searches bypass the resolve/sources busy gate that previously aborted silently.
+- [B]Autoplay Next Episode[/B]: keep the current episode playing until the [B]Next Episode[/B] alert is answered (resolve no longer stops playback before the window); the alert dialog no longer crashes when the player is idle and runs its timer on a background thread so [B]Cancel[/B] / [B]Play[/B] / [B]Close[/B] work reliably.
+- [B]Sources Browse[/B] (cached pack): close the results window before the pack picker; skip reopening results after pack playback; ignore playback.media while video is already playing (fixes episode browse [B]Back[/B] rescraping over fullscreen).
+- [B]Sources Browse[/B]: restore [B]Browse[/B] on all cached debrid torrents (not only packs) to verify link viability.
+- [B]Sources Browse[/B]: TorBox and Offcloud no longer leave browse transfers in cloud when [B]Store Resolved to Cloud[/B] is off (Real-Debrid, AllDebrid, and Premiumize already avoided this).
 
 [COLOR red][B]Version 1.2.9i[/B][/COLOR]
-- Sources Browse (cached pack): close the results list before the pack file picker and playback so video is not hidden behind the list; Back during episode browse no longer restarts scraping when playback is already active.
-- Sources Browse: limited to pack results only (single-file torrents use click-to-play); empty pack lists fall back to the same resolve path as clicking the source; one-file packs play without an extra picker step.
+- [B]Sources Browse[/B] (cached pack): close the results list before the pack file picker and playback so video is not hidden behind the list; [B]Back[/B] during episode browse no longer restarts scraping when playback is already active.
+- [B]Sources Browse[/B]: limited to pack results only (single-file torrents use click-to-play); empty pack lists fall back to the same resolve path as clicking the source; one-file packs play without an extra picker step.
 
 [COLOR red][B]Version 1.2.9h[/B][/COLOR]
-- Tools: Red Light Favorites & Progress Import & Export - backup Red Light favorites and local progress to JSON; import with merge (keep furthest progress, keep local-only items) or replace per section in the file.
-- Settings: Import & Export Directory under General, default folder for Red Light favorites and progress backup file browse. On Android, folder browse for non-empty download/backup paths starts at local root so parent navigation is not blocked (a Kodi browser quirk).
-- Add to Cloud: Real-Debrid and AllDebrid now show No URL Found for Add to Cloud (matching Download Pack) when the magnet has nothing to send, instead of Failed.
-- Resolve lock: fixed Resolve or playback in progress blocking new play attempts after cancelling resume, backing out of resolve, or other early exit from playback (busy flag was not always cleared).
-- Resolve lock: stale resolve busy flag is cleared automatically when nothing is playing and no stream is opening.
-- Playback: debrid / cloud direct links no longer reopen at Kodi's saved URL resume point (near end of file); Red Light StartPercent resume is still used when set.
-- Playback: failed resolve/play from source search now shows a Playback Failed dialog instead of failing silently (closes progress window first; uses Kodi native OK dialog so it is not blocked by the resolve UI thread).
-- Prescrape (Check Before Full Search): choosing Run External Scraper Search no longer shows a second OK confirm - the list row is the action; external scrapers start immediately.
+- [B]Tools[/B]: [B]Red Light Favorites & Progress Import & Export[/B] - backup Red Light favorites and local progress to JSON; import with merge (keep furthest progress, keep local-only items) or replace per section in the file.
+- [B]Settings: Import & Export Directory[/B] under [B]General[/B], default folder for Red Light favorites and progress backup file browse. On Android, folder browse for non-empty download/backup paths starts at local root so parent navigation is not blocked (a Kodi browser quirk).
+- [B]Add to Cloud[/B]: Real-Debrid and AllDebrid now show [B]No URL Found for Add to Cloud[/B] (matching [B]Download Pack[/B]) when the magnet has nothing to send, instead of [B]Failed[/B].
+- [B]Resolve lock[/B]: fixed [B]Resolve or playback in progress[/B] blocking new play attempts after cancelling resume, backing out of resolve, or other early exit from playback (busy flag was not always cleared).
+- [B]Resolve lock[/B]: stale resolve busy flag is cleared automatically when nothing is playing and no stream is opening.
+- [B]Playback[/B]: debrid / cloud direct links no longer reopen at Kodi's saved URL resume point (near end of file); Red Light [B]StartPercent[/B] resume is still used when set.
+- [B]Playback[/B]: failed resolve/play from source search now shows a [B]Playback Failed[/B] dialog instead of failing silently (closes progress window first; uses Kodi native OK dialog so it is not blocked by the resolve UI thread).
+- [B]Prescrape[/B] ([B]Check Before Full Search[/B]): choosing [B]Run External Scraper Search[/B] no longer shows a second OK confirm - the list row is the action; external scrapers start immediately.
 
 [COLOR red][B]Version 1.2.9g[/B][/COLOR]
-- Download File: fixed immediate No URL found when resolving external debrid links (Sources resolve flags were unset on the lightweight downloader path).
-- Download Pack: Real-Debrid empty/failed pack lists no longer throw on add-magnet failure (was showing generic Error instead of the shared No URL found for Download message used by AllDebrids); RD add-magnet failures now clean up the temp torrent before returning.
-- Autoplay: show No Results Found when nothing is playable (e.g. only uncached external torrents, with Include Uncached on or off) instead of closing silently; same dialog when autoplay/background resolve exhausts all links.
+- [B]Download File[/B]: fixed immediate [B]No URL found[/B] when resolving external debrid links (Sources resolve flags were unset on the lightweight downloader path).
+- [B]Download Pack[/B]: Real-Debrid empty/failed pack lists no longer throw on add-magnet failure (was showing generic [B]Error[/B] instead of the shared [B]No URL found for Download[/B] message used by AllDebrid); RD add-magnet failures now clean up the temp torrent before returning.
+- [B]Autoplay[/B]: show [B]No Results Found[/B] when nothing is playable (e.g. only uncached external torrents, with [B]Include Uncached[/B] on or off) instead of closing silently; same dialog when autoplay/background resolve exhausts all links.
 
 [COLOR red][B]Version 1.2.9f[/B][/COLOR]
-- TorBox and Offcloud: Include Uncached Results (External Scrapers) shown only when Check Cached Status is enabled, matching Premiumize (v1.2.9e). Include uncached has no effect while cache check is off.
+- [B]TorBox[/B] and [B]Offcloud[/B]: [B]Include Uncached Results (External Scrapers)[/B] shown only when [B]Check Cached Status[/B] is enabled, matching Premiumize (v1.2.9e). Include uncached has no effect while cache check is off.
 
 [COLOR red][B]Version 1.2.9e[/B][/COLOR]
 - Intended functionality can have unintended consequences! Reverted v1.2.6 cancel navigation: stopping playback or resolve during source selection closes the progress dialog and returns to the episode/results browser instead of reopening the sources list.
 - Resolve cancel: Fixed occasional FenLightAM behaviour where backing out of resolve causes Kodi crash.
 - Scrape cancel: Changed FenLightAM behaviour, backing out of the progress dialog now aborts the search, releases the busy lock immediately, and suppresses late results.
-- Prescrape (Check Before Full Search): renamed Run Full Source Search to Run External Scraper Search in results; confirm prompt asks Run external torrent scrapers? - cloud/EasyNews prescrape already ran; the follow-up step is external torrent scrapers only.
-- Prescrape external follow-up: other enabled cloud/debrid/folder scrapers no longer run again when continuing to external torrent search (only prescrape results plus external scrapers are collected).
-- Prescrape external follow-up: refreshes quality filters, result sort order, and debrid priority ranks before merging external torrent results.
-- Prescrape empty cloud: no confirmation popup when Check Before Full Search finds nothing - automatically continues with other enabled scrapers and shows a No Cloud Results Found notice above the results list.
-- AllDebrid: Check Cached Status (External Scrapers) toggle under Sources Accounts, matching Real-Debrid, TorBox, Premiumize, and Offcloud (uses existing AD_check cache API).
-- Premiumize: Include Uncached Results (External Scrapers) toggle under Sources Accounts, matching TorBox and Offcloud (uncached rows in main list; selecting adds to Premiumize cloud). Shown only when Check Cached Status is enabled.
-- External cache check defaults: Check Cached Status (External Scrapers) now defaults to on for Premiumize, Offcloud, and TorBox; Real-Debrid and AllDebrid remain off by default. Existing installs: one-time migration sets PM/OC/TB cache check on when still off.
-- Kodi Log Uploader: dismiss busy spinner before the Pastebin QR countdown so Back can cancel the dialog; close the progress window when exiting early or when the timer finishes; QR screen now runs a 2 minute countdown (was 50 seconds) and auto-closes when it reaches zero.
+- [B]Prescrape[/B] ([B]Check Before Full Search[/B]): renamed [B]Run Full Source Search[/B] to [B]Run External Scraper Search[/B] in results; confirm prompt asks [B]Run external torrent scrapers?[/B] - cloud/EasyNews prescrape already ran; the follow-up step is external torrent scrapers only.
+- [B]Prescrape[/B] external follow-up: other enabled cloud/debrid/folder scrapers no longer run again when continuing to external torrent search (only prescrape results plus external scrapers are collected).
+- [B]Prescrape[/B] external follow-up: refreshes quality filters, result sort order, and debrid priority ranks before merging external torrent results.
+- [B]Prescrape[/B] empty cloud: no confirmation popup when [B]Check Before Full Search[/B] finds nothing - automatically continues with other enabled scrapers and shows a [B]No Cloud Results Found[/B] notice above the results list.
+- [B]AllDebrid[/B]: [B]Check Cached Status (External Scrapers)[/B] toggle under [B]Sources Accounts[/B], matching Real-Debrid, TorBox, Premiumize, and Offcloud (uses existing AD_check cache API).
+- [B]Premiumize[/B]: [B]Include Uncached Results (External Scrapers)[/B] toggle under [B]Sources Accounts[/B], matching TorBox and Offcloud (uncached rows in main list; selecting adds to Premiumize cloud). Shown only when [B]Check Cached Status[/B] is enabled.
+- External cache check defaults: [B]Check Cached Status (External Scrapers)[/B] now defaults to on for Premiumize, Offcloud, and TorBox; Real-Debrid and AllDebrid remain off by default. Existing installs: one-time migration sets PM/OC/TB cache check on when still off.
+- [B]Kodi Log Uploader[/B]: dismiss busy spinner before the Pastebin QR countdown so [B]Back[/B] can cancel the dialog; close the progress window when exiting early or when the timer finishes; QR screen now runs a 2 minute countdown (was 50 seconds) and auto-closes when it reaches zero.
 
 [COLOR red][B]Version 1.2.9d[/B][/COLOR]
-- In Progress lists: when Watched Indicators are Trakt and Trakt is authorised, refresh from Trakt each time a list is opened, as well as when empty. Movies and In Progress Episodes pull playback progress; TV Shows In Progress pulls watched episode state. Episodes with resume at or below 1% are excluded, matching movies.
+- [B]In Progress[/B] lists: when [B]Watched Indicators[/B] are [B]Trakt[/B] and Trakt is authorised, refresh from Trakt each time a list is opened, as well as when empty. [B]Movies[/B] and [B]In Progress Episodes[/B] pull playback progress; [B]TV Shows In Progress[/B] pulls watched episode state. Episodes with resume at or below 1% are excluded, matching movies.
 
 [COLOR red][B]Version 1.2.9c[/B][/COLOR]
 - External cache check: per-provider toggles under each Debrid account (Real-Debrid, TorBox, Premiumize, Offcloud). TorBox/Offcloud include-uncached moved to their Debrid sections. Existing settings migrate automatically. Premiumize cache check wired for external scrapers.
-- Fixed Movies In Progress empty when using Trakt watched indicators: playback progress is saved locally on stop, and Trakt sync no longer wipes those rows while waiting for Trakt to catch up. If Red Light has no progress rows, the list refreshes from Trakt when authorised.
+- Fixed [B]Movies In Progress[/B] empty when using Trakt watched indicators: playback progress is saved locally on stop, and Trakt sync no longer wipes those rows while waiting for Trakt to catch up. If Red Light has no progress rows, the list refreshes from Trakt when authorised.
 
 [COLOR red][B]Version 1.2.9b[/B][/COLOR]
-- Filter Results by Name: EasyNews and Local Folders use exact show-title match before SxxExx (e.g. Wings no longer matches Behind The Wings). Debrid cloud scrapers, use S/E match plus optional title filter; turn off for S/E-only recall.
-- Rescrape Actions: clearer labels (Offer Full Search After Early Results, Disabled External Providers, Real-Debrid Only for no cache check). Rescrape Actions settings screen shows Action and Order only; full help in Settings description. Check Before Full Search / Run Full Source Search remain independent of rescrape full_scrape.
-- Rescrape Actions: setting label shortened to: "Rescrape With No Cache Check (RD Only)".
-- Fixed Rescrape With Episode Group crashing when a custom group was already applied (another old FenLightAM bug).
+- [B]Filter Results by Name[/B]: EasyNews and [B]Local Folders[/B] use exact show-title match before SxxExx (e.g. Wings no longer matches Behind The Wings). Debrid cloud scrapers, use S/E match plus optional title filter; turn off for S/E-only recall.
+- [B]Rescrape Actions[/B]: clearer labels ([B]Offer Full Search After Early Results[/B], [B]Disabled External Providers[/B], [B]Real-Debrid Only[/B] for no cache check). [B]Rescrape Actions[/B] settings screen shows [B]Action[/B] and [B]Order[/B] only; full help in Settings description. [B]Check Before Full Search[/B] / [B]Run Full Source Search[/B] remain independent of rescrape full_scrape.
+- [B]Rescrape Actions[/B]: setting label shortened to: [B]Rescrape With No Cache Check (RD Only)[/B].
+- Fixed [B]Rescrape With Episode Group[/B] crashing when a custom group was already applied (another old FenLightAM bug).
 
 [COLOR red][B]Version 1.2.9a[/B][/COLOR]
-- Offcloud support (ported from v1.3.x): QR OAuth auth, My Services Cloud Storage and History, cloud scrape, external cache check, resolve, packs, highlight colour. Include uncached results (Offcloud) under External Scrapers (default Off). Notify when added torrents are ready in Cloud. Clear Offcloud Cache in cache tools.
-- Sources Accounts: provider sections reordered alphabetically (AllDebrid, EasyNews, Offcloud, Premiumize, Real-Debrid, TorBox; Local Media Folders last). External Scrapers debrid toggles ordered Offcloud, Real-Debrid, TorBox when each provider is enabled.
-- My Services: same alphabetical provider order (AllDebrid, EasyNews, Offcloud, Premiumize, Real-Debrid, TorBox).
-- Fixed Custom Sort to Top for movies: Set Filters to Top now promotes matching rows to the top of each quality band (4K, 1080p, etc.) instead of the 1.3.x tie-breaker that only reordered identical quality/size/provider rows. SD HDR no longer sorts above 1080p Remux. Debrid cloud results keep pref order when quality limits apply.
-- External Scrapers: setting label shortened to “Check for cached status of Results (RD)”. Description text amended.
+- [B]Offcloud[/B] support (ported from v1.3.x): QR OAuth auth, [B]My Services Cloud Storage[/B] and [B]History[/B], cloud scrape, external cache check, resolve, packs, highlight colour. [B]Include uncached results (Offcloud)[/B] under [B]External Scrapers[/B] (default Off). [B]Notify when added torrents are ready in Cloud[/B]. [B]Clear Offcloud Cache[/B] in cache tools.
+- [B]Sources Accounts[/B]: provider sections reordered alphabetically (AllDebrid, EasyNews, Offcloud, Premiumize, Real-Debrid, TorBox; [B]Local Media Folders[/B] last). [B]External Scrapers[/B] debrid toggles ordered Offcloud, Real-Debrid, TorBox when each provider is enabled.
+- [B]My Services[/B]: same alphabetical provider order (AllDebrid, EasyNews, Offcloud, Premiumize, Real-Debrid, TorBox).
+- Fixed [B]Custom Sort to Top[/B] for movies: [B]Set Filters to Top[/B] now promotes matching rows to the top of each quality band (4K, 1080p, etc.) instead of the 1.3.x tie-breaker that only reordered identical quality/size/provider rows. SD HDR no longer sorts above 1080p Remux. Debrid cloud results keep pref order when quality limits apply.
+- [B]External Scrapers[/B]: setting label shortened to [B]Check for cached status of Results (RD)[/B]. Description text amended.
 
 [COLOR red][B]Version 1.2.9[/B][/COLOR]
 - Fixed scrape progress window staying open after a search returns no results (including unreleased episodes).
-- When a source search finds nothing, now shows a Red Light style "No results found" dialog after the scrape progress window closes, with the Kodi dialog as a fallback if the skin window cannot open.
+- When a source search finds nothing, now shows a Red Light style [B]No results found[/B] dialog after the scrape progress window closes, with the Kodi dialog as a fallback if the skin window cannot open.
 
 [COLOR red][B]Version 1.2.8[/B][/COLOR]
 - Fixed playback progress / Trakt scrobbling (and Simkl, MDbList, etc.) not updating for TorBox and TorBox Cloud sources: v1.2.7 played those links with a bare Kodi player, skipping Red Light’s playback monitor and script.trakt.ids.
@@ -183,45 +189,45 @@
 [COLOR red][B]Version 1.2.6[/B][/COLOR]
 - TorBox Cloud (source search): fixed intermittent empty results - folder list cache call was invalid.
 - Premiumize Cloud: faster, more reliable scrape (no early exit before internal_results).
-- External: “Check for cached status” is Real-Debrid only - AllDebrid removed from this check (AD API changes; prior AD cache logic caused worse results). With the setting off, TorBox/Premiumize no longer call checkcached unless “Include uncached TorBox” is on. Torrent host threads get a short grace period after timeout.
+- External: [B]Check for cached status[/B] is Real-Debrid only - AllDebrid removed from this check (AD API changes; prior AD cache logic caused worse results). With the setting off, TorBox/Premiumize no longer call checkcached unless [B]Include uncached TorBox[/B] is on. Torrent host threads get a short grace period after timeout.
 - Cancel during playback/resolve returns straight to the sources results list; progress dialog closes faster on cancel.
 - Cancel during resolve stops retrying other sources and returns to the sources list instead of the results/episode browser.
 - Premiumize/TorBox cloud: episode files use exact S/E matching end-to-end; title filter no longer uses pack-range episode patterns (fixes episode 1 listing episode 2).
 - TorBox cloud scrape: restored v1.2.5 search speed by using cached mylist during source search (live bypass_cache only for Cloud Storage browse). Keeps RD-style title+year folder prefilter and per-folder fetch cap so large libraries do not hang.
 - TorBox: Cloud Storage loads all torrent/usenet/webdl lists in parallel (faster, full list on open); only caches a complete fetch for quick Back navigation. Partial API failures are not cached and show a notification.
 - TorBox: Fixed Cloud Storage folder browse on Kodi 21 (removed deprecated setInfo; use name/file_id from API). Cloud Storage list loads sequentially in the UI to avoid plugin thread errors; source search still uses parallel mylist fetch.
-- Fixed debrid cloud (RD/PM/AD/TB) always appearing at the bottom when Show Results at Top is off: quality limits re-appended all cloud results after non-cloud links; they are now re-sorted into the normal provider/quality order unless Show Results at Top is enabled for that scraper.
+- Fixed debrid cloud (RD/PM/AD/TB) always appearing at the bottom when [B]Show Results at Top[/B] is off: quality limits re-appended all cloud results after non-cloud links; they are now re-sorted into the normal provider/quality order unless [B]Show Results at Top[/B] is enabled for that scraper.
 - Premiumize Cloud: scrape via folder/list (same as Cloud Storage browser) instead of item/listall only - fixes empty results when files live under folders such as My Files, and is much faster on large mixed libraries. Filter-by-name off applies to title rules only; episodes still match S/E, movies still match year.
 - Fixed source search hang when debrid cloud and External scrapers are both enabled.
 - Fixed TorBox download saving files as the hashtag, instead of the filename.
 - Other small fixes.
 
 [COLOR red][B]Version 1.2.5[/B][/COLOR]
-- Fixed Results > Choose Rescrape Actions crashing (KeyError) after Start Full Scrape was added: order labels and the Set Order dialog now support six priority slots (0–5).
-- Fixed progress bar stuck on EXTERNAL after debrid/EasyNews scrapers finish: the External scrapers module name was treated as a pending internal provider, so the dialog waited for the full Results Timeout even when no torrent hosts were still running.
+- Fixed [B]Results > Choose Rescrape Actions[/B] crashing (KeyError) after [B]Start Full Scrape[/B] was added: order labels and the [B]Set Order[/B] dialog now support six priority slots (0–5).
+- Fixed progress bar stuck on [B]EXTERNAL[/B] after debrid/EasyNews scrapers finish: the [B]External[/B] scrapers module name was treated as a pending internal provider, so the dialog waited for the full [B]Results Timeout[/B] even when no torrent hosts were still running.
 - Fixed External scraper phase taking much longer than Red Light v1.1.8: since v1.2.2, Debrid Cloud scrapers blocked the Coco/Magneto/Gears External module until every cloud API call finished (v1.2.4 added up to 25s more). Cloud scrapers still start first when enabled, but External runs in parallel again like v1.1.8.
 
 [COLOR red][B]Version 1.2.4[/B][/COLOR]
 - TorBox Cloud: cloud search now respects the Results Timeout budget and skips non-matching folders earlier, so a large TorBox library no longer blocks the entire source search when nothing matches.
 - Source search: internal scrapers finish (or time out at 25s) before the external scraper phase starts, so external no longer sits at a red progress bar waiting on slow internal/cloud scrapers.
-- Fixed Real-Debrid (and other debrid) cloud results ignoring Show Results at Top: quality limits were re-appending all cloud results to the bottom after they had already been sorted to the top.
+- Fixed Real-Debrid (and other debrid) cloud results ignoring [B]Show Results at Top[/B]: quality limits were re-appending all cloud results to the bottom after they had already been sorted to the top.
 - Fixed AllDebrid external cache check returning inconsistent results: API failures no longer mark every torrent as cached, hash matching is normalized to lowercase, invalid hashes are skipped, and instant/ready/cached flags are parsed more reliably from the magnet/instant API.
 
 [COLOR red][B]Version 1.2.3[/B][/COLOR]
-- Fixed skin widgets (e.g. Movies > Trending) staying empty after a settings DB upgrade: widget calls no longer block on settings bootstrap, failed Trakt list fetches are not cached, and widgets are silently reloaded with ReloadSkin only when sync_settings actually migrates or repairs an existing settings.db (not on every boot).
+- Fixed skin widgets (e.g. [B]Movies > Trending[/B]) staying empty after a settings DB upgrade: widget calls no longer block on settings bootstrap, failed Trakt list fetches are not cached, and widgets are silently reloaded with [B]ReloadSkin[/B] only when sync_settings actually migrates or repairs an existing [B]settings.db[/B] (not on every boot).
 - Fixed slow startup and browsing after the v1.2.2 boot-crash fix: settings reads no longer hit SQLite on every call once properties are loaded, the database is not synced twice on boot, path-existence checks are skipped on the read path, and default-settings metadata is cached in memory.
 - Fixed widget and skin list loads hanging after 5 seconds (or failing) after opening Red Light: the font/skin background thread now runs only in the service process, not in the plugin invoker where it blocked every widget exit.
 - Fixed widgets staying empty after the above change: widget calls no longer bulk-load settings into window properties (which could fail silently); they read from a warmed in-memory DB cache instead when properties are not yet loaded.
 
 [COLOR red][B]Version 1.2.2[/B][/COLOR]
-- Fixed Kodi boot crash after upgrading from older versions when legacy settings.db contained invalid values. On boot the service migrates/sanitizes the database first, then loads settings into window properties after the GUI is up (so widgets and skin labels work). Skin/XML updates still run when Red Light is first opened.
+- Fixed Kodi boot crash after upgrading from older versions when legacy [B]settings.db[/B] contained invalid values. On boot the service migrates/sanitizes the database first, then loads settings into window properties after the GUI is up (so widgets and skin labels work). Skin/XML updates still run when Red Light is first opened.
 
 [COLOR red][B]Version 1.2.1[/B][/COLOR]
-- Fixed prescrape regression: "Start Full Scrape" no longer appears when only EasyNews or debrid cloud results are shown unless Check Before Full Search is enabled or external scrapers still need to run. Debrid cloud still runs before external scrapers when the provider is enabled.
-- TorBox Cloud: episode search only returns files matching the requested season/episode (no longer lists every file in a season pack when the folder title matches).
-- Start Full Scrape: clean second-pass scrape - resets state, applies Results limits/filters and external scraper settings. Configurable under Tools > Settings > Rescrape Actions > Start Full Scrape (After Prescrape) (default Prompt).
-- Meta Accounts: TMDb Lists read access token is user-configurable (with restore default and test), same pattern as Trakt client credentials and the TMDb API key.
-- External scrapers: AllDebrid cached-result filter now uses the AllDebrid instant API (per hash) instead of MediaFusion only, so "Check for cached status (RD & AD)" returns AD results again when torrents are on your account.
+- Fixed prescrape regression: [B]Start Full Scrape[/B] no longer appears when only EasyNews or debrid cloud results are shown unless [B]Check Before Full Search[/B] is enabled or external scrapers still need to run. Debrid cloud still runs before external scrapers when the provider is enabled.
+- [B]TorBox Cloud[/B]: episode search only returns files matching the requested season/episode (no longer lists every file in a season pack when the folder title matches).
+- [B]Start Full Scrape[/B]: clean second-pass scrape - resets state, applies [B]Results[/B] limits/filters and external scraper settings. Configurable under [B]Tools > Settings > Rescrape Actions > Start Full Scrape (After Prescrape)[/B] (default [B]Prompt[/B]).
+- [B]Meta Accounts[/B]: [B]TMDb Lists[/B] read access token is user-configurable (with restore default and test), same pattern as Trakt client credentials and the [B]TMDb API[/B] key.
+- [B]External scrapers[/B]: AllDebrid cached-result filter now uses the AllDebrid instant API (per hash) instead of MediaFusion only, so [B]Check for cached status (RD & AD)[/B] returns AD results again when torrents are on your account.
 - External scrapers: fixed debrid cache check skipping re-query after a previous "not cached" result and failing to update when cache status changed (first pass empty, auto second pass).
 - External scrapers: AllDebrid instant check uses GET magnet/instant (documented API), accepts instant/ready flags, and does not mark every torrent uncached when the API call fails.
 
@@ -234,58 +240,58 @@
 - AIOStreams: temporarily disabled in this release (no source searches or settings UI) while integration is fixed.
 
 [COLOR red][B]Version 1.1.9~alpha[/B][/COLOR]
-- AIOStreams: optional native source provider (Tools > Settings > Sources Accounts > AIOStreams > Enable). Uses HTTP Basic Auth username and password from your AIOStreams dashboard.
-- AIOStreams: instance picker and Active base URL row show each preset with its full domain (Kuu, ElfHosted, Yeb, Midnight, or Custom).
-- AIOStreams: Check Before Full Search and Autoplay Result toggles (same pattern as EasyNews and Debrid cloud scrapers).
-- AIOStreams runs alongside Debrid, EasyNews, and external scrapers; P2P results are ignored.
-- AIOStreams: optional result highlight colour under Tools > Settings > Results (provider highlight mode).
-- Results: removed obsolete Easy Debrid and Off Cloud highlight colours.
+- [B]AIOStreams[/B]: optional native source provider ([B]Tools > Settings > Sources Accounts > AIOStreams > Enable[/B]). Uses HTTP Basic Auth username and password from your AIOStreams dashboard.
+- [B]AIOStreams[/B]: instance picker and [B]Active base URL[/B] row show each preset with its full domain (Kuu, ElfHosted, Yeb, Midnight, or Custom).
+- [B]AIOStreams[/B]: [B]Check Before Full Search[/B] and [B]Autoplay Result[/B] toggles (same pattern as EasyNews and Debrid cloud scrapers).
+- [B]AIOStreams[/B] runs alongside Debrid, EasyNews, and external scrapers; P2P results are ignored.
+- [B]AIOStreams[/B]: optional result highlight colour under [B]Tools > Settings > Results[/B] (provider highlight mode).
+- [B]Results[/B]: removed obsolete Easy Debrid and Off Cloud highlight colours.
 
 [COLOR red][B]Version 1.1.8[/B][/COLOR]
 - Fix rare scrape-screen lockup caused by thread exhaustion ("can't start new thread") by falling back to serial provider processing when new threads cannot be spawned.
 - Sources results window now fails safely if initialisation errors occur, preventing stuck scrape dialogs that required a Kodi restart.
-- Tools > Database & Cache Maintenance: added separate "Clear EasyNews Scrape Cache" and "Clear EasyNews Search History" actions.
-- "Clear All Cache (Excluding Favorites)" now also clears EasyNews search history.
-- Tools > Database & Cache Maintenance: removed obsolete "Clear Easy Debrid Cache" entry from menu and clear-all paths.
-- EasyNews: added "Exclude Adult Results" toggle (Safe Search) in settings.
-- Settings Manager: slowed help text autoscroll repeat timing to 7 seconds.
+- [B]Tools > Database & Cache Maintenance[/B]: added separate [B]Clear EasyNews Scrape Cache[/B] and [B]Clear EasyNews Search History[/B] actions.
+- [B]Clear All Cache (Excluding Favorites)[/B] now also clears EasyNews search history.
+- [B]Tools > Database & Cache Maintenance[/B]: removed obsolete [B]Clear Easy Debrid Cache[/B] entry from menu and clear-all paths.
+- [B]EasyNews[/B]: added [B]Exclude Adult Results[/B] toggle ([B]Safe Search[/B]) in settings.
+- [B]Settings Manager[/B]: slowed help text autoscroll repeat timing to 7 seconds.
 
 [COLOR red][B]Version 1.1.7[/B][/COLOR]
-- Subtitles: SubMaker now supports selectable Subtitle Language in Settings (default English).
-- Subtitles: Now a separate section in Settings > Playback.
+- [B]Subtitles[/B]: [B]SubMaker[/B] now supports selectable [B]Subtitle Language[/B] in [B]Settings[/B] (default [B]English[/B]).
+- [B]Subtitles[/B]: Now a separate section in [B]Settings > Playback[/B].
 
 [COLOR red][B]Version 1.1.6[/B][/COLOR]
-- Subtitles: SubMaker added to Subtitles. Auto Enable Subtitles (default Off - as before). Local Subtitles or SubMaker (default Local). [B]To use SubMaker you need to enter your own SubMaker Manifest URL (https://submaker.elfhosted.com).[/B] Default language English. When SubMaker is selected, optional prefer Local Subs If Available (default On).
+- [B]Subtitles[/B]: [B]SubMaker[/B] added to [B]Subtitles[/B]. [B]Auto Enable Subtitles[/B] (default [B]Off[/B] - as before). [B]Local Subtitles[/B] or [B]SubMaker[/B] (default [B]Local[/B]). [B]To use SubMaker you need to enter your own SubMaker Manifest URL (https://submaker.elfhosted.com).[/B] Default language [B]English[/B]. When [B]SubMaker[/B] is selected, optional [B]Prefer Local Subs If Available[/B] (default [B]On[/B]).
 
 [COLOR red][B]Version 1.1.5[/B][/COLOR]
-- Real-Debrid: Limit parallel magnet resolves to 3 (semaphore) to reduce rate limiting when multiple sources resolve at once.
-- Real-Debrid: Optional "Free active download slot" setting (default Off). When enabled, removes one active torrent before adding a new one if RD already has 5 active downloads.
-- Fix Autoplay Next Episode failing when the next episode scrape finishes after the current episode has ended.
-- Expand EasyNews settings help text for Refresh Credentials, Fallback Search, Search Width, and Check Before Full Search.
-- Settings Manager: pin INFO help panel below the settings list (matches list slide) and top-align description text for consistent placement.
-- Settings Manager: fix INFO text autoscroll (fixed textbox height; faster scroll timing).
+- [B]Real-Debrid[/B]: Limit parallel magnet resolves to 3 (semaphore) to reduce rate limiting when multiple sources resolve at once.
+- [B]Real-Debrid[/B]: Optional [B]Free active download slot[/B] setting (default [B]Off[/B]). When enabled, removes one active torrent before adding a new one if RD already has 5 active downloads.
+- Fix [B]Autoplay Next Episode[/B] failing when the next episode scrape finishes after the current episode has ended.
+- Expand [B]EasyNews[/B] settings help text for [B]Refresh Credentials[/B], [B]Fallback Search[/B], [B]Search Width[/B], and [B]Check Before Full Search[/B].
+- [B]Settings Manager[/B]: pin [B]INFO[/B] help panel below the settings list (matches list slide) and top-align description text for consistent placement.
+- [B]Settings Manager[/B]: fix [B]INFO[/B] text autoscroll (fixed textbox height; faster scroll timing).
 
 [COLOR red][B]Version 1.1.4[/B][/COLOR]
-- TorBox: "Include Uncached Results (TorBox)" added under External Scrapers (default Off). When enabled, Uncached TorBox sort with the same provider priority as Cached TorBox (grey highlight).
-- TorBox: "Notify when added torrents are ready in Cloud" added in Sources Accounts (default On).
-- TorBox: Added History under My Services.
-- TorBox: Fixed Download Pack not saving files locally.
-- AllDebrid, Premiumize, Real-Debrid and TorBox History menus now fetch fresh data each time they are opened.
-- AllDebrid: My Services refresh on open. Cloud browse shows video files only.
-- AllDebrid: Fixed Cloud Storage crash.
-- Premiumize: Fixed blank History or "No transfers" when transfers exist. Show In-Progress Transfers and clearer notifications when the list is empty or fails.
+- [B]TorBox[/B]: [B]Include Uncached Results (TorBox)[/B] added under [B]External Scrapers[/B] (default [B]Off[/B]). When enabled, Uncached TorBox sort with the same provider priority as Cached TorBox (grey highlight).
+- [B]TorBox[/B]: [B]Notify when added torrents are ready in Cloud[/B] added in [B]Sources Accounts[/B] (default [B]On[/B]).
+- [B]TorBox[/B]: Added [B]History[/B] under [B]My Services[/B].
+- [B]TorBox[/B]: Fixed [B]Download Pack[/B] not saving files locally.
+- AllDebrid, Premiumize, Real-Debrid and TorBox [B]History[/B] menus now fetch fresh data each time they are opened.
+- [B]AllDebrid[/B]: [B]My Services[/B] refresh on open. Cloud browse shows video files only.
+- [B]AllDebrid[/B]: Fixed [B]Cloud Storage[/B] crash.
+- [B]Premiumize[/B]: Fixed blank [B]History[/B] or [B]No transfers[/B] when transfers exist. Show [B]In-Progress Transfers[/B] and clearer notifications when the list is empty or fails.
 
 [COLOR red][B]Version 1.1.3[/B][/COLOR]
-- TorBox: Fixed Download Pack picker failing with "No URL found for Download" due to a provider name mismatch in the pack file picker.
+- [B]TorBox[/B]: Fixed [B]Download Pack[/B] picker failing with [B]No URL found for Download[/B] due to a provider name mismatch in the pack file picker.
 
 [COLOR red][B]Version 1.1.2[/B][/COLOR]
 - Trakt: Collection, Watchlist, Personal/Liked lists, List items, Favorites, Watched History, and related calls now paginate (250 items per request) so lists above the old 1,000 cap will load in full. Ready for Trakt's lower per-page API limits.
 - After updating from a previous version, run [B]Tools > Database & Cache Maintenance > Clear Trakt Cache[/B]. Otherwise cached lists may still show the old 1,000 item limit until the cache expires.
 
 [COLOR red][B]Version 1.1.1[/B][/COLOR]
-- EasyNews: Search Width (Focused / Balanced / Broad) to run wider Solr queries; optional refresh credentials, include unknown-language results when filtering, and fallback alias/season searches when the primary query returns nothing.
-- EasyNews: clarified Filter Results by Name help text in Settings Manager.
-- Trakt, Personal and TMDb Lists: Removing an item that is not in the list dialog standardised and now shows "Item not in list", not Failed or Error Removing from List.
+- [B]EasyNews[/B]: [B]Search Width[/B] ([B]Focused[/B] / [B]Balanced[/B] / [B]Broad[/B]) to run wider Solr queries; optional refresh credentials, include unknown-language results when filtering, and fallback alias/season searches when the primary query returns nothing.
+- [B]EasyNews[/B]: clarified [B]Filter Results by Name[/B] help text in [B]Settings Manager[/B].
+- [B]Trakt[/B], [B]Personal[/B] and [B]TMDb Lists[/B]: Removing an item that is not in the list dialog standardised and now shows [B]Item not in list[/B], not [B]Failed[/B] or [B]Error Removing from List[/B].
 - FenLightAM TMDb Lists bugs fixed.
 
 [COLOR red][B]Version 1.1.0[/B][/COLOR]
@@ -308,14 +314,14 @@
 
 [COLOR red][B]Version 1.0.6[/B][/COLOR]
 - Fixed TorBox Cloud Storage files not playing. This was broken in FenLightAM.
-- Added "Send URL to WebDL" to My Services > TorBox.
+- Added [B]Send URL to WebDL[/B] to [B]My Services > TorBox[/B].
 - Default Red Light fanart changed from local to special path.
 
 [COLOR red][B]Version 1.0.5[/B][/COLOR]
 - A few small fixes.
 
 [COLOR red][B]Version 1.0.4[/B][/COLOR]
-- Fixed Open External Scraper Settings.
+- Fixed [B]Open External Scraper Settings[/B].
 
 [COLOR red][B]Version 1.0.3[/B][/COLOR]
 - Fixed TorBox Cloud Storage (manually added web-links).

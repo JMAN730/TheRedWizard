@@ -13,7 +13,9 @@ _MAX_PROPERTY_LEN = 8192
 _SETTINGS_PROPERTIES_LOADED = 'redlight.settings_properties_loaded'
 _DEFERRED_SETUP_DONE = 'redlight.deferred_service_setup_done'
 _SETTINGS_DB_MIGRATED = 'redlight.settings_db_migrated'
+_SETTINGS_WIDGETS_MIGRATED = 'redlight.settings_widgets_migrated'
 _SETTINGS_DB_SYNCED = 'redlight.settings_db_synced'
+_SETTINGS_SYNC_FINGERPRINT = 'redlight.settings_sync_fingerprint'
 _WIDGET_REFRESH_SCHEDULED = 'redlight.widgets_refresh_scheduled'
 _bootstrap_lock = Lock()
 _DEFAULTS_LIST = None
@@ -21,6 +23,53 @@ _DEFAULTS_MAP = None
 
 def _properties_loaded():
 	return kodi_utils.get_property(_SETTINGS_PROPERTIES_LOADED) == 'true'
+
+def _settings_schema_token():
+	return '%s:%s' % (kodi_utils.addon_info('version'), len(default_settings()))
+
+def compute_settings_sync_fingerprint():
+	return _settings_schema_token()
+
+def mark_settings_sync_complete():
+	kodi_utils.set_property(_SETTINGS_SYNC_FINGERPRINT, compute_settings_sync_fingerprint())
+
+def settings_sync_needed():
+	if kodi_utils.get_property(_SETTINGS_DB_SYNCED) != 'true':
+		return True
+	stored = kodi_utils.get_property(_SETTINGS_SYNC_FINGERPRINT) or ''
+	return stored != compute_settings_sync_fingerprint()
+
+def clear_settings_boot_state(clear_deferred=True):
+	kodi_utils.clear_property(_SETTINGS_SYNC_FINGERPRINT)
+	kodi_utils.clear_property(_SETTINGS_DB_SYNCED)
+	kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
+	kodi_utils.clear_property(_SETTINGS_DB_MIGRATED)
+	kodi_utils.clear_property(_SETTINGS_WIDGETS_MIGRATED)
+	if clear_deferred:
+		kodi_utils.clear_property(_DEFERRED_SETUP_DONE)
+
+def bootstrap_settings_needed():
+	if not _properties_loaded():
+		return True
+	if kodi_utils.get_property(_SETTINGS_DB_MIGRATED) == 'true':
+		return True
+	if kodi_utils.get_property(_DEFERRED_SETUP_DONE) != 'true':
+		return True
+	return False
+
+def widgets_refresh_after_migration_needed():
+	return kodi_utils.get_property(_SETTINGS_WIDGETS_MIGRATED) == 'true'
+
+def service_bootstrap_needed():
+	return bootstrap_settings_needed() or widgets_refresh_after_migration_needed()
+
+def _new_settings_affect_widgets(insert_list):
+	for item in insert_list:
+		setting_id = item[0]
+		if setting_id.startswith('migration.'):
+			continue
+		return True
+	return False
 
 _CREDENTIAL_STRING_SETTINGS = frozenset(('tmdb_api', 'trakt.client', 'trakt.secret', 'tmdb.lists_read_token', 'omdb_api'))
 
@@ -285,17 +334,23 @@ def ensure_settings_properties_loaded():
 		return bootstrap_settings_properties()
 
 def bootstrap_settings_properties(force=False):
-	if not force and _properties_loaded(): return False
+	db_migrated = kodi_utils.get_property(_SETTINGS_DB_MIGRATED) == 'true'
+	if not force and _properties_loaded() and not db_migrated:
+		return False
 	with _bootstrap_lock:
-		if not force and _properties_loaded(): return False
+		db_migrated = kodi_utils.get_property(_SETTINGS_DB_MIGRATED) == 'true'
+		if not force and _properties_loaded() and not db_migrated:
+			return False
 		if force:
 			kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
 			kodi_utils.clear_property(_SETTINGS_DB_SYNCED)
 		if force or kodi_utils.get_property(_SETTINGS_DB_SYNCED) != 'true':
-			sync_settings({'silent': 'true', 'load_properties': False})
+			sync_settings({'silent': 'true', 'load_properties': False, 'force': 'true'})
 		else:
 			kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
 		_apply_settings_properties_from_db()
+		if db_migrated:
+			kodi_utils.clear_property(_SETTINGS_DB_MIGRATED)
 		return True
 
 def schedule_widget_refresh_once(reload_skin=False):
@@ -305,9 +360,9 @@ def schedule_widget_refresh_once(reload_skin=False):
 	except: pass
 
 def refresh_widgets_after_db_migration():
-	if kodi_utils.get_property(_SETTINGS_DB_MIGRATED) != 'true': return
-	kodi_utils.clear_property(_SETTINGS_DB_MIGRATED)
-	schedule_widget_refresh_once(reload_skin=True)
+	if kodi_utils.get_property(_SETTINGS_WIDGETS_MIGRATED) != 'true': return
+	kodi_utils.clear_property(_SETTINGS_WIDGETS_MIGRATED)
+	schedule_widget_refresh_once(reload_skin=not kodi_utils.is_android())
 
 def run_deferred_setup_if_needed():
 	run_deferred_setup_background_if_needed()
@@ -349,9 +404,7 @@ def load_settings_properties(force=False):
 
 def reload_after_settings_restore(imported_db_keys=()):
 	"""Reload caches after a settings backup import without stopping the addon service."""
-	kodi_utils.clear_property(_SETTINGS_PROPERTIES_LOADED)
-	kodi_utils.clear_property(_SETTINGS_DB_SYNCED)
-	kodi_utils.clear_property(_DEFERRED_SETUP_DONE)
+	clear_settings_boot_state(clear_deferred=True)
 	kodi_utils.clear_property(_WIDGET_REFRESH_SCHEDULED)
 	settings_cache.clear_db_cache()
 	imported = set(imported_db_keys or ())
@@ -382,12 +435,16 @@ def reload_after_settings_restore(imported_db_keys=()):
 
 def sync_settings(params={}):
 	silent = params.get('silent', 'true') == 'true'
+	force = params.get('force', False) == 'true'
 	if 'load_properties' in params:
 		load_properties = params.get('load_properties', True) == 'true'
 	else:
 		# AM Lite and boot service sync update settings.db only; full property reload is for Remake Settings Cache.
 		load_properties = not silent
+	if not force and not load_properties and not settings_sync_needed():
+		return 'skipped'
 	migrated = False
+	widgets_migrated = False
 	insert_list = []
 	insert_list_append = insert_list.append
 	currentsettings = settings_cache.get_all()
@@ -482,18 +539,26 @@ def sync_settings(params={}):
 	if insert_list:
 		settings_cache.set_many(insert_list, load_properties=load_properties)
 		migrated = True
+		if _new_settings_affect_widgets(insert_list):
+			widgets_migrated = True
 	if migrated and had_existing_settings:
 		kodi_utils.set_property(_SETTINGS_DB_MIGRATED, 'true')
+	if widgets_migrated and had_existing_settings:
+		kodi_utils.set_property(_SETTINGS_WIDGETS_MIGRATED, 'true')
 	if load_properties:
 		settings_cache.clean_database()
 		bootstrap_settings_properties(force=True)
 		run_deferred_setup_if_needed()
+		kodi_utils.set_property(_SETTINGS_DB_SYNCED, 'true')
+		mark_settings_sync_complete()
 	else:
 		kodi_utils.set_property(_SETTINGS_DB_SYNCED, 'true')
+		mark_settings_sync_complete()
 		settings_cache.clear_db_cache()
 		if _properties_loaded():
 			_apply_settings_properties_from_db()
 	if not silent: kodi_utils.notification('Settings Cache Remade')
+	return 'synced'
 
 def set_default(setting_ids):
 	if not isinstance(setting_ids, list): setting_ids = [setting_ids]
@@ -519,6 +584,8 @@ def set_string(params):
 	if setting_id == 'tmdb_api' and new_value and looks_like_tmdb_v4_jwt(new_value):
 		kodi_utils.ok_dialog(heading='Wrong key type', text='This is a TMDb v4 Read Access Token (JWT), not the v3 API Key.[CR]Use TMDb Lists → Read Access Token for v4 tokens.')
 		return set_string(params)
+	if setting_id == 'playback.submaker_manifest' and new_value:
+		new_value = new_value.strip()
 	set_setting(setting_id, new_value or 'empty_setting')
 
 def set_numeric(params):

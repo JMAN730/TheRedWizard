@@ -176,7 +176,8 @@ def submaker_enabled():
 
 def submaker_manifest():
 	manifest = get_setting('redlight.playback.submaker_manifest', 'empty_setting')
-	return '' if manifest == 'empty_setting' else manifest
+	if manifest == 'empty_setting': return ''
+	return manifest.strip()
 
 def submaker_language():
 	return get_setting('redlight.playback.submaker_language_name', 'English')

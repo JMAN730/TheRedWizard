@@ -23,7 +23,10 @@ class SetAddonConstants:
 		new_version = kodi_utils.addon_info('version')
 		prev_version = kodi_utils.get_property('redlight.addon_version')
 		if prev_version and prev_version != new_version:
-			kodi_utils.clear_property('redlight.deferred_service_setup_done')
+			try:
+				from caches.settings_cache import clear_settings_boot_state
+				clear_settings_boot_state(clear_deferred=True)
+			except: pass
 			kodi_utils.clear_addon_xml_sync_version()
 			kodi_utils.logger('Red Light', 'SetAddonConstants - version %s -> %s' % (prev_version, new_version))
 		icon_choice = get_setting('addon_icon_choice', 'resources/media/addon_icons/icon.png')
@@ -60,18 +63,29 @@ class DatabaseMaintenance:
 class SyncSettings:
 	def run(self):
 		kodi_utils.logger('Red Light', 'SyncSettings Service Starting')
+		from caches.settings_cache import sync_settings, settings_sync_needed
+		if not settings_sync_needed():
+			return kodi_utils.logger('Red Light', 'SyncSettings Service Skipped')
 		sync_settings({'load_properties': False})
 		return kodi_utils.logger('Red Light', 'SyncSettings Service Finished')
 
 class BootstrapSettings:
 	def run(self, monitor):
+		from caches.settings_cache import (
+			bootstrap_settings_needed, bootstrap_settings_properties,
+			refresh_widgets_after_db_migration, run_deferred_setup_background_if_needed,
+			service_bootstrap_needed, widgets_refresh_after_migration_needed, _properties_loaded,
+		)
+		if not service_bootstrap_needed():
+			return
 		kodi_utils.logger('Red Light', 'BootstrapSettings Service Starting')
-		monitor.waitForAbort(2)
+		if bootstrap_settings_needed() and not _properties_loaded():
+			monitor.waitForAbort(2)
 		if kodi_utils.service_shutting_down(monitor): return
 		try:
-			from caches.settings_cache import bootstrap_settings_properties, refresh_widgets_after_db_migration, run_deferred_setup_background_if_needed
-			bootstrap_settings_properties()
-			if not kodi_utils.service_shutting_down(monitor):
+			if bootstrap_settings_needed():
+				bootstrap_settings_properties()
+			if not kodi_utils.service_shutting_down(monitor) and widgets_refresh_after_migration_needed():
 				refresh_widgets_after_db_migration()
 			run_deferred_setup_background_if_needed()
 		except Exception as e:
@@ -253,12 +267,12 @@ class AutoStart:
 			kodi_utils.run_addon()
 		return kodi_utils.logger('Red Light', 'AutoStart Service Finished')
 
-class ReuseLanguageInvokerCheck:
+class AddonXMLCheck:
 	def run(self):
-		kodi_utils.logger('Red Light', 'ReuseLanguageInvokerCheck Service Starting')
+		kodi_utils.logger('Red Light', 'AddonXMLCheck Service Starting')
 		try: kodi_utils.reuse_language_invoker_check()
-		except Exception as e: kodi_utils.logger('ReuseLanguageInvokerCheck', str(e))
-		return kodi_utils.logger('Red Light', 'ReuseLanguageInvokerCheck Service Finished')
+		except Exception as e: kodi_utils.logger('AddonXMLCheck', str(e))
+		return kodi_utils.logger('Red Light', 'AddonXMLCheck Service Finished')
 
 class RedLightMonitor(Monitor):
 	def __init__ (self):
@@ -272,9 +286,13 @@ class RedLightMonitor(Monitor):
 		except Exception as e: kodi_utils.logger('DatabaseMaintenance', str(e))
 		try: SyncSettings().run()
 		except Exception as e: kodi_utils.logger('SyncSettings', str(e))
-		try: ReuseLanguageInvokerCheck().run()
-		except Exception as e: kodi_utils.logger('ReuseLanguageInvokerCheck', str(e))
-		_start_daemon(lambda: BootstrapSettings().run(self))
+		try: AddonXMLCheck().run()
+		except Exception as e: kodi_utils.logger('AddonXMLCheck', str(e))
+		try:
+			from caches.settings_cache import service_bootstrap_needed
+			if service_bootstrap_needed():
+				_start_daemon(lambda: BootstrapSettings().run(self))
+		except Exception as e: kodi_utils.logger('BootstrapSettings', str(e))
 		start_custom_windows_prepare(self)
 		_start_daemon(lambda: TraktMonitor().run(self))
 		_start_daemon(lambda: SimklMonitor().run(self))
