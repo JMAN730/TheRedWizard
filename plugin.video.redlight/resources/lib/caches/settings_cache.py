@@ -134,6 +134,16 @@ def sanitize_setting_value(setting_id, value, setting_info=None, validate_paths=
 			from modules.settings import mdblist_user_active
 			if mdblist_user_active(): return value
 		return '0'
+	if setting_id == 'playback.subs_source':
+		from modules.settings import subtitles_source_options
+		value = str(value)
+		opts = subtitles_source_options()
+		if value in opts: return value
+		if value == '2':
+			return '1' if '1' in opts else '0'
+		if value == '1':
+			return '2' if '2' in opts else '0'
+		return '0'
 	if setting_id in _CREDENTIAL_STRING_SETTINGS:
 		if value in (None, 'empty_setting', ''): return default if value is None else value
 		return normalize_credential_string(value)
@@ -222,6 +232,10 @@ class SettingsCache:
 				from modules.settings import watched_provider_options
 				opts = watched_provider_options()
 				name_setting_value = opts.get(str(setting_value)) or setting_info['settings_options'].get(str(setting_value), opts['0'])
+			elif setting_id == 'playback.subs_source':
+				from modules.settings import subtitles_source_options
+				opts = subtitles_source_options()
+				name_setting_value = opts.get(str(setting_value), opts['0'])
 			else:
 				name_setting_value = setting_info['settings_options'][setting_value]
 			if setting_id == 'aiostreams.instance':
@@ -308,6 +322,18 @@ def _apply_settings_properties_from_db():
 				static_opts = info.get('settings_options', {})
 				settings_cache.set_memory_cache('watched_indicators_name', opts.get(sanitized) or static_opts.get(sanitized, opts['0']))
 			except: pass
+		if setting_id == 'playback.subs_source':
+			try:
+				from modules.settings import subtitles_source_options
+				opts = subtitles_source_options()
+				settings_cache.set_memory_cache('playback.subs_source_name', opts.get(sanitized, opts['0']))
+			except: pass
+		if setting_id in ('stinger_alert.alert_timing', 'autoplay_alert_timing', 'autoscrape_alert_timing'):
+			try:
+				info = defaults_map.get(setting_id) or {}
+				opts = info.get('settings_options', {})
+				settings_cache.set_memory_cache('%s_name' % setting_id, opts.get(sanitized, opts.get('1', '')))
+			except: pass
 	try:
 		from apis.aiostreams_api import refresh_settings_properties
 		refresh_settings_properties()
@@ -332,6 +358,15 @@ def ensure_settings_properties_loaded():
 			_apply_settings_properties_from_db()
 			return True
 		return bootstrap_settings_properties()
+
+def refresh_settings_manager_properties():
+	"""Republish settings.db to Home props before Settings Manager opens (boolean toggles need this)."""
+	settings_cache.clear_db_cache()
+	_apply_settings_properties_from_db()
+	try:
+		from modules.settings import refresh_playback_subs_source
+		refresh_playback_subs_source()
+	except: pass
 
 def bootstrap_settings_properties(force=False):
 	db_migrated = kodi_utils.get_property(_SETTINGS_DB_MIGRATED) == 'true'
@@ -587,6 +622,11 @@ def set_string(params):
 	if setting_id == 'playback.submaker_manifest' and new_value:
 		new_value = new_value.strip()
 	set_setting(setting_id, new_value or 'empty_setting')
+	if setting_id in ('playback.submaker_manifest', 'playback.opensubs_username', 'playback.opensubs_password'):
+		try:
+			from modules.settings import refresh_playback_subs_source
+			refresh_playback_subs_source()
+		except: pass
 
 def set_numeric(params):
 	setting_id = params['setting_id']
@@ -633,6 +673,9 @@ def set_from_list(params):
 	if setting_id == 'watched_indicators':
 		from modules.settings import watched_provider_options
 		settings_options = watched_provider_options().items()
+	elif setting_id == 'playback.subs_source':
+		from modules.settings import subtitles_source_options
+		settings_options = subtitles_source_options().items()
 	else:
 		settings_options = default_setting_values(setting_id)['settings_options'].items()
 	settings_list = [(v, k) for k, v in settings_options]
@@ -1055,7 +1098,7 @@ def default_settings():
 {'setting_id': 'auto_resume_movie', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Never', '1': 'Always', '2': 'Autoplay Only'}},
 {'setting_id': 'stinger_alert.show', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'stinger_alert.window_percentage', 'setting_type': 'action', 'setting_default': '90', 'min_value': '1', 'max_value': '99'},
-{'setting_id': 'stinger_alert.alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Off', '1': 'Chapter Info', '2': 'Subtitles Info'}},
+{'setting_id': 'stinger_alert.alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Playback Percentage', '1': 'Chapter Info', '2': 'Subtitles Info'}},
 #==================== Playback Episodes
 {'setting_id': 'auto_play_episode', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'results_quality_episode', 'setting_type': 'string', 'setting_default': 'SD, 720p, 1080p, 4K'},
@@ -1064,11 +1107,11 @@ def default_settings():
 {'setting_id': 'autoplay_alert_method', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Window', '1': 'Notification'}},
 {'setting_id': 'autoplay_default_action', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Play', '1': 'Cancel', '2': 'Pause & Wait'}},
 {'setting_id': 'autoplay_next_window_percentage', 'setting_type': 'action', 'setting_default': '95', 'min_value': '75', 'max_value': '99'},
-{'setting_id': 'autoplay_alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Off', '1': 'Chapter Info', '2': 'Subtitles Info'}},
+{'setting_id': 'autoplay_alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Playback Percentage', '1': 'Chapter Info', '2': 'Subtitles Info'}},
 {'setting_id': 'autoplay_watching_check', 'setting_type': 'action', 'setting_default': '3', 'min_value': '0', 'max_value': '5'},
 {'setting_id': 'autoscrape_next_episode', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'autoscrape_next_window_percentage', 'setting_type': 'action', 'setting_default': '95', 'min_value': '75', 'max_value': '99'},
-{'setting_id': 'autoscrape_alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Off', '1': 'Chapter Info', '2': 'Subtitles Info'}},
+{'setting_id': 'autoscrape_alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Playback Percentage', '1': 'Chapter Info', '2': 'Subtitles Info'}},
 {'setting_id': 'autoscrape_confirm', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'auto_resume_episode', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Never', '1': 'Always', '2': 'Autoplay Only'}},
 #==================== Playback Utilities
@@ -1079,14 +1122,17 @@ def default_settings():
 {'setting_id': 'playback.volumecheck_enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'playback.volumecheck_percent', 'setting_type': 'action', 'setting_default': '50', 'min_value': '1', 'max_value': '100'},
 {'setting_id': 'playback.auto_enable_subs', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'playback.subs_source', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Local Subtitles', '1': 'SubMaker'}},
+{'setting_id': 'playback.opensubs_api_key', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'playback.opensubs_username', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'playback.opensubs_password', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'playback.subs_source', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Local Subtitles', '1': 'SubMaker', '2': 'OpenSubtitles'}},
 {'setting_id': 'playback.submaker_manifest', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'playback.submaker_language', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'English', '1': 'Arabic', '2': 'Bengali',
 '3': 'Bulgarian', '4': 'Chinese', '5': 'Croatian', '6': 'Czech', '7': 'Danish', '8': 'Dutch', '9': 'Finnish', '10': 'French', '11': 'German',
 '12': 'Greek', '13': 'Hebrew', '14': 'Hindi', '15': 'Hungarian', '16': 'Icelandic', '17': 'Indonesian', '18': 'Italian', '19': 'Japanese',
 '20': 'Korean', '21': 'Malay', '22': 'Norwegian', '23': 'Persian', '24': 'Polish', '25': 'Portuguese', '26': 'Portuguese (Brazil)', '27': 'Punjabi',
 '28': 'Romanian', '29': 'Russian', '30': 'Serbian', '31': 'Slovenian', '32': 'Spanish', '33': 'Swedish', '34': 'Tagalog', '35': 'Tamil', '36': 'Telugu',
-'37': 'Thai', '38': 'Turkish', '39': 'Ukrainian', '40': 'Urdu', '41': 'Vietnamese'}},
+'37': 'Thai', '38': 'Turkish', '39': 'Ukrainian', '40': 'Urdu', '41': 'Vietnamese', '42': 'Forced Only (Local Subs)'}},
 {'setting_id': 'playback.submaker_prefer_local', 'setting_type': 'boolean', 'setting_default': 'true'},
 
 
@@ -1112,6 +1158,7 @@ def default_settings():
 {'setting_id': 'trakt.expires', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'trakt.refresh', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'trakt.token', 'setting_type': 'string', 'setting_default': '0'},
+{'setting_id': 'playback.opensubs_token', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'tmdblist.list_sort', 'setting_type': 'string', 'setting_default': '0'},
 {'setting_id': 'tmdblist.list_sort_name', 'setting_type': 'string', 'setting_default': 'Title'},
 {'setting_id': 'personal_list.list_sort', 'setting_type': 'string', 'setting_default': '0'},

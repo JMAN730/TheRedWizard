@@ -12,6 +12,8 @@ from modules import kodi_utils as ku, settings as st, watched_status as ws
 PROP_RESOLVE_CANCEL = 'redlight.resolve_cancelled'
 PROP_PLAY_OPENING = 'redlight.play_opening'
 PROP_NEXTEP_PENDING = 'redlight.nextep_pending'
+# Movies-only: fire stingers alert ~3 min before other alert sources would (typical 90% vs 95% gap on ~1 hr).
+_STINGER_EARLY_OFFSET_SEC = 180
 
 class RedLightPlayer(xbmc.Player):
 	def __init__ (self):
@@ -191,7 +193,14 @@ class RedLightPlayer(xbmc.Player):
 			ku.hide_busy_dialog()
 			ku.sleep(1000)
 			self._simkl_scrobble_start()
-			if st.auto_enable_subs() and not st.submaker_enabled(): self.showSubtitles(True)
+			self._maybe_start_subtitle_alert_fetch()
+			if st.auto_enable_subs() and st.subtitles_source() == '0':
+				try:
+					from indexers.subtitles import enable_local_subtitles
+					poster = self.meta.get('poster') if getattr(self, 'meta', None) else None
+					enable_local_subtitles(self, poster=poster or ku.get_icon('box_office'))
+				except:
+					self.showSubtitles(True)
 			while self.isPlayingVideo():
 				try:
 					if not ensure_dialog_dead:
@@ -353,14 +362,28 @@ class RedLightPlayer(xbmc.Player):
 			return False
 		return remaining > 0 and remaining <= self.start_prep
 
+	def _nextep_play_type(self):
+		return 'autoplay_nextep' if self.autoplay_nextep else 'autoscrape_nextep'
+
+	def _still_watching_due(self, nextep_settings):
+		watching_check = nextep_settings.get('watching_check', 0)
+		return watching_check and self.meta_get('watch_count') == watching_check
+
+	def _pop_window_seconds(self, nextep_settings, total_time):
+		return self._alert_window_time(nextep_settings, 90, total_time, still_watching_check=0)
+
+	def _start_prep_seconds(self, nextep_settings, pop_at, play_type):
+		pipeline = st.nextep_pipeline_headroom(play_type, nextep_settings['scraper_time'], self._still_watching_due(nextep_settings))
+		return int(pop_at) + pipeline
+
 	def _ensure_random_continual_prep(self):
 		if getattr(self, 'random_continual_start_prep', None) is not None: return
 		if st.autoscrape_next_episode(): play_type = 'autoscrape_nextep'
 		elif st.autoplay_next_episode(): play_type = 'autoplay_nextep'
 		else: play_type = 'autoscrape_nextep'
 		nextep_settings = st.auto_nextep_settings(play_type)
-		window_time = self._alert_window_time(nextep_settings, 90, self.total_time)
-		self.random_continual_start_prep = nextep_settings['scraper_time'] + window_time
+		pop_at = self._pop_window_seconds(nextep_settings, self.total_time)
+		self.random_continual_start_prep = self._start_prep_seconds(nextep_settings, pop_at, play_type)
 
 	def _should_prep_random_continual(self):
 		if getattr(self, 'random_continual_triggered', False): return False
@@ -428,15 +451,14 @@ class RedLightPlayer(xbmc.Player):
 
 	def info_next_ep(self):
 		self.nextep_info_gathered = True
-		play_type = 'autoplay_nextep' if self.autoplay_nextep else 'autoscrape_nextep'
+		play_type = self._nextep_play_type()
 		nextep_settings = st.auto_nextep_settings(play_type)
-		watching_check = nextep_settings['watching_check']
-		still_watching_check = 15 if self.meta_get('watch_count') == watching_check else 0
-		window_time = self._alert_window_time(nextep_settings, 90, self.total_time, still_watching_check)
+		pop_at = self._pop_window_seconds(nextep_settings, self.total_time)
 		use_window = nextep_settings['alert_method'] == 0
 		default_action = nextep_settings['default_action']
-		self.start_prep = nextep_settings['scraper_time'] + window_time
-		self.nextep_settings = {'use_window': use_window, 'window_time': window_time, 'default_action': default_action, 'play_type': play_type, 'watching_check': watching_check}
+		self.start_prep = self._start_prep_seconds(nextep_settings, pop_at, play_type)
+		self.nextep_settings = {'use_window': use_window, 'window_time': pop_at, 'default_action': default_action, 'play_type': play_type,
+			'watching_check': nextep_settings['watching_check'], 'pipeline_headroom': st.nextep_pipeline_headroom(play_type, nextep_settings['scraper_time'], self._still_watching_due(nextep_settings))}
 
 	def final_chapter(self, threshhold):
 		try:
@@ -448,22 +470,49 @@ class RedLightPlayer(xbmc.Player):
 	def _clear_subtitle_end_cache(self):
 		self._subtitle_end_remaining_cached = '__unset__'
 
-	def _subtitle_end_remaining(self, fetch=False):
+	def _subtitle_alert_fetch_pending(self):
+		return getattr(self, '_subtitle_alert_fetch_started', False) and not getattr(self, '_subtitle_alert_fetch_done', False)
+
+	def _maybe_start_subtitle_alert_fetch(self):
+		if getattr(self, '_subtitle_alert_fetch_started', False): return
+		if self.is_generic or not self.imdb_id: return
+		if not st.subs_alert_fetch_enabled(self.media_type): return
+		self._subtitle_alert_fetch_started = True
+		season = self.season if self.media_type == 'episode' else None
+		episode = self.episode if self.media_type == 'episode' else None
+		year = getattr(self, 'year', None)
+		playing_filename = getattr(self, 'playing_filename', None)
+		def _work():
+			try:
+				from indexers.subtitles import fetch_subtitle_for_alert_timing
+				fetch_subtitle_for_alert_timing(self.imdb_id, season, episode, year, playing_filename)
+			except: pass
+			finally:
+				self._subtitle_alert_fetch_done = True
+				self._clear_subtitle_end_cache()
+		Thread(target=_work, daemon=True).start()
+
+	def _subtitle_end_remaining(self, fetch=False, for_alert=False):
 		cached = getattr(self, '_subtitle_end_remaining_cached', '__unset__')
-		if cached != '__unset__' and (cached is not None or getattr(self, 'subs_searched', False)):
-			return cached
+		cache_key = 'alert' if for_alert else 'scrape'
+		cached_by_mode = cached if isinstance(cached, dict) else {}
+		if cache_key in cached_by_mode and (cached_by_mode[cache_key] is not None or getattr(self, 'subs_searched', False)) and not self._subtitle_alert_fetch_pending():
+			return cached_by_mode[cache_key]
 		try:
 			from indexers.subtitles import subtitle_seconds_remaining_before_end
 			season = self.season if self.media_type == 'episode' else None
 			episode = self.episode if self.media_type == 'episode' else None
 			remaining = subtitle_seconds_remaining_before_end(float(self.total_time), self.imdb_id, season, episode, fetch=fetch,
-				player=self, playing_filename=getattr(self, 'playing_filename', None), playback_started_at=getattr(self, '_playback_started_at', None))
+				player=self, playing_filename=getattr(self, 'playing_filename', None), playback_started_at=getattr(self, '_playback_started_at', None),
+				year=getattr(self, 'year', None), for_alert=for_alert)
 		except:
 			remaining = None
 		if remaining is not None:
-			self._subtitle_end_remaining_cached = remaining
+			cached_by_mode[cache_key] = remaining
+			self._subtitle_end_remaining_cached = cached_by_mode
 		elif getattr(self, 'subs_searched', False):
-			self._subtitle_end_remaining_cached = None
+			cached_by_mode[cache_key] = None
+			self._subtitle_end_remaining_cached = cached_by_mode
 		return remaining
 
 	def _alert_window_time(self, nextep_settings, chapter_threshold, total_time, still_watching_check=0):
@@ -477,34 +526,48 @@ class RedLightPlayer(xbmc.Player):
 			percentage = 100 - final_chapter if final_chapter else window_percentage
 			return round((percentage / 100) * total_time) + still_watching_check
 		if alert_timing == 'subtitles':
-			sub_remaining = self._subtitle_end_remaining(fetch=True)
+			sub_remaining = self._subtitle_end_remaining(fetch=True, for_alert=True)
 			if sub_remaining is not None:
 				return round(sub_remaining) + still_watching_check
 		return round((window_percentage / 100) * total_time) + still_watching_check
 
 	def _maybe_refresh_nextep_subtitle_timing(self):
 		if not getattr(self, 'nextep_info_gathered', False) or not getattr(self, 'nextep_settings', None): return
-		play_type = 'autoplay_nextep' if self.autoplay_nextep else 'autoscrape_nextep'
+		play_type = self._nextep_play_type()
 		nextep_settings = st.auto_nextep_settings(play_type)
 		if nextep_settings.get('alert_timing') != 'subtitles': return
-		still_watching_check = 15 if self.meta_get('watch_count') == nextep_settings['watching_check'] else 0
-		sub_remaining = self._subtitle_end_remaining(fetch=False)
-		if sub_remaining is None: return
-		window_time = round(sub_remaining) + still_watching_check
-		if window_time == self.nextep_settings.get('window_time'): return
-		self.start_prep = nextep_settings['scraper_time'] + window_time
-		self.nextep_settings['window_time'] = window_time
+		sub_alert = self._subtitle_end_remaining(fetch=False, for_alert=True)
+		if sub_alert is None: return
+		pop_at = round(sub_alert)
+		start_prep = self._start_prep_seconds(nextep_settings, pop_at, play_type)
+		pipeline = st.nextep_pipeline_headroom(play_type, nextep_settings['scraper_time'], self._still_watching_due(nextep_settings))
+		if pop_at == self.nextep_settings.get('window_time') and start_prep == self.start_prep: return
+		self.start_prep = start_prep
+		self.nextep_settings['window_time'] = pop_at
+		self.nextep_settings['pipeline_headroom'] = pipeline
+
+	def _stinger_early_percentage(self, trigger_pct):
+		try:
+			total = float(self.total_time)
+			if total > 0:
+				trigger_pct = round(trigger_pct - (_STINGER_EARLY_OFFSET_SEC / total * 100), 1)
+				return max(1.0, trigger_pct)
+		except: pass
+		return trigger_pct
 
 	def _stinger_trigger_point(self, alert_timing, fallback_percentage):
 		if alert_timing == 'chapters':
-			return self.final_chapter(75) or fallback_percentage
-		if alert_timing == 'subtitles':
+			trigger_pct = self.final_chapter(75) or fallback_percentage
+		elif alert_timing == 'subtitles':
+			trigger_pct = fallback_percentage
 			try:
-				sub_remaining = self._subtitle_end_remaining(fetch=True)
+				sub_remaining = self._subtitle_end_remaining(fetch=True, for_alert=True)
 				if sub_remaining is not None and self.total_time:
-					return round(100 - (float(sub_remaining) / float(self.total_time) * 100), 1)
+					trigger_pct = round(100 - (float(sub_remaining) / float(self.total_time) * 100), 1)
 			except: pass
-		return fallback_percentage
+		else:
+			trigger_pct = fallback_percentage
+		return self._stinger_early_percentage(trigger_pct)
 
 	def kill_dialog(self):
 		try:
@@ -534,14 +597,19 @@ class RedLightPlayer(xbmc.Player):
 		self.subs_searched = True
 		self._clear_subtitle_end_cache()
 		if not st.auto_enable_subs(): return
-		if not st.submaker_enabled(): return
 		if not self.imdb_id: return
 		try:
-			from indexers.subtitles import Subtitles
 			poster = self.meta.get('poster') or ku.get_icon('box_office')
 			season = self.season if self.media_type == 'episode' else None
 			episode = self.episode if self.media_type == 'episode' else None
-			Thread(target=Subtitles().run, args=(self.imdb_id, season, episode, poster)).start()
+			year = getattr(self, 'year', None)
+			playing_filename = getattr(self, 'playing_filename', None)
+			if st.submaker_enabled():
+				from indexers.subtitles import Subtitles
+				Thread(target=Subtitles().run, args=(self.imdb_id, season, episode, poster)).start()
+			elif st.opensubs_enabled():
+				from indexers.subtitles import OpenSubtitlesSubs
+				Thread(target=OpenSubtitlesSubs().run, args=(self.imdb_id, season, episode, poster, year, playing_filename)).start()
 		except: pass
 
 	def set_playback_properties(self):

@@ -353,6 +353,15 @@ def routing(sys):
 	elif mode == 'open_settings':
 		from modules.kodi_utils import open_settings
 		return open_settings()
+	elif mode == 'opensubs_test_login':
+		from apis.opensubs_api import check_account
+		return check_account()
+	elif mode == 'opensubs_check_account':
+		from apis.opensubs_api import check_account
+		return check_account()
+	elif mode == 'opensubs_revoke':
+		from apis.opensubs_api import revoke_access
+		return revoke_access()
 	elif mode == 'hide_unhide_progress_items':
 		from modules.watched_status import hide_unhide_progress_items
 		return hide_unhide_progress_items(params)

@@ -7,6 +7,9 @@ from modules import kodi_utils as ku, settings as st
 
 timeout = 20.0
 _ALERT_SUB_MAX_REMAINING = 600
+# When the last .srt cue ends long before EOF, assume an unsubtitled credits tail and aim pre-credits.
+_SUBS_UNSUBTITLED_TAIL_SEC = 90
+_SUBS_PRE_CREDITS_REMAINING_SEC = 90
 _SUB_EXTS = ('.srt', '.ass', '.ssa', '.sub', '.vtt')
 _ACTIVE_SUB_PROP = 'redlight.active_subtitle_path'
 _SUBMAKER_SKIP_LANGS = frozenset(('sub toolbox',))
@@ -70,11 +73,82 @@ def _get(url, stream=False, retry=False, quiet=False):
 		return _get(url, stream=stream, quiet=quiet)
 	return response
 
+def _normalize_stream_lang_code(code):
+	if not code: return code
+	if code == 'gre': return 'ell'
+	return code
+
+def _find_subtitle_stream_index(player, preferred_languages):
+	try: streams = list(player.getAvailableSubtitleStreams() or [])
+	except: return None
+	if not streams: return None
+	normalized = [_normalize_stream_lang_code(code) for code in streams]
+	for pref in preferred_languages:
+		for idx, code in enumerate(normalized):
+			if _submaker_language_matches(code, pref): return idx
+	return None
+
+def _find_forced_subtitle_stream_index():
+	props = _player_properties(['currentsubtitle', 'subtitles'])
+	if not props: return None
+	current = props.get('currentsubtitle') or {}
+	if current.get('is_forced') and current.get('index') is not None:
+		return int(current['index'])
+	for item in props.get('subtitles') or []:
+		if item.get('is_forced') and item.get('index') is not None:
+			return int(item['index'])
+	return None
+
+def _enable_forced_local_subtitles(player, poster=None, notify=True):
+	stream_index = _find_forced_subtitle_stream_index()
+	if stream_index is None: return False
+	try: player.setSubtitleStream(stream_index)
+	except: return False
+	if st.auto_enable_subs(): player.showSubtitles(True)
+	if notify: ku.notification('Local subtitles found', icon=poster, settle_ms=150)
+	return True
+
+def enable_local_subtitles(player, poster=None, notify=True):
+	if st.subs_language_is_forced_local():
+		return _enable_forced_local_subtitles(player, poster=poster, notify=notify)
+	preferred_languages = st.subs_language_preferences()
+	try: current = player.getSubtitles()
+	except: current = ''
+	if current:
+		for pref in preferred_languages:
+			if _submaker_language_matches(current, pref):
+				if st.auto_enable_subs(): player.showSubtitles(True)
+				if notify: ku.notification('Local subtitles found', icon=poster, settle_ms=150)
+				return True
+	stream_index = _find_subtitle_stream_index(player, preferred_languages)
+	if stream_index is not None:
+		try: player.setSubtitleStream(stream_index)
+		except: pass
+		if st.auto_enable_subs(): player.showSubtitles(True)
+		if notify: ku.notification('Local subtitles found', icon=poster, settle_ms=150)
+		return True
+	try: has_streams = bool(player.getAvailableSubtitleStreams())
+	except: has_streams = False
+	if has_streams or current:
+		if st.auto_enable_subs(): player.showSubtitles(True)
+		if notify: ku.notification('Local subtitles found', icon=poster, settle_ms=150)
+		return True
+	return False
+
 def _alert_sub_filename(imdb_id, season, episode):
-	filename_lang = st.submaker_language().replace(' ', '_')
+	filename_lang = st.subs_language_for_download().replace(' ', '_')
 	if season: sub_filename = 'RedLightSubs_%s_%s_%s' % (imdb_id, season, episode)
 	else: sub_filename = 'RedLightSubs_%s' % imdb_id
 	return sub_filename + '_%s.srt' % filename_lang
+
+def _opensubs_alert_filename(imdb_id, season, episode):
+	filename_lang = st.subs_language_for_download().replace(' ', '_')
+	if season: sub_filename = 'RedLightOpenSubs_%s_%s_%s' % (imdb_id, season, episode)
+	else: sub_filename = 'RedLightOpenSubs_%s' % imdb_id
+	return sub_filename + '_%s.srt' % filename_lang
+
+def _opensubs_alert_path(imdb_id, season, episode):
+	return '%s%s' % ('special://temp/', _opensubs_alert_filename(imdb_id, season, episode))
 
 def _looks_like_subtitle_path(value):
 	if not value or value.strip() in ('(External)',): return False
@@ -170,6 +244,15 @@ def _sidecar_subtitle_paths(playing_filename=None, playing_url=None):
 		except: pass
 	return _dedupe_paths(paths)
 
+def _alert_temp_paths(imdb_id, season, episode):
+	if not imdb_id: return []
+	paths = []
+	if st.submaker_manifest_configured():
+		paths.append('%s%s' % ('special://temp/', _alert_sub_filename(imdb_id, season, episode)))
+	if st.opensubs_configured():
+		paths.append('%s%s' % ('special://temp/', _opensubs_alert_filename(imdb_id, season, episode)))
+	return paths
+
 def _collect_subtitle_candidates(player, playing_filename, imdb_id, season, episode, playback_started_at=None):
 	paths, seen = [], set()
 	def add(path):
@@ -179,10 +262,10 @@ def _collect_subtitle_candidates(player, playing_filename, imdb_id, season, epis
 		if key in seen: return
 		seen.add(key)
 		paths.append(path)
+	for path in _active_subtitle_paths_from_player(): add(path)
+	for path in _alert_temp_paths(imdb_id, season, episode): add(path)
 	active_prop = ku.get_property(_ACTIVE_SUB_PROP)
 	if active_prop: add(active_prop)
-	for path in _active_subtitle_paths_from_player(): add(path)
-	if imdb_id: add('%s%s' % ('special://temp/', _alert_sub_filename(imdb_id, season, episode)))
 	if playback_started_at:
 		for directory in _addon_temp_subtitle_dirs():
 			for path in _recent_subtitles_in_dir(directory, playback_started_at):
@@ -216,29 +299,49 @@ def _subtitle_last_end_seconds(content):
 		end_seconds = max(end_seconds, _time_part_to_seconds(end))
 	return end_seconds if end_seconds > 0 else None
 
-def _seconds_remaining_before_end(sub_path, total_time):
+def _raw_remaining_from_last_cue(total_time, last_cue_end):
+	remaining = float(total_time) - float(last_cue_end)
+	if remaining < 0 or remaining > _ALERT_SUB_MAX_REMAINING: return None
+	return int(remaining)
+
+def _alert_remaining_from_last_cue(total_time, last_cue_end):
+	remaining = float(total_time) - float(last_cue_end)
+	if remaining < 0 or remaining > _ALERT_SUB_MAX_REMAINING: return None
+	if remaining > _SUBS_UNSUBTITLED_TAIL_SEC:
+		remaining = min(remaining, _SUBS_PRE_CREDITS_REMAINING_SEC)
+	return int(remaining)
+
+def _seconds_remaining_before_end(sub_path, total_time, for_alert=False):
 	try:
 		with ku.open_file(sub_path) as file: content = file.read()
 		if not _looks_like_subtitle_content(content): return None
 		end_seconds = _subtitle_last_end_seconds(content)
 		if end_seconds is None: return None
-		remaining = float(total_time) - end_seconds
-		if remaining < 0 or remaining > _ALERT_SUB_MAX_REMAINING: return None
-		return int(remaining)
+		if for_alert: return _alert_remaining_from_last_cue(total_time, end_seconds)
+		return _raw_remaining_from_last_cue(total_time, end_seconds)
 	except: return None
 
-def _fetch_alert_subtitle(imdb_id, season, episode):
-	manifest = st.submaker_manifest()
-	if not manifest or 'manifest' not in manifest: return None
+def fetch_subtitle_for_alert_timing(imdb_id, season=None, episode=None, year=None, playing_filename=None):
+	if not st.subs_alert_fetch_configured(): return None
+	for fetcher in _subs_alert_fetch_order():
+		path = fetcher(imdb_id, season, episode, year, playing_filename)
+		if path: return path
+	return None
+
+def _subs_alert_fetch_order():
+	return [_fetch_submaker_alert_subtitle, _fetch_opensubs_alert_subtitle]
+
+def _fetch_submaker_alert_subtitle(imdb_id, season, episode, year=None, playing_filename=None):
+	if not st.submaker_manifest_configured(): return None
 	search_filename = _alert_sub_filename(imdb_id, season, episode)
 	final_path = '%s%s' % ('special://temp/', search_filename)
 	if season: params = 'subtitles/series/%s:%s:%s' % (imdb_id, season, episode)
 	else: params = 'subtitles/movie/%s' % imdb_id
-	try: response = _get(_submaker_api_url(manifest, params), retry=True, quiet=True)
+	try: response = _get(_submaker_api_url(st.submaker_manifest(), params), retry=True, quiet=True)
 	except requests.RequestException: return None
 	if not response.ok: return None
 	subs = response.json().get('subtitles', [])
-	content = _download_submaker_content(lambda url: _get(url, stream=True, retry=True, quiet=True), subs, st.submaker_language())
+	content = _download_submaker_content(lambda url: _get(url, stream=True, retry=True, quiet=True), subs, st.subs_language_for_download())
 	if not content: return None
 	try:
 		with ku.open_file(final_path, 'w') as file: file.write(content)
@@ -246,16 +349,25 @@ def _fetch_alert_subtitle(imdb_id, season, episode):
 	except: return None
 	return final_path
 
+def _fetch_opensubs_alert_subtitle(imdb_id, season, episode, year=None, playing_filename=None):
+	try:
+		from apis.opensubs_api import fetch_alert_subtitle
+		return fetch_alert_subtitle(imdb_id, season, episode, year, playing_filename)
+	except: return None
+
+def _fetch_alert_subtitle(imdb_id, season, episode):
+	return _fetch_submaker_alert_subtitle(imdb_id, season, episode)
+
 def subtitle_seconds_remaining_before_end(total_time, imdb_id, season=None, episode=None, fetch=False, player=None,
-		playing_filename=None, playback_started_at=None):
+		playing_filename=None, playback_started_at=None, year=None, for_alert=False):
 	if not total_time: return None
 	for sub_path in _collect_subtitle_candidates(player, playing_filename, imdb_id, season, episode, playback_started_at):
-		remaining = _seconds_remaining_before_end(sub_path, total_time)
+		remaining = _seconds_remaining_before_end(sub_path, total_time, for_alert=for_alert)
 		if remaining is not None: return remaining
-	if not fetch or not imdb_id or not st.submaker_enabled(): return None
-	fetched = _fetch_alert_subtitle(imdb_id, season, episode)
+	if not fetch or not imdb_id or not st.subs_alert_fetch_configured(): return None
+	fetched = fetch_subtitle_for_alert_timing(imdb_id, season, episode, year, playing_filename)
 	if not fetched: return None
-	return _seconds_remaining_before_end(fetched, total_time)
+	return _seconds_remaining_before_end(fetched, total_time, for_alert=for_alert)
 
 def remember_active_subtitle_path(path):
 	if path: ku.set_property(_ACTIVE_SUB_PROP, path)
@@ -276,12 +388,7 @@ class Subtitles(xbmc.Player):
 		return response.json().get('subtitles', []) if response.ok else response.reason
 
 	def _video_file_subs(self):
-		try: available_sub_language = self.getSubtitles()
-		except: available_sub_language = ''
-		if not available_sub_language: return False
-		if st.auto_enable_subs(): self.showSubtitles(True)
-		ku.notification('Local subtitles found', icon=self.poster, settle_ms=150)
-		return True
+		return enable_local_subtitles(self, poster=self.poster)
 
 	def _downloaded_subs(self):
 		files = ku.list_dirs(self.subtitle_path)[1]
@@ -313,7 +420,7 @@ class Subtitles(xbmc.Player):
 		self.manifest = st.submaker_manifest()
 		if not self.manifest or 'manifest' not in self.manifest: return
 		self.imdb_id, self.season, self.episode, self.poster = imdb_id, season, episode, poster
-		self.language = st.submaker_language()
+		self.language = st.subs_language_for_download()
 		filename_lang = self.language.replace(' ', '_')
 		self.subtitle_path = 'special://temp/'
 		if season: self.sub_filename = 'RedLightSubs_%s_%s_%s' % (self.imdb_id, self.season, self.episode)
@@ -331,3 +438,24 @@ class Subtitles(xbmc.Player):
 		if subtitle:
 			remember_active_subtitle_path(subtitle)
 			return self.setSubtitles(subtitle)
+
+class OpenSubtitlesSubs(xbmc.Player):
+	def _video_file_subs(self):
+		return enable_local_subtitles(self, poster=self.poster)
+
+	def run(self, imdb_id, season, episode, poster, year=None, playing_filename=None):
+		self.poster = poster
+		ku.sleep(2500)
+		if st.submaker_prefer_local():
+			if self._video_file_subs(): return
+		if not st.opensubs_configured():
+			return ku.notification('OpenSubtitles username and password required', icon=poster, settle_ms=150)
+		try:
+			from apis.opensubs_api import fetch_alert_subtitle
+			path = fetch_alert_subtitle(imdb_id, season, episode, year, playing_filename)
+		except: path = None
+		if not path:
+			return ku.notification('No subtitles found', icon=poster, settle_ms=150)
+		remember_active_subtitle_path(path)
+		ku.notification('Downloaded subtitles found', icon=poster, settle_ms=150)
+		return self.setSubtitles(path)

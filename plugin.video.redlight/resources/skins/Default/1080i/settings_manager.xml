@@ -180,7 +180,7 @@
                     <control type="group">
                         <visible>String.IsEqual(ListItem.Property(setting_type),boolean)</visible>
                         <control type="image">
-                            <visible>String.IsEqual(ListItem.Property(setting_value),false)</visible>
+                            <visible>!String.IsEqual(ListItem.Property(setting_value),true)</visible>
                             <top>0</top>
                             <left>1030</left>
                             <width>150</width>
@@ -205,7 +205,7 @@
                         <visible>!String.IsEqual(ListItem.Property(setting_type),boolean)</visible>
                         <!-- EMPTY LABEL -->
                         <control type="label">
-                            <visible>String.IsEqual(ListItem.Property(setting_value),empty_setting)</visible>
+                            <visible>String.IsEqual(ListItem.Property(setting_value),empty_setting) + !String.IsEqual(ListItem.Property(setting_type),password)</visible>
                             <left>700</left>
                             <width>425</width>
                             <height>85</height>
@@ -216,9 +216,22 @@
                             <aligny>center</aligny>
                             <scroll>Control.HasFocus(100)</scroll>
                         </control>
+                        <!-- PASSWORD -->
+                        <control type="label">
+                            <visible>String.IsEqual(ListItem.Property(setting_type),password) + !String.IsEqual(ListItem.Property(setting_value),empty_setting) + !String.IsEmpty(ListItem.Property(setting_value))</visible>
+                            <left>700</left>
+                            <width>425</width>
+                            <height>85</height>
+                            <label>[B]********[/B]</label>
+                            <font>font12</font> <!-- REDLIGHT_26 -->
+                            <textcolor>FFCCCCCC</textcolor>
+                            <align>right</align>
+                            <aligny>center</aligny>
+                            <scroll>Control.HasFocus(100)</scroll>
+                        </control>
                         <!-- LABEL -->
                         <control type="label">
-                            <visible>!String.IsEqual(ListItem.Property(setting_value),empty_setting)</visible>
+                            <visible>!String.IsEqual(ListItem.Property(setting_value),empty_setting) + !String.IsEqual(ListItem.Property(setting_type),password)</visible>
                             <left>700</left>
                             <width>425</width>
                             <height>85</height>
@@ -301,7 +314,7 @@
                         <control type="group">
                             <visible>!Control.HasFocus(2100)</visible>
                             <control type="image">
-                                <visible>String.IsEqual(ListItem.Property(setting_value),false)</visible>
+                                <visible>!String.IsEqual(ListItem.Property(setting_value),true)</visible>
                                 <top>0</top>
                                 <left>1030</left>
                                 <width>150</width>
@@ -324,7 +337,7 @@
                         <control type="group">
                             <visible>Control.HasFocus(2100)</visible>
                             <control type="image">
-                                <visible>String.IsEqual(ListItem.Property(setting_value),false)</visible>
+                                <visible>!String.IsEqual(ListItem.Property(setting_value),true)</visible>
                                 <top>0</top>
                                 <left>1030</left>
                                 <width>150</width>
@@ -350,7 +363,7 @@
                         <visible>!String.IsEqual(ListItem.Property(setting_type),boolean)</visible>
                         <!-- EMPTY LABEL -->
                         <control type="group">
-                            <visible>String.IsEqual(ListItem.Property(setting_value),empty_setting)</visible>
+                            <visible>String.IsEqual(ListItem.Property(setting_value),empty_setting) + !String.IsEqual(ListItem.Property(setting_type),password)</visible>
                             <control type="label">
                                 <visible>Control.HasFocus(2100)</visible>
                                 <left>700</left>
@@ -380,7 +393,31 @@
                         <control type="group">
                             <visible>!String.IsEqual(ListItem.Property(setting_value),empty_setting)</visible>
                             <control type="label">
-                                <visible>Control.HasFocus(2100)</visible>
+                                <visible>Control.HasFocus(2100) + String.IsEqual(ListItem.Property(setting_type),password) + !String.IsEqual(ListItem.Property(setting_value),empty_setting) + !String.IsEmpty(ListItem.Property(setting_value))</visible>
+                                <left>700</left>
+                                <width>425</width>
+                                <height>85</height>
+                                <label>[B]********[/B]</label>
+                                <font>font12</font> <!-- REDLIGHT_26 -->
+                                <textcolor>FF1F2020</textcolor>
+                                <align>right</align>
+                                <aligny>center</aligny>
+                                <scroll>Control.HasFocus(2100)</scroll>
+                            </control>
+                            <control type="label">
+                                <visible>!Control.HasFocus(2100) + String.IsEqual(ListItem.Property(setting_type),password) + !String.IsEqual(ListItem.Property(setting_value),empty_setting) + !String.IsEmpty(ListItem.Property(setting_value))</visible>
+                                <left>700</left>
+                                <width>425</width>
+                                <height>85</height>
+                                <label>[B]********[/B]</label>
+                                <font>font12</font> <!-- REDLIGHT_26 -->
+                                <textcolor>FFCCCCCC</textcolor>
+                                <align>right</align>
+                                <aligny>center</aligny>
+                                <scroll>false</scroll>
+                            </control>
+                            <control type="label">
+                                <visible>Control.HasFocus(2100) + !String.IsEqual(ListItem.Property(setting_type),password)</visible>
                                 <left>700</left>
                                 <width>425</width>
                                 <height>85</height>
@@ -392,7 +429,7 @@
                                 <scroll>Control.HasFocus(2100)</scroll>
                             </control>
                             <control type="label">
-                                <visible>!Control.HasFocus(2100)</visible>
+                                <visible>!Control.HasFocus(2100) + !String.IsEqual(ListItem.Property(setting_type),password)</visible>
                                 <left>700</left>
                                 <width>425</width>
                                 <height>85</height>
@@ -1945,7 +1982,7 @@
                           <visible>Container(2000).HasFocus(60)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <property name="setting_label">Password</property>
-                          <property name="setting_type">numeric</property>
+                          <property name="setting_type">password</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.easynews_password)]</property>
                           <property name="setting_description">Enter the Password of your EasyNews account</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=easynews_password)</onclick>
@@ -2674,7 +2711,7 @@
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <property name="setting_label">Password</property>
-                          <property name="setting_type">numeric</property>
+                          <property name="setting_type">password</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.aiostreams.password)]</property>
                           <property name="setting_description">HTTP Basic Auth password for your AIOStreams instance.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=aiostreams.password)</onclick>
@@ -3264,7 +3301,7 @@
                           <property name="setting_label">Show Credits Stinger Alert</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.stinger_alert.show)]</property>
-                          <property name="setting_description">Enable this and Red Light will show an alert towards the end of a movie if the movie contains during or after credit stingers</property>
+                          <property name="setting_description">Enable this and Red Light will show an alert towards the end of a movie if it has during-credits or after-credits stingers</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=stinger_alert.show)</onclick>
                       </item>
                       <item>
@@ -3282,7 +3319,7 @@
                           <property name="setting_label">    - Alert Timing Source</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.stinger_alert.alert_timing_name)]</property>
-                          <property name="setting_description">Choose how Red Light decides when to show the Credit Stingers Alert. Off uses the playback percentage only. Chapter Info uses video chapter markers when available. Subtitles Info uses timing from active subtitles when a subtitle file is available (bundled sidecar, Kodi or A4KSubtitles download, SubMaker, or other external .srt). If the selected method is unavailable, the playback percentage setting is used instead</property>
+                          <property name="setting_description">Choose when to show the Credit Stingers alert. Uses the percentage above, chapter markers, or subtitle timing. Falls back to Playback Percentage when unavailable</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=stinger_alert.alert_timing)</onclick>
                       </item>
         <!-- Playback Episodes -->
@@ -3361,7 +3398,7 @@
                           <property name="setting_label">    - Alert Timing Source</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.autoplay_alert_timing_name)]</property>
-                          <property name="setting_description">Choose how Red Light decides when to show the Next Episode alert. Off uses the playback percentage only. Chapter Info uses video chapter markers when available. Subtitles Info uses timing from active subtitles when a subtitle file is available (bundled sidecar, Kodi or A4KSubtitles download, SubMaker, or other external .srt). If the selected method is unavailable, the playback percentage setting is used instead</property>
+                          <property name="setting_description">Choose when to show the Next Episode alert. Uses the percentage above, chapter markers, or subtitle timing. Falls back to Playback Percentage when unavailable</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=autoplay_alert_timing)</onclick>
                       </item>
                       <item>
@@ -3397,7 +3434,7 @@
                           <property name="setting_label">    - Alert Timing Source</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.autoscrape_alert_timing_name)]</property>
-                          <property name="setting_description">Choose how Red Light decides when to show the Next Episode alert. Off uses the playback percentage only. Chapter Info uses video chapter markers when available. Subtitles Info uses timing from active subtitles when a subtitle file is available (bundled sidecar, Kodi or A4KSubtitles download, SubMaker, or other external .srt). If the selected method is unavailable, the playback percentage setting is used instead</property>
+                          <property name="setting_description">Choose when to show the Next Episode alert. Uses the percentage above, chapter markers, or subtitle timing. Falls back to Playback Percentage when unavailable</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=autoscrape_alert_timing)</onclick>
                       </item>
                       
@@ -3490,10 +3527,10 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
-                          <property name="setting_label">Auto Enable Subtitles (Local and SubMaker)</property>
+                          <property name="setting_label">Auto Enable Subtitles</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.auto_enable_subs)]</property>
-                          <property name="setting_description">Enable subtitle automation in playback. When on, choose Local Subtitles or SubMaker (https://submaker.elfhosted.com)</property>
+                          <property name="setting_description">Turn on subtitles automatically during playback. When enabled, choose the subtitle source below</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=playback.auto_enable_subs)</onclick>
                       </item>
                       <item>
@@ -3502,38 +3539,107 @@
                           <property name="setting_label">    - Subtitle Source</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.subs_source_name)]</property>
-                          <property name="setting_description">Choose Local Subtitles or SubMaker. Local only enables subtitles already in the stream. SubMaker (https://submaker.elfhosted.com) fetches subtitles using your manifest URL below</property>
+                          <property name="setting_description">Local enables subtitles already embedded in or bundled with the stream. SubMaker and OpenSubtitles appear here when you have configured them below</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=playback.subs_source)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.playback.auto_enable_subs),true)</visible>
-                          <visible>String.IsEqual(Window(10000).Property(redlight.playback.subs_source),1)</visible>
-                          <property name="setting_label">    - SubMaker Language</property>
-                          <property name="setting_type">action</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.submaker_language_name)]</property>
-                          <property name="setting_description">Choose the preferred subtitle language for SubMaker. Default is English</property>
-                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=playback.submaker_language)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(80)</visible>
-                          <visible>String.IsEqual(Window(10000).Property(redlight.playback.auto_enable_subs),true)</visible>
-                          <visible>String.IsEqual(Window(10000).Property(redlight.playback.subs_source),1)</visible>
-                          <property name="setting_label">    - Prefer Local Subs (if available)</property>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.playback.subs_source),0)</visible>
+                          <property name="setting_label">    - Prefer Local Subs</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.submaker_prefer_local)]</property>
-                          <property name="setting_description">When using SubMaker, check for local subtitles first. If local subtitles are active, Red Light will keep them and skip SubMaker download</property>
+                          <property name="setting_description">When SubMaker or OpenSubtitles is the source, check for local subtitles first and keep them if already active instead of downloading</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=playback.submaker_prefer_local)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.playback.auto_enable_subs),true)</visible>
-                          <visible>String.IsEqual(Window(10000).Property(redlight.playback.subs_source),1)</visible>
+                          <property name="setting_label">    - Subtitle Language</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.submaker_language_name)]</property>
+                          <property name="setting_description">Preferred subtitle language for local embedded subs, SubMaker, and OpenSubtitles. Choose Forced Only (Local Subs) to enable forced embedded tracks only — SubMaker and OpenSubtitles still use English when that option is selected. For other languages, local subs try Red Light first, then Kodi Settings &gt; Player &gt; Language, then enable subs without forcing a track</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=playback.submaker_language)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <property name="setting_label">SubMaker</property>
+                          <property name="setting_type">separator</property>
+                          <onclick>noop</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <property name="setting_label">[I]submaker.elfhosted.com[/I]</property>
+                          <property name="setting_type">info</property>
+                          <property name="setting_value">...</property>
+                          <property name="setting_description">ElfHosted SubMaker service. Enter your manifest URL below. Used when SubMaker is the Auto Enable Subtitle Source and as the first source for Subtitles Info alert timing background fetch. OpenSubtitles is used as a fallback when SubMaker is unavailable</property>
+                          <onclick>noop</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
                           <property name="setting_label">    - SubMaker Manifest URL</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.submaker_manifest)]</property>
-                          <property name="setting_description">Enter your full SubMaker manifest URL from https://submaker.elfhosted.com (must include manifest.json). Example: https://.../manifest.json</property>
+                          <property name="setting_description">Your full SubMaker manifest URL (must include manifest.json)</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=playback.submaker_manifest)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <property name="setting_label">OpenSubtitles</property>
+                          <property name="setting_type">separator</property>
+                          <onclick>noop</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <property name="setting_label">[I]OpenSubtitles.com Account[/I]</property>
+                          <property name="setting_type">info</property>
+                          <property name="setting_value">...</property>
+                          <property name="setting_description">Free account at opensubtitles.com. Used when OpenSubtitles is the Auto Enable Subtitle Source and for Subtitles Info alert timing — after SubMaker when SubMaker is configured. Free accounts are limited to about 20 downloads per 24 hours; use Check OpenSubtitles Account to see your remaining quota</property>
+                          <onclick>noop</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <property name="setting_label">    - Username</property>
+                          <property name="setting_type">string</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.opensubs_username)]</property>
+                          <property name="setting_description">Your OpenSubtitles username for opensubtitles.com</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=playback.opensubs_username)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <property name="setting_label">    - Password</property>
+                          <property name="setting_type">password</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.opensubs_password)]</property>
+                          <property name="setting_description">Your OpenSubtitles password for opensubtitles.com</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=playback.opensubs_password)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.playback.opensubs_username),empty_setting)</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.playback.opensubs_password),empty_setting)</visible>
+                          <property name="setting_label">    - Check OpenSubtitles Account...</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">...</property>
+                          <property name="setting_description">Show your remaining OpenSubtitles download quota for the next 24 hours</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=opensubs_check_account)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.playback.opensubs_username),empty_setting)</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.playback.opensubs_password),empty_setting)</visible>
+                          <property name="setting_label">    - Revoke OpenSubtitles</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">...</property>
+                          <property name="setting_description">Clear your saved OpenSubtitles username, password, and login token from Red Light</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=opensubs_revoke)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <property name="setting_label">    - Custom API Key (optional)</property>
+                          <property name="setting_type">string</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.opensubs_api_key)]</property>
+                          <property name="setting_description">Red Light includes a built-in OpenSubtitles API key. Enter your own consumer key here only if you use a private OpenSubtitles consumer app</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=playback.opensubs_api_key)</onclick>
                       </item>
                 </content>
             </control>

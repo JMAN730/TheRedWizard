@@ -171,16 +171,100 @@ def auto_enable_subs():
 def subtitles_source():
 	return get_setting('redlight.playback.subs_source', '0')
 
+def subtitles_source_options():
+	options = {'0': 'Local Subtitles'}
+	if submaker_manifest_configured(): options['1'] = 'SubMaker'
+	if opensubs_configured(): options['2'] = 'OpenSubtitles'
+	return options
+
+def refresh_playback_subs_source():
+	from caches.settings_cache import get_setting, set_setting
+	opts = subtitles_source_options()
+	current = str(get_setting('redlight.playback.subs_source', '0'))
+	if current not in opts:
+		if current == '2':
+			current = '1' if '1' in opts else '0'
+		elif current == '1':
+			current = '2' if '2' in opts else '0'
+		else:
+			current = '0'
+		set_setting('playback.subs_source', current)
+
 def submaker_enabled():
 	return subtitles_source() == '1'
+
+def opensubs_enabled():
+	return subtitles_source() == '2'
 
 def submaker_manifest():
 	manifest = get_setting('redlight.playback.submaker_manifest', 'empty_setting')
 	if manifest == 'empty_setting': return ''
 	return manifest.strip()
 
+def submaker_manifest_configured():
+	manifest = submaker_manifest()
+	return bool(manifest) and 'manifest' in manifest
+
+def opensubs_api_key():
+	try:
+		from apis.opensubs_api import effective_api_key
+		return effective_api_key()
+	except: return ''
+
+def opensubs_username():
+	value = get_setting('redlight.playback.opensubs_username', 'empty_setting')
+	return '' if value in (None, '', '0', 'empty_setting') else str(value).strip()
+
+def opensubs_password():
+	value = get_setting('redlight.playback.opensubs_password', 'empty_setting')
+	return '' if value in (None, '', '0', 'empty_setting') else str(value).strip()
+
+def opensubs_configured():
+	return bool(opensubs_username()) and bool(opensubs_password())
+
+def subs_alert_fetch_configured():
+	return submaker_manifest_configured() or opensubs_configured()
+
 def submaker_language():
 	return get_setting('redlight.playback.submaker_language_name', 'English')
+
+def subs_language():
+	return submaker_language()
+
+FORCED_LOCAL_SUBS_LANGUAGE_INDEX = '42'
+
+def subs_language_is_forced_local():
+	return str(get_setting('redlight.playback.submaker_language', '0')) == FORCED_LOCAL_SUBS_LANGUAGE_INDEX
+
+def subs_language_for_download():
+	if subs_language_is_forced_local(): return 'English'
+	return subs_language()
+
+_KODI_SUBTITLE_LANG_SKIP = frozenset(('original', 'original only', 'mediadefault', 'default', 'forced only', 'forced'))
+
+def kodi_subtitle_language():
+	try:
+		import xbmc
+		value = xbmc.getSetting('locale.subtitlelanguage')
+	except: return ''
+	if not value: return ''
+	value = str(value).strip()
+	if value.lower() in _KODI_SUBTITLE_LANG_SKIP: return ''
+	try:
+		name = xbmc.convertLanguage(value, xbmc.ENGLISH_NAME)
+		if name and name.lower() not in ('unknown', ''): return name
+	except: pass
+	return value
+
+def subs_language_preferences():
+	if subs_language_is_forced_local(): return []
+	prefs = []
+	red_light = subs_language()
+	if red_light: prefs.append(red_light)
+	kodi_lang = kodi_subtitle_language()
+	if kodi_lang and (not red_light or kodi_lang.lower() != red_light.lower()):
+		prefs.append(kodi_lang)
+	return prefs
 
 def submaker_prefer_local():
 	return get_setting('redlight.playback.submaker_prefer_local', 'true') == 'true'
@@ -215,18 +299,41 @@ def autoscrape_next_episode():
 	if not auto_play('episode') and get_setting('redlight.autoscrape_next_episode', 'false') == 'true': return True
 	else: return False
 
+def any_alert_uses_subtitle_timing(media_type='episode'):
+	if media_type == 'episode':
+		if autoplay_next_episode() and _alert_timing_mode('autoplay_alert_timing') == 'subtitles': return True
+		if autoscrape_next_episode() and _alert_timing_mode('autoscrape_alert_timing') == 'subtitles': return True
+	elif media_type == 'movie' and stingers_show() and stingers_alert_timing() == 'subtitles':
+		return True
+	return False
+
+def subs_alert_fetch_enabled(media_type='episode'):
+	return any_alert_uses_subtitle_timing(media_type) and subs_alert_fetch_configured()
+
 def autoscrape_confirm():
 	return get_setting('redlight.autoscrape_confirm', 'false') == 'true'
 
 def autoplay_prescrape(scrape_provider):
 	return get_setting('redlight.autoplay.%s' % scrape_provider, 'false') == 'true'
 
+NEXTEP_SCRAPE_MARGIN_SEC = 30
+NEXTEP_COMMAND_HEADROOM_SEC = 15
+
+def nextep_pipeline_headroom(play_type, scraper_time, still_watching_due=False):
+	# Scrape budget (results.timeout + NEXTEP_SCRAPE_MARGIN_SEC) plus time for still-watching / autoscrape confirm dialogs.
+	headroom = int(scraper_time)
+	if 'autoplay' in play_type and still_watching_due:
+		headroom += NEXTEP_COMMAND_HEADROOM_SEC
+	if 'autoscrape' in play_type and autoscrape_confirm():
+		headroom += NEXTEP_COMMAND_HEADROOM_SEC
+	return headroom
+
 def auto_nextep_settings(play_type):
 	play_type = 'autoplay' if play_type == 'autoplay_nextep' else 'autoscrape'
 	window_percentage = 100 - int(get_setting('redlight.%s_next_window_percentage' % play_type, '95'))
 	alert_timing = _alert_timing_mode('%s_alert_timing' % play_type, '1')
 	watching_check = int(get_setting('redlight.autoplay_watching_check', '3'))
-	scraper_time = int(get_setting('redlight.results.timeout', '60')) + 20
+	scraper_time = int(get_setting('redlight.results.timeout', '60')) + NEXTEP_SCRAPE_MARGIN_SEC
 	if play_type == 'autoplay':
 		alert_method = int(get_setting('redlight.autoplay_alert_method', '0'))
 		default_action = {'0': 'play', '1': 'cancel', '2': 'pause'}[get_setting('redlight.autoplay_default_action', '1')]

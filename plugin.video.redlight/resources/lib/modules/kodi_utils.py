@@ -801,8 +801,8 @@ def jsonrpc_set_system_setting(setting_id, value):
 
 def open_settings():
 	try:
-		from caches.settings_cache import ensure_settings_properties_loaded
-		ensure_settings_properties_loaded()
+		from caches.settings_cache import refresh_settings_manager_properties
+		refresh_settings_manager_properties()
 	except Exception as e:
 		logger('open_settings', 'bootstrap: %s' % e)
 	try:

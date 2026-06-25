@@ -124,6 +124,12 @@ class Sources():
 		self.sort_function, self.quality_filter = settings.results_sort_order(), self._quality_filter()
 		self.include_unknown_size = get_setting('redlight.results.size_unknown', 'false') == 'true'
 		self.make_search_info()
+		if self.background and self.play_type in ('autoplay_nextep', 'autoscrape_nextep'):
+			self._notify_nextep_scrape_started()
+		if self.background and self.autoplay_nextep and self.nextep_settings:
+			if not self.still_watching_check():
+				kodi_utils.notification('Cancel Autoplay', icon=self.meta.get('poster'))
+				return
 		if self.autoscrape: self.autoscrape_nextep_handler()
 		else: return self.get_sources()
 
@@ -1735,6 +1741,23 @@ class Sources():
 			return self._no_results()
 		return self._show_playback_failed_dialog()
 
+	def _notify_nextep_scrape_started(self):
+		try:
+			kodi_utils.notification('[B]Next Up:[/B] Scraping %s S%02dE%02d' % (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 4500, self.meta.get('poster'))
+		except: pass
+
+	def _wait_for_pop_window(self, window_time):
+		if not window_time: return
+		player = kodi_utils.kodi_player()
+		if not player.isPlayingVideo(): return
+		try: total_time = player.getTotalTime()
+		except: return
+		while player.isPlayingVideo():
+			try:
+				if round(total_time - player.getTime()) <= int(window_time): return
+			except: pass
+			kodi_utils.sleep(1000)
+
 	def still_watching_check(self):
 		watching_check = self.nextep_settings.get('watching_check', 0)
 		if watching_check == 0: return True
@@ -1764,9 +1787,6 @@ class Sources():
 
 	def autoplay_nextep_handler(self):
 		if not self.nextep_settings: return False
-		if not self.still_watching_check():
-			kodi_utils.notification('Cancel Autoplay', icon=self.meta.get('poster'))
-			return False
 		use_window = self.nextep_settings['use_window']
 		window_time = self.nextep_settings['window_time']
 		default_action = self.nextep_settings['default_action']
@@ -1819,10 +1839,11 @@ class Sources():
 			results = self.get_sources()
 			if not results:
 				return
-			else:
-				kodi_utils.notification('[B]Next Episode Ready:[/B] %s S%02dE%02d' \
-						% (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 6500, self.meta.get('poster'))
-				while player.isPlayingVideo(): kodi_utils.sleep(100)
+			window_time = self.nextep_settings.get('window_time', 0) if self.nextep_settings else 0
+			self._wait_for_pop_window(window_time)
+			kodi_utils.notification('[B]Next Episode Ready:[/B] %s S%02dE%02d' \
+					% (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 6500, self.meta.get('poster'))
+			while player.isPlayingVideo(): kodi_utils.sleep(100)
 			self.display_results(results)
 		else: return
 
