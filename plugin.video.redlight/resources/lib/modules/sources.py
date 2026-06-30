@@ -160,10 +160,13 @@ class Sources():
 	def _random_playback(self):
 		return any((self.random, self.random_continual, self.play_type == 'random_continual'))
 
+	def _explicit_autoplay_request(self):
+		return 'autoplay' in self.params and self.params.get('autoplay', 'false') == 'true'
+
 	def _effective_autoplay(self):
 		if not self.autoplay:
 			return False
-		if self.cloud_prescrape_autoplay or self._random_playback():
+		if self._explicit_autoplay_request() or self.cloud_prescrape_autoplay or self._random_playback():
 			return True
 		return settings.auto_play(self.media_type)
 
@@ -332,7 +335,7 @@ class Sources():
 					if not self.progress_dialog and not self.background:
 						self._make_progress_dialog()
 					self._refresh_results_settings()
-				if not settings.auto_play(self.media_type) and not self.cloud_prescrape_autoplay and not self._random_playback():
+				if not settings.auto_play(self.media_type) and not self.cloud_prescrape_autoplay and not self._random_playback() and not self._explicit_autoplay_request():
 					self.autoplay = False
 				self.prescrape = False
 				self._release_empty_prescrape_cloud_scrapers()
