@@ -46,7 +46,9 @@ def get_trakt_all(params):
 						with_auth=params.get('with_auth', False), method=page_method, pagination=True, page_no=page_no)
 		try: page_count = max(int(page_count), page_no)
 		except: page_count = page_no
-		if result is None: break
+		if result is None:
+			if page_no == 1: return None
+			break
 		if isinstance(result, dict) and 'data' in result:
 			sort_by, sort_how = result.get('sort_by', sort_by), result.get('sort_how', sort_how)
 			chunk = result.get('data') or []
@@ -710,7 +712,8 @@ def trakt_indicators_movies():
 		insert_list = []
 		insert_append = insert_list.append
 		params = {'path': 'sync/watched/movies%s', 'with_auth': True, 'fetch_all': True}
-		result = get_trakt(params) or []
+		result = get_trakt(params)
+		if result is None: return
 		threads = TaskPool().tasks(_process, result, min(len(result), settings.max_threads()))
 		[i.join() for i in threads]
 		trakt_cache.trakt_watched_cache.set_bulk_movie_watched(insert_list)
@@ -737,7 +740,8 @@ def trakt_indicators_tv():
 		insert_list = []
 		insert_append = insert_list.append
 		params = {'path': 'users/me/watched/shows?extended=full%s', 'with_auth': True, 'fetch_all': True}
-		result = get_trakt(params) or []
+		result = get_trakt(params)
+		if result is None: return
 		threads = TaskPool().tasks(_process, result, min(len(result), settings.max_threads()))
 		[i.join() for i in threads]
 		trakt_cache.trakt_watched_cache.set_bulk_tvshow_watched(insert_list)

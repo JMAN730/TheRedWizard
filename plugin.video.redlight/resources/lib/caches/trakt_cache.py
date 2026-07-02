@@ -38,10 +38,12 @@ class TraktWatched():
 		dbcon.execute('INSERT OR REPLACE INTO trakt_data (id, data) VALUES (?, ?)', ('trakt_tvshow_status', repr(insert_dict),))
 
 	def set_bulk_movie_watched(self, insert_list):
+		if not insert_list: return
 		self._delete('DELETE FROM watched WHERE db_type = ?', ('movie',))
 		self._executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)', insert_list)
 
 	def set_bulk_tvshow_watched(self, insert_list):
+		if not insert_list: return
 		self._delete('DELETE FROM watched WHERE db_type = ?', ('episode',))
 		self._executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)', insert_list)
 

@@ -24,6 +24,39 @@ def get_persistent_content(database, key, is_external):
 def set_persistent_content(database, key, data):
 	database.set('random_list.%s' % key, data, 24)
 
+_RANDOM_LIST_NAME_LOOKUP = None
+_RANDOM_LIST_LOOKUP_KEYS = ('action', 'menu_type', 'list_type', 'list_id', 'media_type', 'new_page')
+
+def _random_list_lookup_key(params, mode=None):
+	mode = (mode or params.get('mode') or '').replace('random.', '')
+	parts = [mode or '']
+	for key in _RANDOM_LIST_LOOKUP_KEYS:
+		value = params.get(key)
+		if value not in (None, ''): parts.append('%s=%s' % (key, value))
+	return '|'.join(parts)
+
+def _build_random_list_name_lookup():
+	from caches.navigator_cache import navigator_cache
+	lookup = {}
+	sources = (
+		navigator_cache.random_movie_lists(), navigator_cache.random_tvshow_lists(), navigator_cache.random_anime_lists(),
+		navigator_cache.random_because_you_watched_lists(), navigator_cache.random_tmdb_lists(), navigator_cache.random_personal_lists(),
+		navigator_cache.random_trakt_lists_personal(), navigator_cache.random_trakt_lists_public(), navigator_cache.random_simkl_lists(),
+		)
+	for items in sources:
+		for item in items:
+			name = item.get('name')
+			if not name: continue
+			lookup[_random_list_lookup_key(item)] = name
+	return lookup
+
+def random_list_property_key(params):
+	global _RANDOM_LIST_NAME_LOOKUP
+	name = params.get('name') or params.get('base_list_name')
+	if name: return name
+	if _RANDOM_LIST_NAME_LOOKUP is None: _RANDOM_LIST_NAME_LOOKUP = _build_random_list_name_lookup()
+	return _RANDOM_LIST_NAME_LOOKUP.get(_random_list_lookup_key(params))
+
 class RandomLists():
 	movie_main = ('tmdb_movies_popular', 'tmdb_movies_popular_today','tmdb_movies_blockbusters','tmdb_movies_in_theaters', 'tmdb_movies_upcoming', 'tmdb_movies_latest_releases',
 	'tmdb_movies_premieres', 'tmdb_movies_oscar_winners')
@@ -52,7 +85,7 @@ class RandomLists():
 		self.mode = self.params_get('mode').replace('random.', '')
 		self.action = self.params_get('action')
 		self.menu_type = self.params_get('menu_type', None) or ('movie' if 'movie' in self.mode else 'tvshow' if 'tvshow' in self.mode else '')
-		self.base_list_name = self.params_get('name')
+		self.base_list_name = self.params_get('name') or random_list_property_key(self.params)
 		self.params.update({'mode': self.mode, 'action': self.action, 'menu_type': self.menu_type, 'base_list_name': self.base_list_name})
 		self.is_external = kodi_utils.external()
 		self.folder_name = self.params_get('folder_name', None)
@@ -388,8 +421,8 @@ class RandomLists():
 		kodi_utils.set_category(self.handle, self.category_name)
 		kodi_utils.end_directory(self.handle, cacheToDisc=False if self.is_external else True)
 		if self.is_external:
-			if self.folder_name: kodi_utils.set_property('redlight.%s' % self.folder_name, self.category_name)
-			else: kodi_utils.set_property('redlight.%s' % self.base_list_name, self.category_name)
+			property_key = self.folder_name or self.base_list_name or random_list_property_key(self.params)
+			if property_key: kodi_utils.set_property('redlight.%s' % property_key, self.category_name)
 		else: kodi_utils.set_view_mode(self.view_mode, self.content_type, self.is_external)
 
 	def get_function(self):
