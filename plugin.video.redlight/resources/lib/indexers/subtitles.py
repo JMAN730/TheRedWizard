@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import base64
+import json
 import os
 import re
 import xbmc
@@ -95,13 +97,40 @@ def playback_release_context(playing_filename=None, playing_item=None):
 		stem = _release_filename_stem(playing_item.get('name') or playing_item.get('display_name'))
 	return {'stem': stem, 'tags': _detect_release_source_tags(combined), 'text': _normalize_release_text(combined)}
 
+def _flatten_string_values(obj, max_depth=4):
+	parts = []
+	if max_depth < 0: return parts
+	if isinstance(obj, str):
+		if obj.strip(): parts.append(obj.strip())
+	elif isinstance(obj, dict):
+		for val in obj.values():
+			parts.extend(_flatten_string_values(val, max_depth - 1))
+	elif isinstance(obj, (list, tuple)):
+		for item in obj:
+			parts.extend(_flatten_string_values(item, max_depth - 1))
+	return parts
+
+def _scs_payload_from_url(url):
+	try:
+		match = re.search(r'/subtitle/scs_([^/]+)', url or '', re.I)
+		if not match: return None
+		token = match.group(1)
+		pad = '=' * (-len(token) % 4)
+		raw = base64.urlsafe_b64decode(token + pad)
+		return json.loads(raw.decode('utf-8', 'ignore'))
+	except: return None
+
 def _subtitle_candidate_text(sub_ref):
+	parts = []
 	if isinstance(sub_ref, dict):
-		for key in ('file_name', 'name', 'filename', 'title', 'label', 'url'):
+		for key in ('file_name', 'name', 'filename', 'title', 'label', 'release', 'extra', 'provider', 'id', 'url', 'lang'):
 			val = sub_ref.get(key)
-			if val: return str(val)
-		return ''
-	return str(sub_ref or '')
+			if val: parts.append(str(val))
+		payload = _scs_payload_from_url(sub_ref.get('url') or '')
+		if payload: parts.extend(_flatten_string_values(payload))
+	elif sub_ref:
+		parts.append(str(sub_ref))
+	return ' '.join(parts)
 
 def _score_subtitle_release_match(sub_ref, release_context):
 	if not release_context: release_context = playback_release_context()
@@ -112,6 +141,10 @@ def _score_subtitle_release_match(sub_ref, release_context):
 	score = 0.0
 	if release_context.get('stem') and sub_stem:
 		score += SequenceMatcher(None, release_context['stem'], sub_stem).ratio()
+	if release_context.get('stem') and sub_norm:
+		play_parts = [part for part in release_context['stem'].split('.') if len(part) > 2]
+		hits = sum(1 for part in play_parts if part in sub_norm)
+		if hits: score += min(hits * 0.04, 0.2)
 	sub_tags = _detect_release_source_tags(sub_text)
 	play_tags = release_context.get('tags') or set()
 	play_primary = _primary_release_source(play_tags)
@@ -124,6 +157,7 @@ def _score_subtitle_release_match(sub_ref, release_context):
 	elif play_primary and not sub_primary and play_primary in _BLURAY_SOURCE_FAMILY:
 		if any(tag in sub_tags for tag in _BLURAY_SOURCE_FAMILY): score += 0.35
 		elif 'WEB' in sub_tags: score -= 0.35
+		elif not sub_tags: score -= 0.15
 	if 'proper' in release_context.get('text', '') and 'proper' in sub_norm: score += 0.08
 	if 'repack' in release_context.get('text', '') and 'repack' in sub_norm: score += 0.08
 	return score
@@ -158,10 +192,28 @@ def _submaker_ranked_subs(subs, language, release_context=None):
 	usable = _submaker_usable_subs(subs)
 	preferred = [i for i in usable if _submaker_language_matches(i.get('lang'), language)]
 	other = [i for i in usable if i not in preferred]
-	sort_key = lambda item: _score_subtitle_release_match(item, release_context or playback_release_context())
+	ctx = release_context or playback_release_context()
+	sort_key = lambda item: _score_subtitle_release_match(item, ctx)
 	preferred.sort(key=sort_key, reverse=True)
 	other.sort(key=sort_key, reverse=True)
 	return preferred + other
+
+def _submaker_item_log_label(item, release_context=None):
+	lang = (item.get('lang') or '?') if isinstance(item, dict) else '?'
+	text = _subtitle_candidate_text(item)
+	if len(text) > 80: text = text[:77] + '...'
+	score = _score_subtitle_release_match(item, release_context or playback_release_context())
+	sub_src = _primary_release_source(_detect_release_source_tags(text)) or 'unknown'
+	return '%s score=%.2f src=%s %s' % (lang, score, sub_src, text)
+
+def _log_submaker_rank_preview(ranked, release_context, limit=5):
+	if not ranked: return
+	try:
+		preview = [_submaker_item_log_label(item, release_context) for item in ranked[:limit]]
+		play_tag = _subtitle_cache_release_tag(release_context) or 'unknown'
+		ku.logger('Red Light', 'SubMaker rank (%s, top %d/%d): %s' % (
+			play_tag, min(len(ranked), limit), len(ranked), ' | '.join(preview)))
+	except: pass
 
 def _looks_like_subtitle_content(content):
 	if not content: return False
@@ -174,6 +226,7 @@ def _looks_like_subtitle_content(content):
 
 def _download_submaker_content(download_fn, subs, language, release_context=None):
 	ranked = _submaker_ranked_subs(subs, language, release_context=release_context)
+	_log_submaker_rank_preview(ranked, release_context)
 	for item in ranked:
 		response = download_fn(item.get('url'))
 		if isinstance(response, str) or not getattr(response, 'ok', False): continue
@@ -184,7 +237,8 @@ def _download_submaker_content(download_fn, subs, language, release_context=None
 				label = _subtitle_candidate_text(item)
 				if len(label) > 120: label = label[:117] + '...'
 				play_tag = _subtitle_cache_release_tag(release_context) or 'unknown'
-				ku.logger('Red Light', 'SubMaker pick (%s): %s' % (play_tag, label))
+				lang = (item.get('lang') or '?') if isinstance(item, dict) else '?'
+				ku.logger('Red Light', 'SubMaker pick (%s) [%s]: %s' % (play_tag, lang, label))
 			except: pass
 			return content
 	return None

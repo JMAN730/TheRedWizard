@@ -1,3 +1,6 @@
+[COLOR red][B]Version 1.6.9[/B][/COLOR]
+- [B]Subtitles[/B] ([B]SubMaker[/B]): improved release matching when provider URLs are opaque ([B]SCS[/B], [B]subDL[/B], etc.) — decodes [B]SCS[/B] token metadata, combines all item fields for scoring, matches play-filename tokens, and penalises unknown-source subs when playing [B]BluRay[/B] / [B]Remux[/B]. [B]kodi.log[/B] now lists the top ranked candidates (score, language, detected source) before the final [B]SubMaker pick[/B] (with language tag).
+
 [COLOR red][B]Version 1.6.8[/B][/COLOR]
 - [B]Subtitles[/B] ([B]SubMaker[/B] / [B]OpenSubtitles[/B]): treats [B]BluRay[/B] and [B]Remux[/B] as the same family (including remux-only stream names with no [B]BluRay[/B] tag). [B]WEB[/B] subs are penalised when playing disc/remux; cached files are stored per release type ([B]_bluray[/B], [B]_remux[/B], [B]_web[/B]) so an old [B]WEB[/B] file is not reused. Applies to on-screen auto-download and [B]Subtitles Info[/B] alert-timing fetches. [B]SubMaker pick[/B] is logged to [B]kodi.log[/B].
 
