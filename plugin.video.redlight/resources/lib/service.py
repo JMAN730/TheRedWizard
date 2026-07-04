@@ -174,6 +174,8 @@ class SimklMonitor:
 			while is_playing() or kodi_utils.get_property(pause_services_prop) == 'true': wait_for_abort(10)
 			wait_time = 1800
 			try:
+				from caches.settings_cache import sync_kodi_profile_context
+				sync_kodi_profile_context()
 				sync_interval, wait_time = simkl_sync_interval()
 				next_update_string = 'Simkl Sync finished - Next Sync in %s minutes' % sync_interval
 				if simkl_user_active(): status = simkl_sync_activities()
@@ -201,6 +203,8 @@ class MdblistMonitor:
 			while is_playing() or kodi_utils.get_property(pause_services_prop) == 'true': wait_for_abort(10)
 			wait_time = 1800
 			try:
+				from caches.settings_cache import sync_kodi_profile_context
+				sync_kodi_profile_context()
 				sync_interval, wait_time = mdblist_sync_interval()
 				next_update_string = 'MDBList Sync finished - Next Sync in %s minutes' % sync_interval
 				if mdblist_user_active(): status = mdblist_sync_activities()

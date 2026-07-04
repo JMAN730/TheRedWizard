@@ -20,6 +20,10 @@ _SUBS_FINAL_TAIL_SCAN_SEC = 65
 _SUB_EXTS = ('.srt', '.ass', '.ssa', '.sub', '.vtt')
 _ACTIVE_SUB_PROP = 'redlight.active_subtitle_path'
 _SUBMAKER_SKIP_LANGS = frozenset(('sub toolbox',))
+_SUBMAKER_ERROR_RE = re.compile(
+	r'scs:\s*an error occurred|provider error|api error|rate limit exceeded|invalid api key|unauthorized',
+	re.I)
+_VTT_TIMESTAMP_RE = re.compile(r'(\d{2}:\d{2}:\d{2})\.(\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2})\.(\d{3})')
 _RELEASE_SOURCE_PATTERNS = (
 	('BLURAY', ('bluray', 'blu.ray', 'blu-ray', 'bdrip', 'bd.rip', 'bdr')),
 	('REMUX', ('remux', 'bdremux', 'bluray.remux', 'uhd.remux', 'complete.remux', '2160p.remux')),
@@ -346,14 +350,78 @@ def _submaker_ranked_subs(subs, language, release_context=None, preferred_only=F
 	if preferred_only: return preferred
 	return preferred + other
 
+def _subtitle_text(content):
+	if not content: return ''
+	if not isinstance(content, str):
+		try: content = content.decode('utf-8-sig', 'ignore')
+		except:
+			try: content = content.decode('utf-8', 'ignore')
+			except: return ''
+	return content.replace('\r\n', '\n').replace('\r', '\n')
+
+def _is_submaker_error_content(content):
+	text = _subtitle_text(content).strip()
+	if not text: return True
+	if _SUBMAKER_ERROR_RE.search(text): return True
+	sample = text.lstrip()[:256].lower()
+	if sample.startswith('<!doctype') or sample.startswith('<html'): return True
+	if sample.startswith('{'):
+		try:
+			data = json.loads(text)
+			if isinstance(data, dict) and (data.get('error') or data.get('message')): return True
+		except: pass
+	return False
+
+def _count_subtitle_cues(content):
+	text = _subtitle_text(content)
+	if text.lstrip().startswith('WEBVTT'): return len(_VTT_TIMESTAMP_RE.findall(text))
+	return len(re.findall(r'\d{1,2}:\d{2}:\d{2}[,\.]\d{2,3}\s*-->', text))
+
+def _vtt_timestamp_to_srt(line):
+	return _VTT_TIMESTAMP_RE.sub(lambda m: '%s,%s --> %s,%s' % (m.group(1), m.group(2), m.group(3), m.group(4)), line)
+
+def _vtt_to_srt(content):
+	text = _subtitle_text(content)
+	if not text.lstrip().startswith('WEBVTT'): return text
+	parts = re.split(r'\n(?=\d{2}:\d{2}:\d{2}\.\d{3}\s*-->)', text)
+	out, idx = [], 1
+	for part in parts:
+		part = part.strip()
+		if not part or part.startswith('WEBVTT') or part.startswith('NOTE'): continue
+		lines = part.split('\n')
+		ts_idx = 0
+		if '-->' not in lines[0]:
+			if len(lines) > 1 and '-->' in lines[1]: ts_idx = 1
+			else: continue
+		ts_line = _vtt_timestamp_to_srt(lines[ts_idx].strip())
+		body = '\n'.join(lines[ts_idx + 1:]).strip()
+		if not body: continue
+		out.append('%d\n%s\n%s' % (idx, ts_line, body))
+		idx += 1
+	return ('\n\n'.join(out) + '\n') if out else ''
+
+def _prepare_subtitle_file_content(content, log_reject=False, reject_label='SubMaker'):
+	text = _subtitle_text(content)
+	if not text or _is_submaker_error_content(text):
+		if log_reject and text:
+			ku.logger('Red Light', '%s: rejected provider error payload' % reject_label)
+		return None
+	if text.lstrip().startswith('WEBVTT'):
+		text = _vtt_to_srt(text)
+	if not text or _count_subtitle_cues(text) < 2:
+		if log_reject:
+			ku.logger('Red Light', '%s: rejected empty or single-cue download' % reject_label)
+		return None
+	if not _looks_like_subtitle_content(text): return None
+	return text
+
 def _looks_like_subtitle_content(content):
 	if not content: return False
-	if not isinstance(content, str):
-		try: content = content.decode('utf-8', 'ignore')
-		except: return False
-	sample = content.lstrip()[:256].lower()
+	text = _subtitle_text(content)
+	if not text or _is_submaker_error_content(text): return False
+	sample = text.lstrip()[:256].lower()
 	if sample.startswith('<!doctype') or sample.startswith('<html'): return False
-	return bool(re.search(r'\d{1,2}:\d{2}:\d{2}', content))
+	return bool(re.search(r'\d{1,2}:\d{2}:\d{2}', text))
 
 def _download_submaker_content(download_fn, subs, language, release_context=None, search_params='', quiet=False):
 	usable, preferred, other = _submaker_split_subs(subs, language)
@@ -372,7 +440,8 @@ def _download_submaker_content(download_fn, subs, language, release_context=None
 			continue
 		try: content = response.text
 		except: content = response.content
-		if _looks_like_subtitle_content(content):
+		prepared = _prepare_subtitle_file_content(content, log_reject=not quiet)
+		if prepared:
 			if not quiet:
 				try:
 					label = _subtitle_display_name(item)
@@ -381,7 +450,7 @@ def _download_submaker_content(download_fn, subs, language, release_context=None
 					lang = (item.get('lang') or '?') if isinstance(item, dict) else '?'
 					ku.logger('Red Light', 'SubMaker pick (%s) [%s]: %s' % (play_tag, lang, label))
 				except: pass
-			return content
+			return prepared
 	return None
 
 def _get(url, stream=False, retry=False, quiet=False):
@@ -910,7 +979,12 @@ class Subtitles(xbmc.Player):
 			subtitle = '%s%s' % (self.subtitle_path, name)
 			try:
 				with ku.open_file(subtitle) as file: content = file.read()
-				if not _looks_like_subtitle_content(content): continue
+				prepared = _prepare_subtitle_file_content(content)
+				if not prepared: continue
+				if prepared != content:
+					try:
+						with ku.open_file(subtitle, 'w') as file: file.write(prepared)
+					except: pass
 			except: continue
 			return subtitle
 		return False

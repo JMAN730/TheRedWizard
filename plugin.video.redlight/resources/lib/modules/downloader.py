@@ -9,6 +9,7 @@ from urllib.parse import parse_qsl, urlparse, unquote
 from modules import kodi_utils
 from modules.sources import Sources, PROP_RESOLVE_CANCEL
 from modules.settings import download_directory, store_resolved_to_cloud
+from modules.debrid import normalize_debrid_provider
 from modules.source_utils import clean_title
 from modules.utils import clean_file_name, safe_string, remove_accents, normalize
 # logger = kodi_utils.logger
@@ -137,6 +138,20 @@ class Downloader:
 		if not self.get_destination_folder(): return self.return_notification(_notification='Cancelled')
 		self.download_runner()
 
+	def _is_torbox_download(self, url=None):
+		if 'torbox' in (self.action or ''):
+			return True
+		if self.provider in ('torbox', 'TorBox', 'Torbox', 'tb_cloud'):
+			return True
+		try:
+			source = json.loads(self.source) if self.source else {}
+			if normalize_debrid_provider(source.get('debrid') or source.get('cache_provider', '')) == 'TorBox':
+				return True
+		except:
+			pass
+		check_url = (url or self.url or '').lower()
+		return 'tb-cdn' in check_url or 'torbox.app' in check_url
+
 	def download_prep(self):
 		if 'meta' in self.params:
 			self.meta = json.loads(self.params_get('meta'))
@@ -200,7 +215,7 @@ class Downloader:
 					if source.get('scrape_provider', '') == 'easynews': source['url_dl'] = source['down_url']
 					kodi_utils.clear_property(PROP_RESOLVE_CANCEL)
 					url = Sources().resolve_sources(source, meta=self.meta)
-					if 'torbox' in url:
+					if url and self._is_torbox_download(url):
 						from apis.torbox_api import TorBoxAPI
 						url = TorBoxAPI().add_headers_to_url(url)
 				except: pass
@@ -430,14 +445,14 @@ class Downloader:
 	def get_response(self, size=0):
 		try:
 			headers = dict(self.headers or {})
-			if 'torbox' in (self.action or ''):
+			if self._is_torbox_download():
 				headers.setdefault('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 				headers.setdefault('Referer', 'https://torbox.app/')
 			if size > 0:
 				size = int(size)
 				headers['Range'] = 'bytes=%d-' % size
 			req = Request(self.url, headers=headers)
-			timeout = 60 if 'torbox' in (self.action or '') else 30
+			timeout = 60 if self._is_torbox_download() else 30
 			resp = urlopen(req, context=ssl.create_default_context(), timeout=timeout)
 			return resp
 		except: return None
