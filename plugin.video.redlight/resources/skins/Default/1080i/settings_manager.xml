@@ -2039,17 +2039,6 @@
                           <visible>Container(2000).HasFocus(60)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
-                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
-                          <property name="setting_label">Check Cached Status (External Scrapers)</property>
-                          <property name="setting_type">boolean</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(redlight.ad.cache_check)]</property>
-                          <property name="setting_description">All Debrid does not expose cached status for external scrapers. When enabled, Red Light filters external scraper torrents using a third-party cache check. The scrape may take longer and you will see fewer links.</property>
-                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=ad.cache_check)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
-                          <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
-                          <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <property name="setting_label">Add Resolved Debrid Cache to Cloud</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.store_resolved_to_cloud.alldebrid_name)]</property>

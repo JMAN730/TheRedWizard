@@ -1024,8 +1024,31 @@ class Sources():
 		if not self.retry_actions: return self._no_results()
 		next_action, next_setting, order = self.retry_actions.pop(0)
 		if next_action == 'cache_ignored':
+			api_err = kodi_utils.get_property('redlight.debrid_cache_api_error')
+			if api_err:
+				kodi_utils.clear_property('redlight.debrid_cache_api_error')
+				try:
+					kodi_utils.logger('DebridCacheRetry', 'skipped=cache_ignored reason=api_%s' % api_err)
+				except: pass
+				if not self.background:
+					kodi_utils.notification('AllDebrid cache check unavailable (%s). Showing unchecked sources.' % api_err, 6000)
+				if self.orig_results:
+					for item in self.orig_results:
+						raw = item.get('cache_provider', '')
+						if 'Uncached' in raw:
+							provider = debrid.normalize_debrid_provider(item.get('debrid') or raw.replace('Uncached ', ''))
+							item['cache_provider'] = provider
+							item['debrid'] = provider
+					results = self.process_results(self.orig_results)
+					if results:
+						if self.autoscrape: return results
+						return self.play_source(results)
+				return self._process_post_results()
 			if next_setting in (1, 2) and self.active_external and self.orig_results and self._any_cache_check_active() \
 																				and debrid.debrid_cache_check_available(self.debrid_enabled):
+				try:
+					kodi_utils.logger('DebridCacheRetry', 'action=cache_ignored auto=%s orig=%d playable=0' % (next_setting == 1, len(self.orig_results)))
+				except: pass
 				if next_setting == 1 or kodi_utils.confirm_dialog(heading=self.meta.get('rootname', ''), text='No results.[CR]Retry with external cache check disabled?'):
 					self.threads, self.prescrape, self.cache_check_override = [], False, False
 					return self.get_sources()

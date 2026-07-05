@@ -83,6 +83,11 @@ def make_batch_insert(action, media_type, media_id, season, episode, last_played
 def refresh_container(refresh=True):
 	if refresh: kodi_refresh()
 
+def _schedule_playback_widget_refresh(from_playback):
+	if from_playback:
+		from modules.kodi_utils import schedule_playback_widget_refresh
+		schedule_playback_widget_refresh()
+
 def active_tvshows_information(status_type):
 	def _process(item):
 		media_id = item['media_id']
@@ -315,7 +320,8 @@ def set_bookmark(params):
 			simkl_progress('set_progress', media_type, tmdb_id, resume_point, season, episode, refresh_simkl=False)
 		elif watched_indicators == 3 and mdblist_official_status(media_type):
 			mdblist_progress('set_progress', media_type, tmdb_id, resume_point, season, episode, refresh_mdblist=False)
-		refresh_container(refresh)
+		if params.get('from_playback', 'false') == 'true': _schedule_playback_widget_refresh(True)
+		else: refresh_container(refresh)
 	except: pass
 
 def mark_movie(params):
@@ -335,6 +341,7 @@ def mark_movie(params):
 		if from_playback and mdblist_official_status(media_type) == False: sleep(1000)
 		elif not mdblist_watched_status_mark(action, 'movie', tmdb_id) and not from_playback: return notification('Error')
 	watched_status_mark(watched_indicators, media_type, tmdb_id, action, title=title)
+	_schedule_playback_widget_refresh(from_playback)
 	refresh_container(refresh)
 
 def mark_tvshow(params):
@@ -431,6 +438,7 @@ def mark_episode(params):
 		elif not mdblist_watched_status_mark(action, media_type, tmdb_id, tvdb_id, season, episode) and not from_playback: return notification('Error')
 	watched_status_mark(watched_indicators, media_type, tmdb_id, action, season, episode, title)
 	update_hidden_progress(tmdb_id)
+	_schedule_playback_widget_refresh(from_playback)
 	refresh_container(refresh)
 
 def unmark_previous_episode(params):
@@ -498,19 +506,17 @@ def _find_next_unwatched_episode(season, episode, watched_info, season_data):
 	return None, None
 
 def get_next(season, episode, watched_info, season_data, nextep_content):
-	start_fresh = episode == 0
-	if start_fresh:
-		return _find_next_unwatched_episode(season or 1, 0, watched_info, season_data)
-	if nextep_content == 0:
+	if episode == 0:
+		episode = 1
+	elif nextep_content == 0:
 		try:
 			episode_count = next((i['episode_count'] for i in season_data if i['season_number'] == season), None)
 			season = season if episode < episode_count else season + 1
 			episode = episode + 1 if episode < episode_count else 1
 		except: pass
-		if not get_watched_status_episode(watched_info, (season, episode)):
-			return season, episode
-	if episode == 0: episode = 1
-	return _find_next_unwatched_episode(season, episode, watched_info, season_data)
+	else:
+		season, episode = _find_next_unwatched_episode(season, episode, watched_info, season_data)
+	return season, episode
 
 def _movie_progress_list(dbcon):
 	data = dbcon.execute('SELECT media_id, title, last_played, resume_point FROM progress WHERE db_type = ?', ('movie',)).fetchall()

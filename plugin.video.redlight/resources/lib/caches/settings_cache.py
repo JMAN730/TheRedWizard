@@ -595,6 +595,15 @@ def sync_settings(params={}):
 		settings_cache.write_db('migration.cache_check_pm_oc_tb_v129e', 'true', defaults_map.get('migration.cache_check_pm_oc_tb_v129e'))
 		currentsettings['migration.cache_check_pm_oc_tb_v129e'] = 'true'
 		if load_properties: settings_cache.set_memory_cache('migration.cache_check_pm_oc_tb_v129e', 'true')
+	if had_existing_settings and currentsettings.get('migration.ad_cache_check_removed_v173') != 'true':
+		if currentsettings.get('ad.cache_check') == 'true':
+			settings_cache.write_db('ad.cache_check', 'false', defaults_map.get('ad.cache_check'))
+			currentsettings['ad.cache_check'] = 'false'
+			if load_properties: settings_cache.set_memory_cache('ad.cache_check', 'false')
+			migrated = True
+		settings_cache.write_db('migration.ad_cache_check_removed_v173', 'true', defaults_map.get('migration.ad_cache_check_removed_v173'))
+		currentsettings['migration.ad_cache_check_removed_v173'] = 'true'
+		if load_properties: settings_cache.set_memory_cache('migration.ad_cache_check_removed_v173', 'true')
 	if currentsettings:
 		from modules.settings import migrate_simkl_context_menu_for_upgrade, migrate_mdblist_context_menu_for_upgrade, migrate_cm_manager_order_for_upgrade, migrate_external_scraper_context_menu_for_upgrade
 		if migrate_simkl_context_menu_for_upgrade(had_existing_settings): migrated = True
@@ -1046,6 +1055,7 @@ def default_settings():
 {'setting_id': 'external_scraper.run_mode', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'1': 'Series (Fallback by Slot Order)', '2': 'Series (All Slots in Order)', '3': 'Primary Slot + Parallel Fallback', '0': 'Parallel (All Enabled Slots)'}},
 {'setting_id': 'migration.external_scraper_slots_v160', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.cache_check_pm_oc_tb_v129e', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'migration.ad_cache_check_removed_v173', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.my_content_nav_mode_v136', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== Real Debrid
 {'setting_id': 'rd.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},

@@ -394,8 +394,8 @@ class Navigator:
 		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.movies', 'content': 'movies'}, 'Set Movies', 'movies')
 		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.tvshows', 'content': 'tvshows'}, 'Set TV Shows', 'tv')
 		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.seasons', 'content': 'seasons'}, 'Set Seasons', 'ontheair')
-		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.episodes', 'content': 'episodes'}, 'Set Episodes', 'next_episodes')
-		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.episodes_single', 'content': 'episodes', 'name': 'episode lists'}, 'Set Episode Lists', 'calender')
+		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.episodes', 'content': 'episodes'}, 'Set Episodes (show seasons)', 'next_episodes')
+		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.episodes_single', 'content': 'episodes', 'name': 'episode lists'}, 'Set Episode Lists (Next Episodes, etc.)', 'calender')
 		self.add({'mode': 'navigator.choose_view', 'view_type': 'view.premium', 'content': 'files', 'name': 'premium files'}, 'Set Premium Files', 'premium')
 		self.end_directory()
 
@@ -569,7 +569,13 @@ class Navigator:
 	def set_view(self):
 		view_type = self.params.get('view_type', 'view.main')
 		label = (self.params.get('name') or view_type.replace('view.', '').replace('_', ' ')).upper()
-		set_setting(view_type, str(k.current_window_object().getFocusId()))
+		view_id = str(k.current_window_object().getFocusId())
+		set_setting(view_type, view_id)
+		if view_type == 'view.episodes':
+			from caches.settings_cache import default_setting_values
+			episodes_single_default = (default_setting_values('view.episodes_single') or {}).get('setting_default', '55')
+			if str(get_setting('redlight.view.episodes_single', episodes_single_default)) == str(episodes_single_default):
+				set_setting('view.episodes_single', view_id)
 		k.notification('%s: %s' % (label, k.get_infolabel('Container.Viewmode').upper()), time=500)
 
 	def shortcut_folders(self):

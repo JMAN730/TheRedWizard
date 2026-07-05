@@ -746,16 +746,17 @@ _DEBRID_CACHE_CHECK_SETTINGS = {
 	'TorBox': 'tb.cache_check',
 	'Premiumize.me': 'pm.cache_check',
 	'Offcloud': 'oc.cache_check',
-	'AllDebrid': 'ad.cache_check',
 }
 
 def debrid_cache_check(provider):
+	if provider == 'AllDebrid':
+		return False
 	setting_id = _DEBRID_CACHE_CHECK_SETTINGS.get(provider)
 	if not setting_id: return False
 	return get_setting('redlight.%s' % setting_id, 'false') == 'true'
 
 def any_external_cache_check():
-	for slug, provider in (('rd', 'Real-Debrid'), ('tb', 'TorBox'), ('pm', 'Premiumize.me'), ('oc', 'Offcloud'), ('ad', 'AllDebrid')):
+	for slug, provider in (('rd', 'Real-Debrid'), ('tb', 'TorBox'), ('pm', 'Premiumize.me'), ('oc', 'Offcloud')):
 		if enabled_debrids_check(slug) and debrid_cache_check(provider):
 			return True
 	return False

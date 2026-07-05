@@ -155,7 +155,7 @@ class TraktMonitor:
 					else:
 						kodi_utils.logger('Red Light', trakt_service_string % ('Success. No Changes Needed', next_update_string))# 'not needed'
 					if status == 'success' and get_setting('redlight.trakt.refresh_widgets', 'false') == 'true' and not kodi_utils.service_shutting_down(monitor):
-						kodi_utils.run_plugin({'mode': 'kodi_refresh'})
+						if not kodi_utils.playback_widget_refresh_recent(): kodi_utils.run_plugin({'mode': 'kodi_refresh'})
 			except Exception as e: kodi_utils.logger('Red Light', trakt_service_string % ('Failed', 'The following Error Occured: %s' % str(e)))
 			wait_for_abort(wait_time)
 		try: del player
@@ -184,7 +184,7 @@ class SimklMonitor:
 				elif status == 'no_auth': kodi_utils.logger('Red Light', 'Simkl Sync Not Run - No Account')
 				else: kodi_utils.logger('Red Light', 'Simkl Sync %s - %s' % ('OK' if status == 'success' else 'No Changes', next_update_string))
 				if status == 'success' and get_setting('redlight.simkl.refresh_widgets', 'false') == 'true' and not kodi_utils.service_shutting_down(monitor):
-					kodi_utils.run_plugin({'mode': 'kodi_refresh'})
+					if not kodi_utils.playback_widget_refresh_recent(): kodi_utils.run_plugin({'mode': 'kodi_refresh'})
 			except Exception as e: kodi_utils.logger('Red Light', 'Simkl Sync Failed: %s' % str(e))
 			wait_for_abort(wait_time)
 		try: del player
@@ -213,7 +213,7 @@ class MdblistMonitor:
 				elif status == 'no_auth': kodi_utils.logger('Red Light', 'MDBList Sync Not Run - No Account')
 				else: kodi_utils.logger('Red Light', 'MDBList Sync %s - %s' % ('OK' if status == 'success' else 'No Changes', next_update_string))
 				if status == 'success' and get_setting('redlight.mdblist.refresh_widgets', 'false') == 'true' and not kodi_utils.service_shutting_down(monitor):
-					kodi_utils.run_plugin({'mode': 'kodi_refresh'})
+					if not kodi_utils.playback_widget_refresh_recent(): kodi_utils.run_plugin({'mode': 'kodi_refresh'})
 			except Exception as e: kodi_utils.logger('Red Light', 'MDBList Sync Failed: %s' % str(e))
 			wait_for_abort(wait_time)
 		try: del player

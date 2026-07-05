@@ -11,21 +11,6 @@ from modules.utils import adjust_premiered_date, get_datetime, title_key, TaskPo
 from modules import kodi_utils
 # logger = kodi_utils.logger
 
-def _literal_next_episode(season, episode, season_data):
-	if not season_data:
-		return None, None
-	try:
-		season, episode = int(season), int(episode)
-		episode_count = next((i['episode_count'] for i in season_data if int(i['season_number']) == season), None)
-	except:
-		return None, None
-	if episode_count and episode < int(episode_count):
-		return season, episode + 1
-	next_seasons = sorted([i for i in season_data if int(i['season_number']) > season and int(i['season_number']) > 0], key=lambda i: i['season_number'])
-	if not next_seasons:
-		return None, None
-	return int(next_seasons[0]['season_number']), 1
-
 def _log_nextep_skip(title, season, episode, reason):
 	try:
 		kodi_utils.logger('Red Light', 'Next episode prep skipped: %s S%02dE%02d (%s)' % (title, int(season), int(episode), reason))
@@ -33,12 +18,10 @@ def _log_nextep_skip(title, season, episode, reason):
 		pass
 
 class EpisodeTools:
-	def __init__(self, meta, nextep_settings=None, playing_item=None):
+	def __init__(self, meta, nextep_settings=None):
 		self.meta = meta
 		self.meta_get = self.meta.get
 		self.nextep_settings = nextep_settings
-		playing_item = playing_item or {}
-		self.folders_playback = playing_item.get('scrape_provider') == 'folders' or self.meta_get('playing_scrape_provider') == 'folders'
 
 	def next_episode_info(self):
 		title = self.meta_get('title') or ''
@@ -49,20 +32,11 @@ class EpisodeTools:
 			watch_count = self.meta_get('watch_count')
 			current_season, current_episode = int(self.meta_get('season')), int(self.meta_get('episode'))
 			watched_info = watched_info_episode(self.meta_get('tmdb_id'))
-			if self.folders_playback:
-				if not season_data:
-					_log_nextep_skip(title, current_season, current_episode, 'no season metadata (folders playback)')
-					return 'no_next_episode'
-				season, episode = _literal_next_episode(current_season, current_episode, season_data)
-				if season is None or episode is None:
-					_log_nextep_skip(title, current_season, current_episode, 'series end (folders playback)')
-					return 'no_next_episode'
-				kodi_utils.logger('Red Light', 'Next episode prep target: %s S%02dE%02d (literal next after folders playback)' % (title, season, episode))
-			else:
-				season, episode = get_next(current_season, current_episode, watched_info, season_data, 0)
-				if season is None or episode is None:
-					_log_nextep_skip(title, current_season, current_episode, 'no unwatched next episode')
-					return 'no_next_episode'
+			season, episode = get_next(current_season, current_episode, watched_info, season_data, 0)
+			if season is None or episode is None:
+				_log_nextep_skip(title, current_season, current_episode, 'no next episode')
+				return 'no_next_episode'
+			kodi_utils.logger('Red Light', 'Next episode prep target: %s S%02dE%02d (literal next)' % (title, season, episode))
 			playcount = get_watched_status_episode(watched_info, (season, episode))
 			ep_data = episodes_meta(season, self.meta)
 			if not ep_data:

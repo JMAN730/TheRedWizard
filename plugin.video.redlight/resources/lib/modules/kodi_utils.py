@@ -384,7 +384,16 @@ def end_directory(handle, updateListing=False, cacheToDisc=True):
 # Estuary List (50) is for movies/tvshows content only — not plugin browse folders.
 _ESTUARY_MENU_VIEW_MAP = {'50': '55'}
 
-def _resolve_view_id(view_type):
+def _view_schema_default(view_type):
+	try:
+		from caches.settings_cache import default_setting_values
+		schema = default_setting_values(view_type.replace('redlight.', ''))
+		if schema: return str(schema.get('setting_default', '')).strip()
+	except: pass
+	return ''
+
+def _resolve_view_id(view_type, fallback_view_types=()):
+	view_id = None
 	try:
 		from caches.settings_cache import get_setting, ensure_settings_properties_loaded
 		ensure_settings_properties_loaded()
@@ -394,13 +403,22 @@ def _resolve_view_id(view_type):
 	view_id = str(view_id).strip()
 	if view_type == 'view.main' and 'estuary' in (current_skin() or '').lower():
 		view_id = _ESTUARY_MENU_VIEW_MAP.get(view_id, view_id)
+	if fallback_view_types:
+		primary_default = _view_schema_default(view_type)
+		if primary_default and str(view_id) == primary_default:
+			for fallback_type in fallback_view_types:
+				fallback_id = _resolve_view_id(fallback_type)
+				if not fallback_id: continue
+				fallback_default = _view_schema_default(fallback_type)
+				if str(fallback_id) != str(fallback_default):
+					return fallback_id
 	return view_id
 
-def set_view_mode(view_type, content='files', is_external=None):
+def set_view_mode(view_type, content='files', is_external=None, fallback_view_types=()):
 	if get_property('redlight.use_viewtypes') != 'true': return
 	if is_external == None: is_external = external()
 	if is_external: return
-	view_id = _resolve_view_id(view_type)
+	view_id = _resolve_view_id(view_type, fallback_view_types)
 	if not view_id: return
 	if content in ('', None): content = 'files'
 	try:
@@ -605,6 +623,23 @@ def schedule_widget_refresh(silent=True, reload_skin=False):
 	if service_shutting_down(): return
 	url = 'plugin://plugin.video.redlight/?mode=refresh_widgets&silent=%s&reload_skin=%s' % ('true' if silent else 'false', 'true' if reload_skin else 'false')
 	execute_builtin('AlarmClock(redlight_widget_refresh,RunPlugin(%s),00:00:02,silent)' % url)
+
+PLAYBACK_WIDGET_REFRESH_PROP = 'redlight.widgets_refresh_playback'
+PLAYBACK_WIDGET_REFRESH_SUPPRESS_SEC = 120
+
+def schedule_playback_widget_refresh():
+	if service_shutting_down(): return
+	from time import time
+	set_property(PLAYBACK_WIDGET_REFRESH_PROP, str(int(time())))
+	schedule_widget_refresh(silent=True)
+
+def playback_widget_refresh_recent():
+	try:
+		from time import time
+		stamp = get_property(PLAYBACK_WIDGET_REFRESH_PROP)
+		if not stamp: return False
+		return (time() - float(stamp)) < PLAYBACK_WIDGET_REFRESH_SUPPRESS_SEC
+	except: return False
 
 def refresh_widgets(silent=False, reload_skin=False):
 	if service_shutting_down(): return

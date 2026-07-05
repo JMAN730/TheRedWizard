@@ -534,16 +534,13 @@ class RedLightPlayer(xbmc.Player):
 		ku.set_property(PROP_NEXTEP_PENDING, 'true')
 		meta = dict(self.meta) if getattr(self, 'meta', None) else {}
 		nextep_settings = dict(self.nextep_settings) if getattr(self, 'nextep_settings', None) else None
-		playing_item = dict(getattr(self, 'playing_item', None) or {})
-		if playing_item.get('scrape_provider') == 'folders':
-			meta['playing_scrape_provider'] = 'folders'
 		def _work():
 			try:
 				from modules.episode_tools import EpisodeTools
 				if not self.media_marked:
 					try: self.media_watched_marker(force_watched=True)
 					except: pass
-				EpisodeTools(meta, nextep_settings, playing_item=playing_item).auto_nextep()
+				EpisodeTools(meta, nextep_settings).auto_nextep()
 			except Exception as exc:
 				ku.logger('Red Light', 'Next episode prep failed: %s' % exc)
 			finally:

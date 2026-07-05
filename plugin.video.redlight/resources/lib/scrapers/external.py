@@ -355,9 +355,20 @@ class source:
 					cached = function(hash_list, cached_hashes)
 			else:
 				cached = hash_list
-			cached_set = set(str(i).lower() for i in cached)
-			if not self.background: self.process_quality_count_final([i for i in results if i.get('hash', '').lower() in cached_set])
-			batch = [dict(i, **{'cache_provider': provider if i.get('hash', '').lower() in cached_set else 'Uncached %s' % provider, 'debrid': provider}) for i in results]
+			api_blocked = kodi_utils.get_property('redlight.debrid_cache_api_error')
+			if api_blocked:
+				if not self.background:
+					self.process_quality_count_final(results)
+					kodi_utils.notification('AllDebrid cache check unavailable (%s). Showing unchecked sources.' % api_blocked, 6000)
+					kodi_utils.clear_property('redlight.debrid_cache_api_error')
+				batch = [dict(i, **{'cache_provider': provider, 'debrid': provider}) for i in results]
+				try:
+					kodi_utils.logger('DebridCacheCheck', 'fallback=unchecked provider=%s reason=%s total=%d' % (provider, api_blocked, len(batch)))
+				except: pass
+			else:
+				cached_set = set(str(i).lower() for i in cached)
+				if not self.background: self.process_quality_count_final([i for i in results if i.get('hash', '').lower() in cached_set])
+				batch = [dict(i, **{'cache_provider': provider if i.get('hash', '').lower() in cached_set else 'Uncached %s' % provider, 'debrid': provider}) for i in results]
 			with final_lock:
 				final_results.extend(batch)
 		def _debrid_check_dialog(debrid_deadline):
@@ -375,6 +386,13 @@ class source:
 					if len(remaining_debrids) == 0: break
 					if time.time() >= debrid_deadline: break
 				except: pass
+		def _log_debrid_cache_summary(final_results, providers_needing_api):
+			try:
+				uncached = sum(1 for i in final_results if 'Uncached' in i.get('cache_provider', ''))
+				cached = len(final_results) - uncached
+				kodi_utils.logger('DebridCacheCheck', 'enabled=%s providers=%s total=%d cached=%d uncached=%d' % (
+					bool(providers_needing_api), ','.join(providers_needing_api) or 'none', len(final_results), cached, uncached))
+			except: pass
 		try:
 			if not self.background and self.all_internal_sources: self.process_quality_count_final(self.all_internal_sources)
 			final_results = []
@@ -388,23 +406,41 @@ class source:
 						self.process_quality_count_final(results)
 					batch = [dict(i, **{'cache_provider': provider, 'debrid': provider}) for i in results]
 					final_results.extend(batch)
+				_log_debrid_cache_summary(final_results, providers_needing_api)
 				return final_results
 			debrid_check_threads = [Thread(target=_process_cache_check, args=self.debrid_runners[item], name=item) for item in providers_needing_api]
-			debrid_deadline = time.time() + max(30, min(60, self.timeout + 15))
+			hash_budget = max(0, len(hash_list))
+			debrid_timeout = max(45, min(240, 30 + (hash_budget // 25) * 8))
+			debrid_deadline = time.time() + debrid_timeout
 			for provider in self.active_debrid:
 				if provider in providers_needing_api:
 					continue
 				if not self.background:
 					self.process_quality_count_final(results)
 				final_results.extend([dict(i, **{'cache_provider': provider, 'debrid': provider}) for i in results])
-			[i.start() for i in debrid_check_threads]
-			if self.background:
-				for thread in debrid_check_threads:
-					thread.join(timeout=max(0.0, debrid_deadline - time.time()))
-			else:
+			if len(providers_needing_api) == 1 and not self.background:
+				debrid_check_threads[0].start()
 				_debrid_check_dialog(debrid_deadline)
-				for thread in debrid_check_threads:
-					thread.join(timeout=max(0.0, debrid_deadline - time.time()))
+				debrid_check_threads[0].join(timeout=max(0.0, debrid_deadline - time.time()))
+			else:
+				[i.start() for i in debrid_check_threads]
+				if self.background:
+					for thread in debrid_check_threads:
+						thread.join(timeout=max(0.0, debrid_deadline - time.time()))
+				else:
+					_debrid_check_dialog(debrid_deadline)
+					for thread in debrid_check_threads:
+						thread.join(timeout=max(0.0, debrid_deadline - time.time()))
+			if providers_needing_api and not final_results:
+				for provider in providers_needing_api:
+					if not self.background:
+						self.process_quality_count_final(results)
+					final_results.extend([dict(i, **{'cache_provider': 'Uncached %s' % provider, 'debrid': provider}) for i in results])
+				try:
+					kodi_utils.logger('DebridCacheCheck', 'warning=incomplete_check fallback=uncached providers=%s hashes=%d' % (
+						','.join(providers_needing_api), len(hash_list)))
+				except: pass
+			_log_debrid_cache_summary(final_results, providers_needing_api)
 			return final_results
 		except: return []
 
