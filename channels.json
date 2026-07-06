@@ -1,0 +1,12 @@
+{
+  "plugin.audio.mp3streams": ["main"],
+  "plugin.program.theredwizard": ["main"],
+  "plugin.video.chainsliveplayer": ["main"],
+  "plugin.video.gratisred": ["main"],
+  "plugin.video.redlight": ["main"],
+  "script.gratisred.artwork": ["main"],
+  "repository.redwizard": ["main"],
+  "skin.carpc-xtouch_me": ["21omega", "22piers"],
+  "service.apkredwizard": [],
+  "service.multiinstallmybinaries": []
+}
