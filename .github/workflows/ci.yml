@@ -1,0 +1,96 @@
+# Two-tier CI validation.
+# Blocking tier must stay green; advisory tier reports kodi-addon-checker
+# noise in the job summary and never fails the build.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Blocking checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: addon.xml well-formedness
+        run: |
+          python - <<'EOF'
+          import sys, pathlib, xml.etree.ElementTree as ET
+          bad = 0
+          for f in sorted(pathlib.Path('.').glob('*/addon.xml')):
+              try:
+                  ET.parse(f)
+                  print(f"ok   {f}")
+              except ET.ParseError as e:
+                  bad += 1
+                  print(f"FAIL {f}: {e}")
+          sys.exit(1 if bad else 0)
+          EOF
+
+      - name: Python syntax (py_compile)
+        run: |
+          python - <<'EOF'
+          import sys, pathlib, py_compile
+          bad = 0
+          for f in sorted(pathlib.Path('.').rglob('*.py')):
+              if f.parts[0] in ('out', 'tools'):
+                  continue
+              try:
+                  py_compile.compile(str(f), doraise=True)
+              except Exception as e:
+                  bad += 1
+                  print(f"FAIL {f}: {e}")
+          print(f"{bad} failures")
+          sys.exit(1 if bad else 0)
+          EOF
+
+      - name: Repo build dry-run
+        run: python tools/build_repo.py --out /tmp/repo-out
+
+  addon-checker:
+    name: Advisory kodi-addon-checker (never blocks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install checker
+        run: pip install kodi-addon-checker
+      - name: Run checker (advisory)
+        run: |
+          set +e
+          PY_ADDONS=$(python -c "
+          import json
+          m = json.load(open('channels.json'))
+          print(' '.join(a for a, ch in sorted(m.items()) if not a.startswith('skin.')))")
+          kodi-addon-checker $PY_ADDONS --branch omega --skip-dependency-checks 2>&1 \
+            | sed 's/\x1b\[[0-9;]*m//g' > checker.log
+          kodi-addon-checker skin.carpc-xtouch_me --branch piers --skip-dependency-checks 2>&1 \
+            | sed 's/\x1b\[[0-9;]*m//g' >> checker.log
+          {
+            echo "## kodi-addon-checker (advisory)"
+            echo '```'
+            grep -cE '^ERROR:' checker.log | xargs -I{} echo "problems reported: {}"
+            grep -cE '^WARN:'  checker.log | xargs -I{} echo "warnings reported: {}"
+            echo '```'
+            echo "<details><summary>Problems</summary>"
+            echo ""
+            echo '```'
+            grep -E '^ERROR:' checker.log | head -60
+            echo '```'
+            echo "</details>"
+            echo "<details><summary>Warning categories</summary>"
+            echo ""
+            echo '```'
+            grep -E '^WARN:' checker.log | sed -E 's/(filename|url:|file ).*//' | sort | uniq -c | sort -rn | head -15
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
