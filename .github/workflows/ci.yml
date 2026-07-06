@@ -18,18 +18,40 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: addon.xml well-formedness
+      - name: XML well-formedness (every .xml in addon dirs)
         run: |
           python - <<'EOF'
           import sys, pathlib, xml.etree.ElementTree as ET
-          bad = 0
-          for f in sorted(pathlib.Path('.').glob('*/addon.xml')):
-              try:
-                  ET.parse(f)
-                  print(f"ok   {f}")
-              except ET.ParseError as e:
-                  bad += 1
-                  print(f"FAIL {f}: {e}")
+          bad = ok = 0
+          addon_dirs = sorted(p.parent for p in pathlib.Path('.').glob('*/addon.xml'))
+          for d in addon_dirs:
+              for f in sorted(d.rglob('*.xml')):
+                  try:
+                      ET.parse(f)
+                      ok += 1
+                  except ET.ParseError as e:
+                      bad += 1
+                      print(f"FAIL {f}: {e}")
+          print(f"{ok} files ok, {bad} failures")
+          sys.exit(1 if bad else 0)
+          EOF
+
+      - name: PO validity (polib)
+        run: |
+          pip install polib
+          python - <<'EOF'
+          import sys, pathlib, polib
+          bad = ok = 0
+          addon_dirs = sorted(p.parent for p in pathlib.Path('.').glob('*/addon.xml'))
+          for d in addon_dirs:
+              for f in sorted(d.rglob('strings.po')):
+                  try:
+                      polib.pofile(str(f))
+                      ok += 1
+                  except Exception as e:
+                      bad += 1
+                      print(f"FAIL {f}: {e}")
+          print(f"{ok} files ok, {bad} failures")
           sys.exit(1 if bad else 0)
           EOF
 
@@ -53,6 +75,15 @@ jobs:
       - name: Repo build dry-run
         run: python tools/build_repo.py --out /tmp/repo-out
 
+  # Permanently-accepted advisory noise (decided in issue #20) — the checker
+  # findings below are deliberate and will not be fixed; don't chase them:
+  #   - skin.carpc-xtouch_me screenshots are 1024x600: the native resolution
+  #     of the car-PC displays the skin targets; upscaling would misrepresent it
+  #   - repository.redwizard <dir minversion/maxversion>: checker false
+  #     positive — Kodi supports these and the multi-channel repo needs them
+  #   - "Complex entry point" warnings: style opinion, not adopted
+  #   - .xbt non-whitelisted file endings: compiled textures are mandatory
+  #     for skins
   addon-checker:
     name: Advisory kodi-addon-checker (never blocks)
     runs-on: ubuntu-latest
