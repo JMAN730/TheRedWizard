@@ -1,4 +1,4 @@
-# PROTOTYPE (wayfinder #16) — two-tier CI validation.
+# Two-tier CI validation.
 # Blocking tier must stay green; advisory tier reports kodi-addon-checker
 # noise in the job summary and never fails the build.
 name: CI

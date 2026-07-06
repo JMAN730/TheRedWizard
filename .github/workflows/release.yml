@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build a release for"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Blocking validation
+        run: |
+          python - <<'EOF'
+          import sys, pathlib, py_compile, xml.etree.ElementTree as ET
+          bad = 0
+          for f in sorted(pathlib.Path('.').glob('*/addon.xml')):
+              try: ET.parse(f)
+              except ET.ParseError as e: bad += 1; print(f"FAIL {f}: {e}")
+          for f in sorted(pathlib.Path('.').rglob('*.py')):
+              if f.parts[0] in ('out', 'tools'): continue
+              try: py_compile.compile(str(f), doraise=True)
+              except Exception as e: bad += 1; print(f"FAIL {f}: {e}")
+          sys.exit(1 if bad else 0)
+          EOF
+
+      - name: Build bundle
+        run: python tools/build_repo.py --bundle "$TAG"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$TAG" in
+            *-*) PRERELEASE=--prerelease ;;
+            *)   PRERELEASE= ;;
+          esac
+          gh release create "$TAG" $PRERELEASE --generate-notes \
+            --notes "Channel zips unpack over the matching server directory; then run \`python3 merge_addons.py <server addons.xml> <addons.repo-owned.xml>\` per channel. See docs/RELEASING.md." \
+            dist/redwizard-repo-*.zip tools/merge_addons.py

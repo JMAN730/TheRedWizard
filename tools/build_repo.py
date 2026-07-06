@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PROTOTYPE (wayfinder #15) — build the Kodi repository datadir tree.
+"""Build the Kodi repository datadir tree for this repo's addons.
 
 Reads channels.json at the repo root and emits, per channel:
 
@@ -8,7 +8,13 @@ Reads channels.json at the repo root and emits, per channel:
     out/<channel>/<id>/<id>-<version>.zip   single root folder <id>/
     out/<channel>/<id>/<asset files>  every path from the addon's <assets> block
 
-Stdlib only. Run from anywhere: python3 tools/build_repo.py [--out DIR]
+With --bundle TAG, additionally packs each channel into a release asset
+dist/redwizard-repo-<channel>-<TAG>.zip whose contents unpack directly over
+the server's channel directory; the partial index travels inside it as
+addons.repo-owned.xml (input to tools/merge_addons.py, never clobbering the
+server's addons.xml).
+
+Stdlib only. Run from anywhere: python3 tools/build_repo.py [--out DIR] [--bundle TAG]
 
 Format facts verified against Kodi source — see
 docs/research/kodi-repo-artifact-format.md.
@@ -89,6 +95,8 @@ def addon_xml_fragment(addon_dir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(REPO_ROOT / "out"))
+    ap.add_argument("--bundle", metavar="TAG",
+                    help="also pack dist/redwizard-repo-<channel>-<TAG>.zip release assets")
     args = ap.parse_args()
     out_root = Path(args.out)
     if out_root.exists():
@@ -131,6 +139,21 @@ def main():
         (out_root / channel / "addons.xml.md5").write_text(md5, encoding="utf-8")
         ET.fromstring(xml_bytes)  # self-check: generated file must parse
         print(f"  index {channel}: {len(entries)} addons, md5 {md5}")
+
+    if args.bundle:
+        dist = REPO_ROOT / "dist"
+        if dist.exists():
+            shutil.rmtree(dist)
+        dist.mkdir()
+        for channel in sorted(channels):
+            chan_root = out_root / channel
+            asset = dist / f"redwizard-repo-{channel}-{args.bundle}.zip"
+            with zipfile.ZipFile(asset, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.write(chan_root / "addons.xml", "addons.repo-owned.xml")
+                for path in sorted(chan_root.rglob("*")):
+                    if path.is_file() and path.name not in ("addons.xml", "addons.xml.md5"):
+                        zf.write(path, path.relative_to(chan_root))
+            print(f"  asset {asset.name}")
 
     for w in warnings:
         print(f"  WARN  {w}")
