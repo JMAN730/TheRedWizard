@@ -18,59 +18,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: XML well-formedness (every .xml in addon dirs)
-        run: |
-          python - <<'EOF'
-          import sys, pathlib, xml.etree.ElementTree as ET
-          bad = ok = 0
-          addon_dirs = sorted(p.parent for p in pathlib.Path('.').glob('*/addon.xml'))
-          for d in addon_dirs:
-              for f in sorted(d.rglob('*.xml')):
-                  try:
-                      ET.parse(f)
-                      ok += 1
-                  except ET.ParseError as e:
-                      bad += 1
-                      print(f"FAIL {f}: {e}")
-          print(f"{ok} files ok, {bad} failures")
-          sys.exit(1 if bad else 0)
-          EOF
-
-      - name: PO validity (polib)
+      - name: Blocking validation (XML, PO, py_compile)
         run: |
           pip install polib
-          python - <<'EOF'
-          import sys, pathlib, polib
-          bad = ok = 0
-          addon_dirs = sorted(p.parent for p in pathlib.Path('.').glob('*/addon.xml'))
-          for d in addon_dirs:
-              for f in sorted(d.rglob('strings.po')):
-                  try:
-                      polib.pofile(str(f))
-                      ok += 1
-                  except Exception as e:
-                      bad += 1
-                      print(f"FAIL {f}: {e}")
-          print(f"{ok} files ok, {bad} failures")
-          sys.exit(1 if bad else 0)
-          EOF
-
-      - name: Python syntax (py_compile)
-        run: |
-          python - <<'EOF'
-          import sys, pathlib, py_compile
-          bad = 0
-          for f in sorted(pathlib.Path('.').rglob('*.py')):
-              if f.parts[0] in ('out', 'tools'):
-                  continue
-              try:
-                  py_compile.compile(str(f), doraise=True)
-              except Exception as e:
-                  bad += 1
-                  print(f"FAIL {f}: {e}")
-          print(f"{bad} failures")
-          sys.exit(1 if bad else 0)
-          EOF
+          python tools/validate_sources.py
 
       - name: Repo build dry-run
         run: python tools/build_repo.py --out /tmp/repo-out
