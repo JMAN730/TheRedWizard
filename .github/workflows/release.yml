@@ -25,20 +25,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Blocking validation
+      - name: Blocking validation (XML, PO, py_compile)
         run: |
-          python - <<'EOF'
-          import sys, pathlib, py_compile, xml.etree.ElementTree as ET
-          bad = 0
-          for f in sorted(pathlib.Path('.').glob('*/addon.xml')):
-              try: ET.parse(f)
-              except ET.ParseError as e: bad += 1; print(f"FAIL {f}: {e}")
-          for f in sorted(pathlib.Path('.').rglob('*.py')):
-              if f.parts[0] in ('out', 'tools'): continue
-              try: py_compile.compile(str(f), doraise=True)
-              except Exception as e: bad += 1; print(f"FAIL {f}: {e}")
-          sys.exit(1 if bad else 0)
-          EOF
+          pip install polib
+          python tools/validate_sources.py
 
       - name: Build bundle
         run: python tools/build_repo.py --bundle "$TAG"
