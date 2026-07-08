@@ -1,3 +1,8 @@
+[COLOR red][B]Version 1.8.0[/B][/COLOR]
+- [B]Settings[/B]: [B]Sources Accounts[/B] split into [B]Torrent Sources[/B] (External Scrapers and Debrid Accounts) and [B]Direct Sources[/B] (AIOStreams, EasyNews, Local Media Folders). External scraper [B]Open[/B] / Tools shortcuts unchanged.
+- [B]Results[/B]: fixed [B]Scraper[/B] / [B]Group[/B] column colours on focused rows when [B]Tint Focused Result Background[/B] is enabled (grey label, white value — matches Size, Hoster, Site).
+- [B]Results[/B]: [B]Tint Focused Result Background[/B] on by default for new installs (opacity remains 40%).
+
 [COLOR red][B]Version 1.7.9[/B][/COLOR]
 - [B]AIOStreams[/B]: Hoster row — [B]USENET[/B] for usenet-only [B]AIO+[/B] streams; [B]DIRECT[/B] for EasyNews and other non-debrid services (even when AIO tags the stream as usenet); [B]CACHED[/B]/[B]UNCACHED[/B] only for torrent debrid (TB, PM, RD, etc.).
 - [B]Results[/B]: fixed [B]Set Filters for Sort to Top[/B] dialog title (was garbled Fen Light wording); now reads [B]Choose Sort To Top Parameters[/B].

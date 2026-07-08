@@ -1252,7 +1252,7 @@ def default_settings():
 {'setting_id': 'scraper_720p_highlight', 'setting_type': 'string', 'setting_default': 'FF3C9900'},
 {'setting_id': 'scraper_SD_highlight', 'setting_type': 'string', 'setting_default': 'FF0166FF'},
 {'setting_id': 'scraper_single_highlight', 'setting_type': 'string', 'setting_default': 'FF008EB2'},
-{'setting_id': 'highlight.tint_focused_background', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'highlight.tint_focused_background', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'highlight.background_opacity', 'setting_type': 'string', 'setting_default': '66'},
 {'setting_id': 'highlight.background_opacity_name', 'setting_type': 'string', 'setting_default': '40%'},
 

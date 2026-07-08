@@ -357,7 +357,7 @@ def routing(sys):
 		return Sources().debridPacks(params.get('provider'), params.get('name'), params.get('magnet_url'), params.get('info_hash'), source_item=source_item)
 	elif mode == 'open_settings':
 		from modules.kodi_utils import open_settings
-		return open_settings()
+		return open_settings(params.get('section'))
 	elif mode == 'opensubs_test_login':
 		from apis.opensubs_api import check_account
 		return check_account()

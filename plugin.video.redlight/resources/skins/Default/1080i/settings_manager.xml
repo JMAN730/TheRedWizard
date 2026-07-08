@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <window>
-    <onload>SetFocus(2000,0,absolute)</onload>
+    <onload condition="!String.IsEmpty(Window(10000).Property(redlight.settings_manager.focus_index))">SetFocus(2000,$INFO[Window(10000).Property(redlight.settings_manager.focus_index)],absolute)</onload>
+    <onload condition="String.IsEmpty(Window(10000).Property(redlight.settings_manager.focus_index))">SetFocus(2000,0,absolute)</onload>
     <controls>
         <!-- Background -->
         <control type="image">
@@ -105,8 +106,11 @@
                       <item id="50">
                           <property name="setting_label">Meta Accounts</property>
                       </item>
-                      <item id="60">
-                          <property name="setting_label">Sources Accounts</property>
+                      <item id="61">
+                          <property name="setting_label">Torrent Sources</property>
+                      </item>
+                      <item id="62">
+                          <property name="setting_label">Direct Sources</property>
                       </item>
                       <item id="70">
                         <property name="setting_label">Results</property>
@@ -121,12 +125,12 @@
                 <animation effect="slide" end="0,-255" time="0" condition="Integer.IsEqual(Container(2100).NumItems,3) | Integer.IsEqual(Container(2100).NumItems,4)">Conditional</animation>
                 <animation effect="slide" end="0,-170" time="0" condition="Integer.IsEqual(Container(2100).NumItems,5) | Integer.IsEqual(Container(2100).NumItems,6)">Conditional</animation>
                 <animation effect="slide" end="0,-85" time="0" condition="Integer.IsEqual(Container(2100).NumItems,7) | Integer.IsEqual(Container(2100).NumItems,8)">Conditional</animation>
+                <animation effect="slide" end="0,0" time="0" condition="Integer.IsEqual(Container(2100).NumItems,9) | Integer.IsEqual(Container(2100).NumItems,10)">Conditional</animation>
                 <left>520</left>
                 <top>100</top>
                 <width>1160</width>
                 <height>765</height>
                 <onleft>2000</onleft>
-                <onleft>SetFocus(2100,1,absolute)</onleft>
                 <onright>10025</onright>
                 <pagecontrol>10025</pagecontrol>
                 <orientation>Vertical</orientation>
@@ -1797,16 +1801,16 @@
                           <property name="setting_description">Enter here your Groq AI API key. This will allow you to utilize the features within Red Light that use AI, such as Browse AI Similar</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=groq_api)</onclick>
                       </item>
-<!-- STREAMING ACCOUNTS 60 -->
+<!-- TORRENT SOURCES 61 / DIRECT SOURCES 62 -->
         <!-- External Scrapers -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <property name="setting_label">External Scrapers</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.provider.external)]</property>
@@ -1814,7 +1818,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.external)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.multi_search),true)</visible>
                           <property name="setting_label">Multi-Scraper Search</property>
@@ -1822,7 +1826,7 @@
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.multi_search),true)</visible>
                           <property name="setting_label">Search Mode</property>
@@ -1832,14 +1836,14 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=external_scraper.run_mode)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <property name="setting_label">External Scraper Slot 1</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot1.module),empty_setting)</visible>
                           <property name="setting_label">Enable Slot 1</property>
@@ -1849,7 +1853,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=external_scraper.slot1.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <property name="setting_label">Choose Module (Slot 1)</property>
                           <property name="setting_type">action</property>
@@ -1858,7 +1862,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=external_scraper_choice&amp;slot=1)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot1.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot1.enabled),true)</visible>
@@ -1870,7 +1874,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=open_external_scraper_settings&amp;slot=1)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot1.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot1.enabled),true)</visible>
@@ -1881,14 +1885,14 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=external_scraper_clear_slot&amp;slot=1)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <property name="setting_label">External Scraper Slot 2</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot2.module),empty_setting)</visible>
                           <property name="setting_label">Enable Slot 2</property>
@@ -1898,7 +1902,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=external_scraper.slot2.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <property name="setting_label">Choose Module (Slot 2)</property>
                           <property name="setting_type">action</property>
@@ -1907,7 +1911,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=external_scraper_choice&amp;slot=2)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot2.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot2.enabled),true)</visible>
@@ -1919,7 +1923,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=open_external_scraper_settings&amp;slot=2)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot2.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot2.enabled),true)</visible>
@@ -1930,7 +1934,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=external_scraper_move_slot&amp;slot=2&amp;direction=up)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot2.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot2.enabled),true)</visible>
@@ -1941,14 +1945,14 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=external_scraper_clear_slot&amp;slot=2)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <property name="setting_label">External Scraper Slot 3</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot3.module),empty_setting)</visible>
                           <property name="setting_label">Enable Slot 3</property>
@@ -1958,7 +1962,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=external_scraper.slot3.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <property name="setting_label">Choose Module (Slot 3)</property>
                           <property name="setting_type">action</property>
@@ -1967,7 +1971,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=external_scraper_choice&amp;slot=3)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot3.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot3.enabled),true)</visible>
@@ -1979,7 +1983,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=open_external_scraper_settings&amp;slot=3)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot3.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot3.enabled),true)</visible>
@@ -1990,7 +1994,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=external_scraper_move_slot&amp;slot=3&amp;direction=up)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.external_scraper.slot3.module),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.external_scraper.slot3.enabled),true)</visible>
@@ -2002,14 +2006,14 @@
                       </item>
         <!-- AIOStreams (hidden while aiostreams_api.ENABLED is false) -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <property name="setting_label">AIOStreams</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
@@ -2018,7 +2022,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.aiostreams)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <property name="setting_label">Instance</property>
@@ -2028,7 +2032,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=aiostreams.instance)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.aiostreams.instance),4)</visible>
@@ -2039,7 +2043,7 @@
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.instance),4)</visible>
@@ -2050,7 +2054,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=aiostreams.custom_url)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <property name="setting_label">Username</property>
@@ -2060,7 +2064,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=aiostreams.username)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <property name="setting_label">Password</property>
@@ -2070,7 +2074,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=aiostreams.password)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.aiostreams.username)) + String.IsEmpty(Window(10000).Property(redlight.aiostreams.password))]</visible>
@@ -2081,7 +2085,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=aiostreams.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.aiostreams.username)) + String.IsEmpty(Window(10000).Property(redlight.aiostreams.password))]</visible>
@@ -2092,7 +2096,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=aiostreams.preserve_order)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.aiostreams.username)) + String.IsEmpty(Window(10000).Property(redlight.aiostreams.password))]</visible>
@@ -2103,7 +2107,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.aiostreams)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.aiostreams.username)) + String.IsEmpty(Window(10000).Property(redlight.aiostreams.password))]</visible>
@@ -2115,7 +2119,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.aiostreams)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.aiostreams.available),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.aiostreams),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.aiostreams.username)) + String.IsEmpty(Window(10000).Property(redlight.aiostreams.password))]</visible>
@@ -2127,13 +2131,13 @@
                       </item>
         <!-- All Debrid -->
                      <item>
-                         <visible>Container(2000).HasFocus(60)</visible>
+                         <visible>Container(2000).HasFocus(61)</visible>
                          <property name="setting_label">All Debrid</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <property name="setting_label">Authorise</property>
                           <property name="setting_type">action</property>
@@ -2142,7 +2146,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=alldebrid.authenticate)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
@@ -2151,7 +2155,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=ad.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <property name="setting_label">Revoke Authorisation</property>
@@ -2161,7 +2165,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=alldebrid.revoke_authentication)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <property name="setting_label">Add Resolved Debrid Cache to Cloud</property>
@@ -2171,7 +2175,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=store_resolved_to_cloud.alldebrid)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <property name="setting_label">Search Cloud Storage</property>
@@ -2181,7 +2185,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.ad_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.ad_cloud),true)</visible>
@@ -2192,7 +2196,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=ad_cloud.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.ad_cloud),true)</visible>
@@ -2203,7 +2207,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.ad_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.ad_cloud),true)</visible>
@@ -2215,7 +2219,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.ad_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.ad_cloud),true)</visible>
@@ -2226,7 +2230,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=results.sort_adcloud_first)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.ad.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.ad.enabled),true)</visible>
                           <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
@@ -2237,13 +2241,13 @@
                       </item>
         <!-- EasyNews -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <property name="setting_label">EasyNews</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.provider.easynews)]</property>
@@ -2251,7 +2255,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.easynews)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <property name="setting_label">Login</property>
                           <property name="setting_type">numeric</property>
@@ -2260,7 +2264,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=easynews_user)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <property name="setting_label">Password</property>
                           <property name="setting_type">password</property>
@@ -2269,7 +2273,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=easynews_password)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Filter Results by Name</property>
@@ -2279,7 +2283,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Filter Languages</property>
@@ -2289,7 +2293,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.filter_lang)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Exclude Adult Results</property>
@@ -2299,7 +2303,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.exclude_adult)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.easynews.filter_lang),true)</visible>
@@ -2310,7 +2314,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=set_language_filter_choice&amp;filter_setting_id=easynews.lang_filters&amp;multi_choice=true)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.easynews.filter_lang),true)</visible>
@@ -2321,7 +2325,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.lang_include_unknown)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Refresh Credentials Each Request</property>
@@ -2331,7 +2335,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.refresh_credentials)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Fallback Search Queries</property>
@@ -2341,7 +2345,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=easynews.fallback_search)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Search Width</property>
@@ -2351,7 +2355,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=easynews.search_width)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Check Before Full Search</property>
@@ -2361,7 +2365,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.easynews)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.check.easynews),true)</visible>
@@ -2372,7 +2376,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.easynews)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.easynews),true)</visible>
                           <visible>![String.IsEmpty(Window(10000).Property(redlight.easynews_user)) + String.IsEmpty(Window(10000).Property(redlight.easynews_password))]</visible>
                           <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
@@ -2383,13 +2387,13 @@
                       </item>
         <!-- Offcloud -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <property name="setting_label">Offcloud</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <property name="setting_label">Authorise</property>
                           <property name="setting_type">action</property>
@@ -2398,7 +2402,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=offcloud.authenticate)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
@@ -2407,7 +2411,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=oc.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <property name="setting_label">Revoke Authorisation</property>
@@ -2417,7 +2421,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=offcloud.revoke_authentication)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
@@ -2428,7 +2432,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=oc.cache_check)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
@@ -2440,7 +2444,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=oc.include_uncached)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <property name="setting_label">Add Resolved Debrid Cache to Cloud</property>
@@ -2450,7 +2454,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=store_resolved_to_cloud.offcloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <property name="setting_label">Notify when added torrents are ready in Cloud</property>
@@ -2460,7 +2464,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=oc.notify_cloud_ready)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <property name="setting_label">Search Cloud Storage</property>
@@ -2470,7 +2474,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.oc_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.oc_cloud),true)</visible>
@@ -2481,7 +2485,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=oc_cloud.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.oc_cloud),true)</visible>
@@ -2492,7 +2496,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.oc_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.oc_cloud),true)</visible>
@@ -2504,7 +2508,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.oc_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.oc_cloud),true)</visible>
@@ -2515,7 +2519,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=results.sort_occloud_first)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.oc.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.oc.enabled),true)</visible>
                           <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
@@ -2526,13 +2530,13 @@
                       </item>
         <!-- Premiumize -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <property name="setting_label">Premiumize</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <property name="setting_label">Authorise</property>
                           <property name="setting_type">action</property>
@@ -2541,7 +2545,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=premiumize.authenticate)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
@@ -2550,7 +2554,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=pm.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <property name="setting_label">Revoke Authorisation</property>
@@ -2560,7 +2564,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=premiumize.revoke_authentication)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
@@ -2571,7 +2575,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=pm.cache_check)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
@@ -2583,7 +2587,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=pm.include_uncached)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <property name="setting_label">Add Resolved Debrid Cache to Cloud</property>
@@ -2593,7 +2597,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=store_resolved_to_cloud.premiumize.me)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <property name="setting_label">Search Cloud Storage</property>
@@ -2603,7 +2607,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.pm_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.pm_cloud),true)</visible>
@@ -2614,7 +2618,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=pm_cloud.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.pm_cloud),true)</visible>
@@ -2625,7 +2629,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.pm_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.pm_cloud),true)</visible>
@@ -2637,7 +2641,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.pm_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.pm_cloud),true)</visible>
@@ -2648,7 +2652,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=results.sort_pmcloud_first)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.pm.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.pm.enabled),true)</visible>
                          <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
@@ -2659,13 +2663,13 @@
                      </item>
         <!-- Real Debrid -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <property name="setting_label">Real Debrid</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <property name="setting_label">Authorise</property>
                           <property name="setting_type">action</property>
@@ -2674,7 +2678,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=real_debrid.authenticate)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
@@ -2683,7 +2687,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=rd.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <property name="setting_label">Revoke Authorisation</property>
@@ -2693,7 +2697,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=real_debrid.revoke_authentication)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
@@ -2704,7 +2708,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=rd.cache_check)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <property name="setting_label">Add Resolved Debrid Cache to Cloud</property>
@@ -2714,7 +2718,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=store_resolved_to_cloud.real-debrid)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <property name="setting_label">Search Cloud Storage</property>
@@ -2724,7 +2728,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.rd_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.rd_cloud),true)</visible>
@@ -2735,7 +2739,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=rd_cloud.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.rd_cloud),true)</visible>
@@ -2746,7 +2750,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.rd_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.rd_cloud),true)</visible>
@@ -2758,7 +2762,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.rd_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.rd_cloud),true)</visible>
@@ -2769,7 +2773,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=results.sort_rdcloud_first)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
@@ -2779,7 +2783,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_numeric&amp;setting_id=rd.priority)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <property name="setting_label">Use alternate url</property>
@@ -2789,7 +2793,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=rd.alternate_base_url)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.rd.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.rd.enabled),true)</visible>
                           <property name="setting_label">Free active download slot</property>
@@ -2800,13 +2804,13 @@
                       </item>
         <!-- TorBox -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <property name="setting_label">TorBox</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <property name="setting_label">Authorise</property>
                           <property name="setting_type">action</property>
@@ -2815,7 +2819,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=torbox.authenticate)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
@@ -2824,7 +2828,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=tb.enabled)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <property name="setting_label">Revoke Authorisation</property>
@@ -2834,7 +2838,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=torbox.revoke_authentication)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
@@ -2845,7 +2849,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=tb.cache_check)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.external),true)</visible>
@@ -2857,7 +2861,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=tb.include_uncached)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <property name="setting_label">Add Resolved Debrid Cache to Cloud</property>
@@ -2867,7 +2871,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=store_resolved_to_cloud.torbox)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <property name="setting_label">Notify when added torrents are ready in Cloud</property>
@@ -2877,7 +2881,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=tb.notify_cloud_ready)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <property name="setting_label">Search Cloud Storage</property>
@@ -2887,7 +2891,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.tb_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.tb_cloud),true)</visible>
@@ -2898,7 +2902,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=tb_cloud.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.tb_cloud),true)</visible>
@@ -2909,7 +2913,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.tb_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.tb_cloud),true)</visible>
@@ -2921,7 +2925,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.tb_cloud)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.tb_cloud),true)</visible>
@@ -2932,7 +2936,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=results.sort_tbcloud_first)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(61)</visible>
                           <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.tb.enabled),true)</visible>
                           <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
@@ -2943,13 +2947,13 @@
                       </item>
         <!-- Local Media Folders -->
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <property name="setting_label">Local Media Folders</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <property name="setting_label">Enable</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.provider.folders)]</property>
@@ -2957,7 +2961,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.folders)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.folders),true)</visible>
                           <property name="setting_label">Set Folder Scrapers</property>
                           <property name="setting_type">action</property>
@@ -2966,7 +2970,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=sources_folders_choice)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.folders),true)</visible>
                           <property name="setting_label">Filter Results by Name</property>
                           <property name="setting_type">boolean</property>
@@ -2975,7 +2979,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=folders.title_filter)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.folders),true)</visible>
                           <property name="setting_label">Check Before Full Search</property>
                           <property name="setting_type">boolean</property>
@@ -2984,7 +2988,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.folders)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.folders),true)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.check.folders),true)</visible>
                           <property name="setting_label">    - Autoplay Result</property>
@@ -2994,7 +2998,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.folders)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.folders),true)</visible>
                           <property name="setting_label">Show Results at Top</property>
                           <property name="setting_type">boolean</property>
@@ -3003,7 +3007,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=results.sort_folders_first)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.folders),true)</visible>
                           <property name="setting_label">Ignore Quality and Size Filters</property>
                           <property name="setting_type">boolean</property>
@@ -3012,7 +3016,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=results.folders_ignore_filters)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(60)</visible>
+                          <visible>Container(2000).HasFocus(62)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.provider.folders),true)</visible>
                           <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
                           <property name="setting_type">numeric</property>
@@ -3843,11 +3847,7 @@
                 <left>15</left>
                 <width>1685</width>
                 <height>120</height>
-                <!-- Match right-hand settings list vertical offset so INFO stays directly below it -->
-                <animation effect="slide" end="0,-340" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,1) | Integer.IsEqual(Container(2100).NumItems,2)]">Conditional</animation>
-                <animation effect="slide" end="0,-255" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,3) | Integer.IsEqual(Container(2100).NumItems,4)]">Conditional</animation>
-                <animation effect="slide" end="0,-170" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,5) | Integer.IsEqual(Container(2100).NumItems,6)]">Conditional</animation>
-                <animation effect="slide" end="0,-85" time="0" condition="Control.HasFocus(2100) + [Integer.IsEqual(Container(2100).NumItems,7) | Integer.IsEqual(Container(2100).NumItems,8)]">Conditional</animation>
+                <!-- Match left nav vertical offset when the section list has focus -->
                 <animation effect="slide" end="0,-340" time="0" condition="Control.HasFocus(2000) + [Integer.IsEqual(Container(2000).NumItems,1) | Integer.IsEqual(Container(2000).NumItems,2)]">Conditional</animation>
                 <animation effect="slide" end="0,-255" time="0" condition="Control.HasFocus(2000) + [Integer.IsEqual(Container(2000).NumItems,3) | Integer.IsEqual(Container(2000).NumItems,4)]">Conditional</animation>
                 <animation effect="slide" end="0,-170" time="0" condition="Control.HasFocus(2000) + [Integer.IsEqual(Container(2000).NumItems,5) | Integer.IsEqual(Container(2000).NumItems,6)]">Conditional</animation>

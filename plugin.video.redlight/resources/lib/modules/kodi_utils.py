@@ -877,7 +877,7 @@ def jsonrpc_set_system_setting(setting_id, value):
 	try: return get_jsonrpc(command)
 	except: return None
 
-def open_settings():
+def open_settings(section=None):
 	try:
 		from caches.settings_cache import refresh_settings_manager_properties
 		refresh_settings_manager_properties()
@@ -887,8 +887,17 @@ def open_settings():
 		from apis.aiostreams_api import refresh_settings_properties
 		refresh_settings_properties()
 	except: pass
+	section_indexes = {'torrent': 5, 'direct': 6, '61': 5, '62': 6, 'torrent_sources': 5, 'direct_sources': 6}
+	focus_key = str(section or '').strip().lower()
+	if focus_key in section_indexes:
+		set_property('redlight.settings_manager.focus_index', str(section_indexes[focus_key]))
+	else:
+		clear_property('redlight.settings_manager.focus_index')
 	from windows.base_window import open_window
-	open_window(('windows.settings_manager', 'SettingsManager'), 'settings_manager.xml')
+	try:
+		open_window(('windows.settings_manager', 'SettingsManager'), 'settings_manager.xml')
+	finally:
+		clear_property('redlight.settings_manager.focus_index')
 
 def external_scraper_settings(params=None):
 	try:

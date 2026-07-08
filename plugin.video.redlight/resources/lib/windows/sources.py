@@ -254,21 +254,24 @@ class SourcesResults(BaseDialog):
 				highlight_bg = _highlight_with_alpha(item_highlight, self.highlight_alpha) if self.tint_focused_background else 'FFCCCCCC'
 				scraper_module = ''
 				scraper_suffix = ''
+				scraper_suffix_tint = ''
 				scraper_module_label = ''
 				if scrape_provider == 'external':
 					scraper_module = external_module_display_name(get('external_module', ''))
 					if scraper_module:
 						scraper_module_label = 'Scraper'
 						scraper_suffix = '     [COLOR %s][B]Scraper: [/B][/COLOR]%s' % (item_highlight, scraper_module.upper())
+						scraper_suffix_tint = '     [COLOR FFA8A8A8][B]Scraper: [/B][/COLOR][COLOR FFFFFFFF]%s[/COLOR]' % scraper_module.upper()
 				elif scrape_provider == 'aiostreams':
 					scraper_module = get('aio_release_group') or ''
 					if scraper_module:
 						scraper_module_label = 'Group'
 						scraper_suffix = '     [COLOR %s][B]Group: [/B][/COLOR]%s' % (item_highlight, scraper_module.upper())
+						scraper_suffix_tint = '     [COLOR FFA8A8A8][B]Group: [/B][/COLOR][COLOR FFFFFFFF]%s[/COLOR]' % scraper_module.upper()
 				set_properties({'name': name.upper(), 'source_site': source_site, 'provider_icon': provider_icon, 'quality_icon': quality_icon, 'count': '%02d.' % count,
 						'size_label': get('size_label', 'N/A'), 'extraInfo': extraInfo, 'quality': quality.upper(), 'hash': get('hash', 'N/A'), 'source': json.dumps(item),
 						'highlight': item_highlight, 'highlight_bg': highlight_bg, 'scraper_module': scraper_module.upper() if scraper_module else '', 'scraper_module_label': scraper_module_label,
-						'scraper_suffix': scraper_suffix})
+						'scraper_suffix': scraper_suffix, 'scraper_suffix_tint': scraper_suffix_tint})
 				item_list.append((listitem, count))
 			except: pass
 		try:
