@@ -304,6 +304,22 @@ def fetch_alert_subtitle(imdb_id, season=None, episode=None, year=None, playing_
 	return final_path
 
 
+def _fetch_user_quota(token=None):
+	token = token or _token()
+	if not token:
+		return None, None
+	try:
+		response = requests.get('%s/infos/user' % BASE_URL, headers=_headers(token), timeout=TIMEOUT)
+		if response.status_code == 401 and authorized():
+			response = requests.get('%s/infos/user' % BASE_URL, headers=_headers(_token()), timeout=TIMEOUT)
+		if response.status_code != 200:
+			return None, None
+		info = response.json().get('data') or {}
+		return info.get('remaining_downloads'), info.get('allowed_downloads')
+	except:
+		return None, None
+
+
 def check_account():
 	if not st.opensubs_configured():
 		return ku.ok_dialog(heading='OpenSubtitles', text='Enter your OpenSubtitles username and password first.')
@@ -315,9 +331,18 @@ def check_account():
 		token = data.get('token')
 		if token: _save_token(token)
 		user = data.get('user') or {}
+		remaining = user.get('remaining_downloads')
 		allowed = user.get('allowed_downloads')
-		if allowed is None: allowed = 'unknown'
-		return ku.ok_dialog(heading='OpenSubtitles', text='Account: %s[CR][CR]Allowed downloads (24h): %s' % (_username(), allowed))
+		info_remaining, info_allowed = _fetch_user_quota(token)
+		if info_remaining is not None: remaining = info_remaining
+		if info_allowed is not None: allowed = info_allowed
+		if remaining is not None and allowed is not None:
+			text = 'Account: %s[CR][CR]Downloads remaining (24h): %s of %s' % (_username(), remaining, allowed)
+		elif allowed is not None:
+			text = 'Account: %s[CR][CR]Daily download limit (24h): %s' % (_username(), allowed)
+		else:
+			text = 'Account: %s[CR][CR]Download quota: unknown' % _username()
+		return ku.ok_dialog(heading='OpenSubtitles', text=text)
 	except:
 		return ku.ok_dialog(heading='OpenSubtitles', text='Error checking OpenSubtitles account. Check your username and password.')
 

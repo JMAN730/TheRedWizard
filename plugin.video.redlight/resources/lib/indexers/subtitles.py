@@ -496,10 +496,30 @@ def subtitle_notify_poster(meta, media_type='movie'):
 		return meta.get('ep_thumb') or meta.get('fanart') or meta.get('poster') or ku.get_icon('box_office')
 	return meta.get('poster') or ku.get_icon('box_office')
 
-def _notify_subtitles_ready(poster=None, local=False, is_episode=False):
+def _subtitle_playback_active(player=None):
+	try:
+		if player is not None:
+			return player.isPlayingVideo() or player.isPlaying()
+	except:
+		pass
+	try:
+		return ku.get_visibility('Window.IsActive(fullscreenvideo)')
+	except:
+		return False
+
+def _subtitle_user_notify(message, poster=None, settle_ms=150, player=None):
+	if player is not None and not _subtitle_playback_active(player):
+		return
+	ku.notification(message, icon=poster, settle_ms=settle_ms)
+
+def _notify_subtitles_ready(poster=None, local=False, is_episode=False, player=None):
+	if player is not None and not _subtitle_playback_active(player):
+		return
 	for _ in range(40):
 		if ku.get_visibility('Window.IsActive(fullscreenvideo)'): break
 		ku.sleep(100)
+	if player is not None and not _subtitle_playback_active(player):
+		return
 	settle_ms = 500 if is_episode else 200
 	message = 'Local subtitles found' if local else 'Downloaded subtitles found'
 	ku.notification(message, icon=poster, settle_ms=settle_ms)
@@ -510,7 +530,7 @@ def _enable_forced_local_subtitles(player, poster=None, notify=True, is_episode=
 	try: player.setSubtitleStream(stream_index)
 	except: return False
 	if st.auto_enable_subs(): player.showSubtitles(True)
-	if notify: _notify_subtitles_ready(poster=poster, local=True, is_episode=is_episode)
+	if notify: _notify_subtitles_ready(poster=poster, local=True, is_episode=is_episode, player=player)
 	return True
 
 def enable_local_subtitles(player, poster=None, notify=True, is_episode=False):
@@ -523,14 +543,14 @@ def enable_local_subtitles(player, poster=None, notify=True, is_episode=False):
 		for pref in preferred_languages:
 			if _submaker_language_matches(current, pref):
 				if st.auto_enable_subs(): player.showSubtitles(True)
-				if notify: _notify_subtitles_ready(poster=poster, local=True, is_episode=is_episode)
+				if notify: _notify_subtitles_ready(poster=poster, local=True, is_episode=is_episode, player=player)
 				return True
 	stream_index = _find_subtitle_stream_index(player, preferred_languages)
 	if stream_index is not None:
 		try: player.setSubtitleStream(stream_index)
 		except: pass
 		if st.auto_enable_subs(): player.showSubtitles(True)
-		if notify: _notify_subtitles_ready(poster=poster, local=True, is_episode=is_episode)
+		if notify: _notify_subtitles_ready(poster=poster, local=True, is_episode=is_episode, player=player)
 		return True
 	return False
 
@@ -947,12 +967,14 @@ def clear_subtitles_cache():
 
 def _apply_external_subtitle(player, path, poster=None, notify=True, is_episode=False):
 	if not path: return False
+	if not _subtitle_playback_active(player):
+		return False
 	try: player.setSubtitles(path)
 	except: return False
 	if st.auto_enable_subs():
 		try: player.showSubtitles(True)
 		except: pass
-	if notify: _notify_subtitles_ready(poster=poster, local=False, is_episode=is_episode)
+	if notify: _notify_subtitles_ready(poster=poster, local=False, is_episode=is_episode, player=player)
 	return True
 
 class Subtitles(xbmc.Player):
@@ -992,9 +1014,9 @@ class Subtitles(xbmc.Player):
 	def _searched_subs(self):
 		subs = self.subtitles_search()
 		if isinstance(subs, str):
-			return ku.notification('SubMaker error: %s' % subs, settle_ms=150)
+			return _subtitle_user_notify('SubMaker error: %s' % subs, player=self._player)
 		if not subs:
-			return ku.notification('No subtitles found', icon=self.poster, settle_ms=150)
+			return _subtitle_user_notify('No subtitles found', poster=self.poster, player=self._player)
 		release_context = playback_release_context(self.playing_filename, self.playing_item, self.season, self.episode)
 		search_params = getattr(self, '_last_search_params', '') or _submaker_search_params(
 			self.imdb_id, self.season, self.episode, self.playing_filename, self.playing_item)
@@ -1007,7 +1029,7 @@ class Subtitles(xbmc.Player):
 				if path: return path
 			except: pass
 		if not content:
-			return ku.notification('No subtitles found', icon=self.poster, settle_ms=150)
+			return _subtitle_user_notify('No subtitles found', poster=self.poster, player=self._player)
 		final_path = '%s%s' % (self.subtitle_path, self.search_filename)
 		with ku.open_file(final_path, 'w') as file: file.write(content)
 		ku.sleep(1000)
@@ -1050,12 +1072,12 @@ class OpenSubtitlesSubs(xbmc.Player):
 		if st.submaker_prefer_local():
 			if self._video_file_subs(): return
 		if not st.opensubs_configured():
-			return ku.notification('OpenSubtitles username and password required', icon=poster, settle_ms=500 if self.is_episode else 200)
+			return _subtitle_user_notify('OpenSubtitles username and password required', poster=poster, settle_ms=500 if self.is_episode else 200, player=self._player)
 		try:
 			from apis.opensubs_api import fetch_alert_subtitle
 			path = fetch_alert_subtitle(imdb_id, season, episode, year, playing_filename, playing_item, log_pick=True)
 		except: path = None
 		if not path:
-			return ku.notification('No subtitles found', icon=poster, settle_ms=500 if self.is_episode else 200)
+			return _subtitle_user_notify('No subtitles found', poster=poster, settle_ms=500 if self.is_episode else 200, player=self._player)
 		remember_active_subtitle_path(path)
 		return _apply_external_subtitle(self._player, path, poster=poster, is_episode=self.is_episode)

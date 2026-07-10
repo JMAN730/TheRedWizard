@@ -30,6 +30,7 @@ class SourcesResults(BaseDialog):
 		self.meta = kwargs.get('meta')
 		self.sources_ref = kwargs.get('sources_ref')
 		self.filters_ignored = kwargs.get('filters_ignored', False)
+		self.selected = (None, '')
 		self.meta_get = self.meta.get
 		self.make_poster = self.window_format in ('list', 'medialist')
 		self.empty_poster = get_icon('box_office')

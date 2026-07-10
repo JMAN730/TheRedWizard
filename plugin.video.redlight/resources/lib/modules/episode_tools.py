@@ -124,7 +124,9 @@ class EpisodeTools:
 	def auto_nextep(self):
 		url_params = self.next_episode_info()
 		if url_params == 'error': return kodi_utils.notification('Next Episode Error', 3000)
-		elif url_params == 'no_next_episode': return
+		elif url_params == 'no_next_episode':
+			kodi_utils.set_property('redlight.nextep_prep_declined', 'true')
+			return
 		return Sources().playback_prep(url_params)
 
 	def add_playback_key(self, url_params):

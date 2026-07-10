@@ -101,6 +101,23 @@ def kodi_monitor():
 def kodi_player():
 	return xbmc.Player()
 
+def playback_is_paused():
+	try:
+		if get_visibility('Player.Paused'):
+			return True
+	except:
+		pass
+	try:
+		player = kodi_player()
+		if not (player.isPlayingVideo() or player.isPlaying()):
+			return False
+		props = get_jsonrpc({'jsonrpc': '2.0', 'id': 1, 'method': 'Player.GetProperties', 'params': {'playerid': 1, 'properties': ['speed']}})
+		if props is not None and float(props.get('speed', 1)) == 0.0:
+			return True
+	except:
+		pass
+	return False
+
 def kodi_dialog():
 	return xbmcgui.Dialog()
 
