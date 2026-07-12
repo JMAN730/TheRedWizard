@@ -1305,6 +1305,7 @@ def default_settings():
 '28': 'Romanian', '29': 'Russian', '30': 'Serbian', '31': 'Slovenian', '32': 'Spanish', '33': 'Swedish', '34': 'Tagalog', '35': 'Tamil', '36': 'Telugu',
 '37': 'Thai', '38': 'Turkish', '39': 'Ukrainian', '40': 'Urdu', '41': 'Vietnamese', '42': 'Forced Only (Local Subs)'}},
 {'setting_id': 'playback.submaker_prefer_local', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'playback.subs_show_notifications', 'setting_type': 'boolean', 'setting_default': 'true'},
 
 
 #=========================================================================================#

@@ -2106,6 +2106,10 @@ class Sources():
 						if self.cancel_all_playback or self._resolve_user_cancelled:
 							break
 						if self.playback_successful: break
+						# Next queued source — drop Kodi's native playback-failed confirm if it lingered.
+						if count < len(items):
+							try: kodi_utils.close_dialog('okdialog')
+							except: pass
 					except: pass
 				except: pass
 		except:

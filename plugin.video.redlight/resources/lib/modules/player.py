@@ -101,9 +101,18 @@ class RedLightPlayer(xbmc.Player):
 				else:
 					# Keep the resolver progress UI so play_file can try the next queued source.
 					self.run_error()
+					self._dismiss_kodi_playback_error_dialog()
 				self.safe_stop()
 		try: del self.kodi_monitor
 		except: pass
+
+	def _dismiss_kodi_playback_error_dialog(self):
+		# Kodi shows DialogConfirm (okdialog) when demux/open fails. Force-close so
+		# mid-queue resolve retries do not flash a brief confirm over the resolver UI.
+		if ku.get_visibility('Window.IsVisible(okdialog)'):
+			ku.close_dialog('okdialog')
+			return True
+		return False
 
 	def check_playback_start_generic(self):
 		resolve_percent = 0
@@ -115,8 +124,7 @@ class RedLightPlayer(xbmc.Player):
 			elif resolve_percent >= 100:
 				self.playback_successful = False
 				break
-			elif ku.get_visibility('Window.IsTopMost(okdialog)'):
-				ku.execute_builtin('SendClick(okdialog, 11)')
+			elif self._dismiss_kodi_playback_error_dialog():
 				self.playback_successful = False
 			elif self.isPlayingVideo():
 				try:
@@ -170,8 +178,7 @@ class RedLightPlayer(xbmc.Player):
 			elif resolve_percent >= 100:
 				self.playback_successful = False
 				break
-			elif ku.get_visibility('Window.IsTopMost(okdialog)'):
-				ku.execute_builtin('SendClick(okdialog, 11)')
+			elif self._dismiss_kodi_playback_error_dialog():
 				self.playback_successful = False
 			elif self.isPlayingVideo():
 				if self._resolve_cancelled():

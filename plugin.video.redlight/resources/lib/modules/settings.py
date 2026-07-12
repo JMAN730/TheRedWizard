@@ -294,6 +294,9 @@ def subs_language_preferences():
 def submaker_prefer_local():
 	return get_setting('redlight.playback.submaker_prefer_local', 'true') == 'true'
 
+def subs_show_notifications():
+	return get_setting('redlight.playback.subs_show_notifications', 'true') == 'true'
+
 def stingers_show():
 	return get_setting('redlight.stinger_alert.show', 'false') == 'true'
 

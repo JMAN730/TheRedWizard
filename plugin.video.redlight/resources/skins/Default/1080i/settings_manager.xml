@@ -3754,6 +3754,15 @@
                       <item>
                           <visible>Container(2000).HasFocus(80)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.playback.auto_enable_subs),true)</visible>
+                          <property name="setting_label">    - Show Notifications</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.subs_show_notifications)]</property>
+                          <property name="setting_description">Show subtitle toasts during playback ([B]Local subtitles found[/B], [B]Cached subtitles found[/B], [B]Downloaded subtitles found[/B], and errors such as [B]No subtitles found[/B]). Off still enables subtitles — only hides the notifications</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=playback.subs_show_notifications)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(80)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.playback.auto_enable_subs),true)</visible>
                           <property name="setting_label">    - Subtitle Language</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.playback.submaker_language_name)]</property>
