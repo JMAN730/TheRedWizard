@@ -260,6 +260,18 @@
                     <control type="group">
                         <visible>String.IsEqual(ListItem.Property(setting_type),separator)</visible>
                         <control type="label">
+                            <visible>Control.HasFocus(2100)</visible>
+                            <left>40</left>
+                            <width>630</width>
+                            <height>85</height>
+                            <label>[UPPERCASE]$INFO[ListItem.Property(setting_label)][/UPPERCASE]</label>
+                            <font>font12</font> <!-- REDLIGHT_26 -->
+                            <textcolor>FF1F2020</textcolor>
+                            <aligny>center</aligny>
+                            <align>center</align>
+                        </control>
+                        <control type="label">
+                            <visible>!Control.HasFocus(2100)</visible>
                             <left>40</left>
                             <width>630</width>
                             <height>85</height>
@@ -270,6 +282,15 @@
                             <align>center</align>
                         </control>
                         <control type="image">
+                            <visible>Control.HasFocus(2100)</visible>
+                            <top>70</top>
+                            <left>30</left>
+                            <height>2</height>
+                            <width>1100</width>
+                            <texture colordiffuse="FF1F2020">redlight_common/white.png</texture>
+                        </control>
+                        <control type="image">
+                            <visible>!Control.HasFocus(2100)</visible>
                             <top>70</top>
                             <left>30</left>
                             <height>2</height>

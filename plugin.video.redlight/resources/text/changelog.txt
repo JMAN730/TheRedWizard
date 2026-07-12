@@ -1,3 +1,6 @@
+[COLOR red][B]Version 1.8.5[/B][/COLOR]
+- [B]Settings Manager[/B]: section headings ([B]General[/B], [B]Window Theme[/B], [B]Watched Indicators[/B], etc.) now switch to dark text on the white focus highlight like other rows — fixes invisible heading text when scrolled onto.
+
 [COLOR red][B]Version 1.8.4[/B][/COLOR]
 - [B]Subtitles[/B]: [B]Show Notifications[/B] toggle under [B]Playback > Subtitles[/B] (default [B]On[/B]) — turns off [B]Local[/B] / [B]Cached[/B] / [B]Downloaded subtitles found[/B] toasts and subtitle error notices during auto-enable; subs still attach when enabled.
 - [B]Subtitles[/B]: [B]Local subtitles found[/B] now shows when Kodi already has a matching embedded track at auto-enable time (still requires language match; same playback-active and superseded-thread guards as other subtitle toasts).
