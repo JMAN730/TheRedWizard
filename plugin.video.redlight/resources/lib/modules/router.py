@@ -52,6 +52,9 @@ def routing(sys):
 	elif 'easynews.' in mode:
 		from indexers import easynews
 		return exec('easynews.%s(params)' % mode.split('.')[1])
+	elif mode.startswith('nzb.'):
+		from indexers import nzb
+		return exec('nzb.%s(params)' % mode.split('.')[1])
 	elif 'playback.' in mode:
 		from modules.kodi_utils import player_check
 		return player_check(mode, params)

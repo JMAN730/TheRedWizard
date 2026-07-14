@@ -28,11 +28,12 @@ def get_personal_lists(params):
 				poster = custom_poster or icon
 				custom_fanart = item.get('fanart', '')
 				fanart = custom_fanart or background
-				mode = 'random.build_personal_lists_contents' if random else 'personal_lists.build_personal_list'
-				url_params = {'mode': mode, 'list_name': list_name, 'category_name': list_name, 'sort_order': sort_order, 'seen': seen, 'author': author,
+				random_contents = random or shuffle_lists
+				mode = 'random.build_personal_lists_contents' if random_contents else 'personal_lists.build_personal_list'
+				url_params = {'mode': mode, 'list_name': list_name, 'category_name': list_name,
+				'sort_order': 'shuffle' if random_contents else sort_order, 'seen': seen, 'author': author,
 				'iconImage': poster, 'name': list_name}
-				if random: url_params['random'] = 'true'
-				if shuffle_lists: url_params['shuffle'] = 'true'
+				if random_contents: url_params['random'] = 'true'
 				url = kodi_utils.build_folder_url(url_params)
 				cm = [('[B]Make New List[/B]', 'RunPlugin(%s)' % build_url({'mode': 'personal_lists.make_new_personal_list'})),
 				('[B]Edit Properties[/B]', 'RunPlugin(%s)' % build_url({'mode': 'personal_lists.adjust_personal_list_properties', 'description': description, 'author': author,
@@ -62,6 +63,7 @@ def get_personal_lists(params):
 	show_author = settings.personal_lists_show_author()
 	build_url = kodi_utils.build_url
 	random, shuffle_lists = params.get('random', 'false') == 'true', params.get('shuffle', 'false') == 'true'
+	returning_to_list = False
 	handle = int(sys.argv[1])
 	try:
 		data = get_all_personal_lists(get_setting('redlight.personal_list.list_sort', '0'))
@@ -83,7 +85,7 @@ def get_personal_lists(params):
 	kodi_utils.set_content(handle, kodi_utils.MENU_FOLDER_CONTENT)
 	kodi_utils.set_category(handle, 'Personal Lists')
 	if shuffle_lists and not returning_to_list: kodi_utils.focus_index(0)
-	kodi_utils.end_directory(handle)
+	kodi_utils.end_directory(handle, cacheToDisc=not (random or shuffle_lists))
 	kodi_utils.set_view_mode('view.main', kodi_utils.MENU_FOLDER_CONTENT)
 
 def build_personal_list(params):

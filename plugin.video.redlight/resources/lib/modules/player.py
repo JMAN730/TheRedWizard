@@ -17,6 +17,7 @@ PROP_NEXTEP_PREP_DECLINED = 'redlight.nextep_prep_declined'
 PROP_AUTOSCRAPE_NEXTEP_READY = 'redlight.autoscrape_nextep_ready'
 PROP_NEXTEP_AUTOPLAY_CANCELLED = 'redlight.nextep_autoplay_cancelled'
 PROP_NEXTEP_NATURAL_END = 'redlight.nextep_natural_end'
+PROP_RANDOM_CONTINUAL_SKIP_ATTEMPTS = 'redlight.random_continual_skip_attempts'
 PROP_ACTIVE_PLAYBACK_KEY = 'redlight.active_playback_key'
 _NEXTEP_NATURAL_END_SEC = 15
 # Movies-only: fire stingers alert ~3 min before other alert sources would (typical 90% vs 95% gap on ~1 hr).
@@ -201,7 +202,10 @@ class RedLightPlayer(xbmc.Player):
 		self.sources_object.playback_successful = True
 		self.kill_dialog()
 		ku.sleep(200)
-		ku.close_all_dialog()
+		try:
+			self.sources_object._force_close_sources_overlay_windows()
+		except:
+			ku.close_all_dialog()
 
 	def monitor(self):
 		playback_superseded = False
@@ -1148,6 +1152,7 @@ class RedLightPlayer(xbmc.Player):
 			ku.clear_property(PROP_NEXTEP_NATURAL_END)
 			ku.clear_property(PROP_AUTOSCRAPE_NEXTEP_READY)
 			ku.clear_property(PROP_NEXTEP_AUTOPLAY_CANCELLED)
+			ku.clear_property(PROP_RANDOM_CONTINUAL_SKIP_ATTEMPTS)
 			ku.clear_property(ku.PROP_AUTOSCRAPE_TOAST_SHOWN)
 			self._autoscrape_ready_notified = False
 			self._nextep_alert_pending_logged = False

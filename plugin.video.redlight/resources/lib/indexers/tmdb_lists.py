@@ -34,10 +34,11 @@ def get_tmdb_lists(params):
 				custom_fanart = get_custom_image(list_name, 'fanart', all_fanart)
 				if custom_fanart: fanart = custom_fanart
 				else: fanart = background
-				mode = 'random.build_tmdb_lists_contents' if random else 'tmdblist.build_tmdb_list'
-				url_params = {'mode': mode, 'list_id': list_id, 'list_name': list_name, 'sort_order': sort_order, 'updated_at': updated_at, 'iconImage': poster, 'name': list_name}
-				if random: url_params['random'] = 'true'
-				if shuffle_lists: url_params['shuffle'] = 'true'
+				random_contents = random or shuffle_lists
+				mode = 'random.build_tmdb_lists_contents' if random_contents else 'tmdblist.build_tmdb_list'
+				url_params = {'mode': mode, 'list_id': list_id, 'list_name': list_name,
+				'sort_order': 'shuffle' if random_contents else sort_order, 'updated_at': updated_at, 'iconImage': poster, 'name': list_name}
+				if random_contents: url_params['random'] = 'true'
 				url = kodi_utils.build_folder_url(url_params)
 				display = '%s [I](x%02d)[/I]' % (list_name, item_count)
 				cm = [('[B]Make New List[/B]', 'RunPlugin(%s)' % build_url({'mode': 'tmdblist.make_new_tmdb_list'})),
@@ -93,7 +94,7 @@ def get_tmdb_lists(params):
 	kodi_utils.set_content(handle, kodi_utils.MENU_FOLDER_CONTENT)
 	kodi_utils.set_category(handle, params.get('category_name', ''))
 	if shuffle_lists and not returning_to_list: kodi_utils.focus_index(0)
-	kodi_utils.end_directory(handle)
+	kodi_utils.end_directory(handle, cacheToDisc=not (random or shuffle_lists))
 	kodi_utils.set_view_mode('view.main', kodi_utils.MENU_FOLDER_CONTENT)
 
 def build_tmdb_list(params):

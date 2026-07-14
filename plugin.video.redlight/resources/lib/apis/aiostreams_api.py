@@ -9,22 +9,28 @@ from caches.settings_cache import get_setting
 from modules import kodi_utils
 from modules.kodi_utils import logger
 
-# id, short label, base URL (None = Custom; Custom is last in the picker)
+# id, short label, base URL (None = Custom; Custom is last in the picker).
+# Preset ids are stable — never renumber existing entries (saved settings + per-instance profiles).
 PRESETS = (
 	('0', 'Kuu', 'https://aiostreams.stremio.ru'),
 	('1', 'Viren', 'https://aiostreams.viren070.me'),
 	('2', 'Yeb', 'https://aiostreams.fortheweak.cloud'),
 	('3', 'Midnight', 'https://aiostreamsfortheweebsstable.midnightignite.me'),
 	('4', 'Custom', None),
+	# Public host returns 403 Search API is disabled — hidden from picker until re-enabled.
+	('5', 'ElfHosted', 'https://aiostreams.elfhosted.com'),
 )
 
 INSTANCE_LABELS = {preset_id: label for preset_id, label, url in PRESETS}
 INSTANCE_IDS = tuple(preset_id for preset_id, _, _ in PRESETS)
 CUSTOM_INSTANCE_ID = '4'
+# Keep preset id + credentials; omit from dropdown only.
+PICKER_HIDDEN_IDS = frozenset({'5'})
 PROFILE_SETTING = 'aiostreams.profiles'
 
-PUBLIC_INSTANCES = tuple(url for _, _, url in PRESETS if url)
-_PUBLIC_INDEX = {'0': 0, '1': 1, '2': 2, '3': 3}
+_public_presets = [(preset_id, url) for preset_id, _, url in PRESETS if url]
+PUBLIC_INSTANCES = tuple(url for _, url in _public_presets)
+_PUBLIC_INDEX = {preset_id: index for index, (preset_id, _) in enumerate(_public_presets)}
 
 def _empty_profile():
 	return {'username': 'empty_setting', 'password': 'empty_setting', 'custom_url': ''}
@@ -119,14 +125,14 @@ def sync_instance_display_name():
 	kodi_utils.set_property('redlight.aiostreams.instance_name', label)
 
 def active_instance_label():
-	"""Short preset label for the instance used at scrape time (Kuu, Yeb, Midnight, Custom)."""
+	"""Short preset label for the instance used at scrape time (ElfHosted, Kuu, Midnight, etc.)."""
 	return INSTANCE_LABELS.get(instance_id(), INSTANCE_LABELS['0'])
 
 def instance_picker_list():
 	"""Instance dropdown rows: alphabetical by preset name, Custom always last."""
 	items = []
 	for preset_id, label, url in PRESETS:
-		if preset_id == CUSTOM_INSTANCE_ID:
+		if preset_id == CUSTOM_INSTANCE_ID or preset_id in PICKER_HIDDEN_IDS:
 			continue
 		items.append((label.lower(), '%s — %s' % (label, url), preset_id))
 	items.sort(key=lambda entry: entry[0])

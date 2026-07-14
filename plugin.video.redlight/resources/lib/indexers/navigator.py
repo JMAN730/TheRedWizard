@@ -74,6 +74,7 @@ class Navigator:
 	def premium(self):
 		if s.authorized_debrid_check('ad'): self.add({'mode': 'navigator.alldebrid'}, 'All Debrid', 'alldebrid')
 		if s.easynews_authorized(): self.add({'mode': 'navigator.easynews'}, 'EasyNews', 'easynews')
+		if s.nzb_indexer_active(): self.add({'mode': 'navigator.nzb_indexers'}, 'NZB Indexers', 'search')
 		if s.authorized_debrid_check('oc'): self.add({'mode': 'navigator.offcloud'}, 'Offcloud', 'offcloud')
 		if s.authorized_debrid_check('pm'): self.add({'mode': 'navigator.premiumize'}, 'Premiumize', 'premiumize')
 		if s.authorized_debrid_check('rd'): self.add({'mode': 'navigator.real_debrid'}, 'Real Debrid', 'realdebrid')
@@ -84,6 +85,15 @@ class Navigator:
 		self.add({'mode': 'navigator.search_history', 'action': 'easynews_video'}, 'Search Videos', 'search')
 		self.add({'mode': 'navigator.search_history', 'action': 'easynews_image'}, 'Search Images', 'search')
 		self.add({'mode': 'easynews.account_info', 'isFolder': 'false'}, 'Account Info', 'easynews')
+		self.end_directory()
+
+	def nzb_indexers(self):
+		from caches.settings_cache import get_setting
+		self.add({'mode': 'navigator.search_history', 'action': 'nzb_search'}, 'Search All Indexers', 'search')
+		for slot in (1, 2, 3):
+			if get_setting('redlight.nzb%d.enabled' % slot, 'false') != 'true': continue
+			label = get_setting('redlight.nzb%d.label' % slot) or 'NZB Indexer %d' % slot
+			self.add({'mode': 'nzb.test_connection', 'slot': str(slot), 'isFolder': 'false'}, 'Test Connection: %s' % label, 'settings')
 		self.end_directory()
 
 	def real_debrid(self):
@@ -327,6 +337,7 @@ class Navigator:
 		if s.easynews_authorized():
 			self.add({'mode': 'navigator.search_history', 'action': 'easynews_video'}, 'Search EasyNews Videos', 'easynews')
 			self.add({'mode': 'navigator.search_history', 'action': 'easynews_image'}, 'Search EasyNews Images', 'easynews')
+		if s.nzb_indexer_active(): self.add({'mode': 'navigator.search_history', 'action': 'nzb_search'}, 'Search NZB Indexers', 'search')
 		self.end_directory()
 
 	def downloads(self):
@@ -519,6 +530,7 @@ class Navigator:
 		'tmdb_keyword_tvshow': ('keyword_tmdb_tvshow_queries', {'mode': 'search.get_key_id', 'search_type': 'tmdb_keyword', 'media_type': 'tvshow', 'isFolder': 'false'}),
 		'easynews_video': ('easynews_video_queries', {'mode': 'search.get_key_id', 'search_type': 'easynews_video', 'isFolder': 'false'}),
 		'easynews_image': ('easynews_image_queries', {'mode': 'search.get_key_id', 'search_type': 'easynews_image', 'isFolder': 'false'}),
+		'nzb_search': ('nzb_queries', {'mode': 'search.get_key_id', 'search_type': 'nzb_search', 'isFolder': 'false'}),
 		'trakt_lists': ('trakt_list_queries', {'mode': 'search.get_key_id', 'search_type': 'trakt_lists', 'isFolder': 'false'}),
 		'trakt_my_lists': ('trakt_my_list_queries', {'mode': 'search.get_key_id', 'search_type': 'trakt_my_lists', 'isFolder': 'false'}),
 		'simkl_lists': ('simkl_list_queries', {'mode': 'search.get_key_id', 'search_type': 'simkl_lists', 'isFolder': 'false'})}

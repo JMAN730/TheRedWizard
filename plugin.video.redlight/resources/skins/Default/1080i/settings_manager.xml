@@ -2406,6 +2406,232 @@
                           <property name="setting_description">Choose the order in which EasyNews results appear in relation to any other active accounts. The lower the number, the higher the sort order</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_numeric&amp;setting_id=en.priority)</onclick>
                       </item>
+        <!-- NZB Indexers -->
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <property name="setting_label">NZB Indexers</property>
+                          <property name="setting_type">separator</property>
+                          <onclick>noop</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <property name="setting_label">Enable</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.provider.nzb)]</property>
+                          <property name="setting_description">Enable NZB indexer support. Search any Newznab-compatible indexer (NZBGeek, NZBPlanet, DrunkenSlug, NZBHydra2, Prowlarr, etc.) from the My Services menu. Results can be sent to TorBox Pro usenet for streaming from your TorBox Cloud, or saved as .nzb files for an external client. Requires your own indexer account (URL and API key) and a TorBox Pro account for usenet streaming</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=provider.nzb)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <property name="setting_label">Indexer 1</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb1.enabled)]</property>
+                          <property name="setting_description">Enable the first NZB indexer slot</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=nzb1.enabled)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb1.enabled),true)</visible>
+                          <property name="setting_label">    - Name</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb1.label)]</property>
+                          <property name="setting_description">Friendly name shown in menus and results, e.g. NZBGeek</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb1.label)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb1.enabled),true)</visible>
+                          <property name="setting_label">    - URL</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb1.url)]</property>
+                          <property name="setting_description">Base API URL of the indexer (no trailing slash), e.g. https://api.nzbgeek.info</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb1.url)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb1.enabled),true)</visible>
+                          <property name="setting_label">    - API Key</property>
+                          <property name="setting_type">password</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb1.key)]</property>
+                          <property name="setting_description">Your Newznab API key for this indexer (found in your indexer account profile)</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb1.key)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb1.enabled),true)</visible>
+                          <property name="setting_label">    - Test Connection</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">...</property>
+                          <property name="setting_description">Check the URL and API key by requesting the indexer capabilities</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=nzb.test_connection&amp;slot=1)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <property name="setting_label">Indexer 2</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb2.enabled)]</property>
+                          <property name="setting_description">Enable the second NZB indexer slot</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=nzb2.enabled)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb2.enabled),true)</visible>
+                          <property name="setting_label">    - Name</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb2.label)]</property>
+                          <property name="setting_description">Friendly name shown in menus and results, e.g. NZBPlanet</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb2.label)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb2.enabled),true)</visible>
+                          <property name="setting_label">    - URL</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb2.url)]</property>
+                          <property name="setting_description">Base API URL of the indexer (no trailing slash), e.g. https://api.nzbplanet.net</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb2.url)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb2.enabled),true)</visible>
+                          <property name="setting_label">    - API Key</property>
+                          <property name="setting_type">password</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb2.key)]</property>
+                          <property name="setting_description">Your Newznab API key for this indexer (found in your indexer account profile)</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb2.key)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb2.enabled),true)</visible>
+                          <property name="setting_label">    - Test Connection</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">...</property>
+                          <property name="setting_description">Check the URL and API key by requesting the indexer capabilities</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=nzb.test_connection&amp;slot=2)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <property name="setting_label">Indexer 3</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb3.enabled)]</property>
+                          <property name="setting_description">Enable the third NZB indexer slot</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=nzb3.enabled)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb3.enabled),true)</visible>
+                          <property name="setting_label">    - Name</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb3.label)]</property>
+                          <property name="setting_description">Friendly name shown in menus and results, e.g. DrunkenSlug</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb3.label)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb3.enabled),true)</visible>
+                          <property name="setting_label">    - URL</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb3.url)]</property>
+                          <property name="setting_description">Base API URL of the indexer (no trailing slash), e.g. https://api.drunkenslug.com</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb3.url)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb3.enabled),true)</visible>
+                          <property name="setting_label">    - API Key</property>
+                          <property name="setting_type">password</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb3.key)]</property>
+                          <property name="setting_description">Your Newznab API key for this indexer (found in your indexer account profile)</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_string&amp;setting_id=nzb3.key)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.nzb3.enabled),true)</visible>
+                          <property name="setting_label">    - Test Connection</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">...</property>
+                          <property name="setting_description">Check the URL and API key by requesting the indexer capabilities</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=nzb.test_connection&amp;slot=3)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.nzb1.url)) + String.IsEmpty(Window(10000).Property(redlight.nzb1.key))]</visible>
+                          <property name="setting_label">Filter Results by Name</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb.title_filter)]</property>
+                          <property name="setting_description">After NZB indexers return results, match release names against the movie or episode title (and aliases). Disable if valid links go missing.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=nzb.title_filter)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.nzb1.url)) + String.IsEmpty(Window(10000).Property(redlight.nzb1.key))]</visible>
+                          <property name="setting_label">Fallback Search Queries</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb.fallback_search)]</property>
+                          <property name="setting_description">If the main Search Width queries return no NZB results, run extra indexer searches using TMDB alternate titles. Same idea as EasyNews fallback search.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=nzb.fallback_search)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.nzb1.url)) + String.IsEmpty(Window(10000).Property(redlight.nzb1.key))]</visible>
+                          <property name="setting_label">Search Width</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb.search_width_name)]</property>
+                          <property name="setting_description">How many Newznab searches to run per movie or episode across enabled indexer slots. Focused: one query (Title Year or Show S01E05). Balanced: adds title-only or season-wide query. Broad: adds alias patterns. More width means more API calls and a longer source search.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=nzb.search_width)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.nzb1.url)) + String.IsEmpty(Window(10000).Property(redlight.nzb1.key))]</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
+                          <property name="setting_label">Check Before Full Search</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.check.nzb)]</property>
+                          <property name="setting_description">Query NZB indexers early in the source search (before external torrent scrapers). Results play via TorBox Pro usenet — cached hits resolve quickly; uncached NZBs are fetched on your TorBox Pro plan when you pick one. Requires TorBox authorization with Pro (usenet). Pair with Autoplay Result below for cached prescrape hits only.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=check.nzb)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.nzb1.url)) + String.IsEmpty(Window(10000).Property(redlight.nzb1.key))]</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.check.nzb),true)</visible>
+                          <property name="setting_label">    - Autoplay Result</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.autoplay.nzb)]</property>
+                          <property name="setting_description">When Check Before Full Search is enabled, autoplay the top TorBox-cached NZB hit found during prescrape. Uncached NZBs are never autoplayed. Requires Autoplay under Playback and TorBox Pro usenet on your account.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=autoplay.nzb)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(62)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.provider.nzb),true)</visible>
+                          <visible>![String.IsEmpty(Window(10000).Property(redlight.nzb1.url)) + String.IsEmpty(Window(10000).Property(redlight.nzb1.key))]</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.tb.token),empty_setting)</visible>
+                          <property name="setting_label">Priority (Lower Number Equals Higher Priority)</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.nzb.priority)]</property>
+                          <property name="setting_description">Sort order for NZB indexer results in the sources list relative to other providers. Lower number = higher in the list.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_numeric&amp;setting_id=nzb.priority)</onclick>
+                      </item>
         <!-- Offcloud -->
                       <item>
                           <visible>Container(2000).HasFocus(61)</visible>
@@ -3354,6 +3580,15 @@
                       <item>
                           <visible>Container(2000).HasFocus(70)</visible>
                           <visible>String.IsEqual(Window(10000).Property(redlight.highlight.type),0)</visible>
+                          <property name="setting_label">    - NZB Indexers Color</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">[COLOR $INFO[Window(10000).Property(redlight.provider.nzb_highlight)]]$INFO[Window(10000).Property(redlight.provider.nzb_highlight)][/COLOR]</property>
+                          <property name="setting_description">Choose NZB Indexers color in the sources list (Provider highlight mode)</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=scraper_color_choice&amp;setting_id=provider.nzb_highlight)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(70)</visible>
+                          <visible>String.IsEqual(Window(10000).Property(redlight.highlight.type),0)</visible>
                           <property name="setting_label">    - Offcloud Color</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">[COLOR $INFO[Window(10000).Property(redlight.provider.oc_highlight)]]$INFO[Window(10000).Property(redlight.provider.oc_highlight)][/COLOR]</property>
@@ -3440,6 +3675,14 @@
                           <property name="setting_value">[COLOR $INFO[Window(10000).Property(redlight.scraper_single_highlight)]]$INFO[Window(10000).Property(redlight.scraper_single_highlight)][/COLOR]</property>
                           <property name="setting_description">Choose Single color for all results</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=scraper_color_choice&amp;setting_id=scraper_single_highlight)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(70)</visible>
+                          <property name="setting_label">Scrape Progress Count Colours</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.highlight.scrape_progress_colours)]</property>
+                          <property name="setting_description">Colour the 4K / 1080 / 720 / SD source counts on the scrape progress dialog using your Results Color Highlights quality colours. Turn off to keep those counts white (quality labels stay muted grey either way)</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=highlight.scrape_progress_colours)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(70)</visible>

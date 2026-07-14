@@ -603,6 +603,128 @@ class TorBoxAPI:
 		data = {'link': link}
 		return self._post('webdl/createwebdownload', data=data)
 
+	def add_nzb(self, link, name='', add_only_if_cached=False):
+		"""Send an NZB download link to TorBox Pro usenet (TorBox Pro required)."""
+		data = {'link': link}
+		if name: data['name'] = name
+		if add_only_if_cached: data['add_only_if_cached'] = 'true'
+		return self._post('usenet/createusenetdownload', data=data)
+
+	def _usenet_id_from_create(self, response):
+		if not response or not response.get('success'):
+			return None
+		data = response.get('data')
+		if isinstance(data, dict):
+			for key in ('usenetdownload_id', 'usenet_id', 'id'):
+				value = data.get(key)
+				if value is not None and str(value).strip() not in ('', 'None'):
+					return value
+		return None
+
+	def usenet_hashes_cached(self, hashlist):
+		"""Return lowercase MD5 hashes present in TorBox usenet cache."""
+		cached = set()
+		if not hashlist: return cached
+		unique = []
+		seen = set()
+		for raw in hashlist:
+			h = str(raw or '').strip().lower()
+			if len(h) != 32 or h in seen: continue
+			seen.add(h)
+			unique.append(h)
+		for offset in range(0, len(unique), 100):
+			chunk = unique[offset:offset + 100]
+			try:
+				check = self.check_cache_usenet(chunk)
+			except Exception:
+				check = None
+			if not check or not check.get('success'): continue
+			data = check.get('data')
+			if isinstance(data, dict):
+				for key, value in data.items():
+					key_l = str(key).lower()
+					if len(key_l) == 32: cached.add(key_l)
+					if isinstance(value, dict):
+						item_hash = str(value.get('hash', '')).lower()
+						if len(item_hash) == 32: cached.add(item_hash)
+			elif isinstance(data, list):
+				for entry in data:
+					if isinstance(entry, str) and len(entry) == 32:
+						cached.add(entry.lower())
+					elif isinstance(entry, dict):
+						item_hash = str(entry.get('hash', '')).lower()
+						if len(item_hash) == 32: cached.add(item_hash)
+		return cached
+
+	def nzb_hash_is_cached(self, nzb_link):
+		from apis.nzb_api import nzb_link_hash
+		return nzb_link_hash(nzb_link) in self.usenet_hashes_cached([nzb_link_hash(nzb_link)])
+
+	def _wait_for_usenet_files(self, usenet_id, max_attempts=45):
+		for attempt in range(max_attempts):
+			if attempt:
+				sleep(1000)
+			item = self._torrent_item_from_info(self.usenet_info(usenet_id))
+			if not item:
+				continue
+			files = item.get('files') or []
+			if self._torrent_item_finished(item) and files:
+				return item, files
+		return None, []
+
+	def resolve_nzb(self, nzb_link, store_to_cloud, title, season, episode, max_attempts=None):
+		"""Submit NZB to TorBox, wait for files, return a playable URL (cached or uncached)."""
+		from modules.source_utils import supported_video_extensions, seas_ep_filter
+		if not nzb_link: return None
+		if max_attempts is None:
+			try: max_attempts = min(120, max(20, int(get_setting('redlight.results.timeout', '20')) * 3))
+			except: max_attempts = 45
+		usenet_id = None
+		try:
+			result = self.add_nzb(nzb_link, name=title or '')
+			usenet_id = self._usenet_id_from_create(result)
+			if not usenet_id:
+				return None
+			extensions = supported_video_extensions()
+			extras_filter = extras()
+			extras_filtering_list = tuple(i for i in extras_filter if i not in (title or '').lower())
+			_item, files = self._wait_for_usenet_files(usenet_id, max_attempts=max_attempts)
+			if not files:
+				return None
+			selected_files = []
+			for item in files:
+				file_id = self._torrent_file_id(item)
+				filename = self._torrent_file_label(item)
+				if file_id is None or not filename.lower().endswith(tuple(extensions)):
+					continue
+				try: size = int(item.get('size') or 0)
+				except: size = 0
+				selected_files.append({'file_id': file_id, 'filename': filename, 'size': size})
+			if not selected_files:
+				return None
+			if season:
+				selected_files = [i for i in selected_files if seas_ep_filter(season, episode, i['filename'])]
+			else:
+				if self._m2ts_check(selected_files):
+					return None
+				selected_files = [i for i in selected_files if not any(x in i['filename'] for x in extras_filtering_list)]
+				selected_files.sort(key=lambda k: k['size'], reverse=True)
+			if not selected_files:
+				return None
+			file_key = '%s,%s' % (int(usenet_id), int(selected_files[0]['file_id']))
+			file_url = self.unrestrict_usenet(file_key)
+			file_url = self.coerce_play_url(file_url) or file_url
+			if file_url and store_to_cloud:
+				self.clear_cache()
+			elif file_url and not store_to_cloud:
+				Thread(target=self.delete_usenet, args=(usenet_id,)).start()
+			return file_url
+		except Exception:
+			if usenet_id and not store_to_cloud:
+				try: self.delete_usenet(usenet_id)
+				except: pass
+			return None
+
 	# ----------- CACHED CHECK -----------
 	def check_cache_single(self, _hash):
 		return self._get('torrents/checkcached', data={'hash': _hash, 'format': 'list'})

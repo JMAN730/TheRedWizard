@@ -253,6 +253,14 @@ class RandomLists():
 		except: kodi_utils.clear_property('redlight.random_because_you_watched')
 		self.make_directory()
 
+	def _empty_random_lists(self, toast):
+		# Toast only — no placeholder row (clicking one just looked broken).
+		kodi_utils.notification(toast, 3000)
+		self.list_items = []
+		self.category_name = toast
+		self.view_mode, self.content_type = 'view.main', kodi_utils.MENU_FOLDER_CONTENT
+		self.make_directory()
+
 	def random_trakt_lists(self):
 		from apis.trakt_api import trakt_get_lists, get_trakt_list_contents
 		from indexers.trakt_lists import build_trakt_list
@@ -260,12 +268,19 @@ class RandomLists():
 		list_type_name = 'Trakt My Lists' if list_type == 'my_lists' else 'Trakt Liked Lists' if list_type == 'liked_lists' else 'Trakt User Lists'
 		random_list, cache_to_memory = get_persistent_content(self.database, '%s_%s' % (self.mode, list_type), self.is_external)
 		if not random_list:
-			if list_type == 'my_lists': self.random_results = [i for i in trakt_get_lists(list_type) if i['item_count']]
-			else: self.random_results = [i['list'] for i in trakt_get_lists(list_type) if i['list']['item_count']]
+			if list_type == 'my_lists': self.random_results = [i for i in (trakt_get_lists(list_type) or []) if i.get('item_count')]
+			else: self.random_results = [i['list'] for i in (trakt_get_lists(list_type) or []) if i.get('list') and i['list'].get('item_count')]
+			if not self.random_results:
+				if list_type == 'liked_lists':
+					return self._empty_random_lists('No Trakt Liked Lists')
+				if list_type == 'my_lists':
+					return self._empty_random_lists('No Trakt My Lists')
+				return self._empty_random_lists('No Lists Found')
 			random_list = random.choice(self.random_results)
-			if list_type == 'my_lists': slug = random_list['ids']['slug']
-			else: slug = random_list['user']['ids']['slug']
-			user, list_id = random_list['user']['username'], random_list['ids']['trakt']
+			slug = random_list['ids']['slug']
+			user_ids = random_list.get('user', {}).get('ids') or {}
+			user = user_ids.get('slug') or random_list.get('user', {}).get('username')
+			list_id = random_list['ids']['trakt']
 			list_name = random_list['name']
 			with_auth = list_type == 'my_lists'
 			result = get_trakt_list_contents(list_type, user, slug, with_auth, list_id, 'skip')
@@ -289,6 +304,8 @@ class RandomLists():
 		random_list, cache_to_memory = get_persistent_content(self.database, self.mode, self.is_external)
 		if not random_list:
 			self.random_results = [i for i in get_all_personal_lists() if i['total']]
+			if not self.random_results:
+				return self._empty_random_lists('No Personal Lists')
 			random_list = random.choice(self.random_results)
 			list_name = random_list['name']
 			random_list['list_name'] = list_name
@@ -313,6 +330,8 @@ class RandomLists():
 		random_list, cache_to_memory = get_persistent_content(self.database, self.mode, self.is_external)
 		if not random_list:
 			self.random_results = [i for i in get_all_tmdb_lists() if i['number_of_items']]
+			if not self.random_results:
+				return self._empty_random_lists('No TMDb Lists')
 			random_list = random.choice(self.random_results)
 			list_id, list_name = random_list['id'], random_list['name']
 			result = get_tmdb_list({'list_id': list_id})
@@ -419,7 +438,7 @@ class RandomLists():
 					% (next_page_params.get('category_name', None) or next_page_params.get('name', None) or self.content_type), 'nextpage', kodi_utils.get_icon('nextpage_landscape'))
 		kodi_utils.set_content(self.handle, self.content_type)
 		kodi_utils.set_category(self.handle, self.category_name)
-		kodi_utils.end_directory(self.handle, cacheToDisc=False if self.is_external else True)
+		kodi_utils.end_directory(self.handle, cacheToDisc=False)
 		if self.is_external:
 			property_key = self.folder_name or self.base_list_name or random_list_property_key(self.params)
 			if property_key: kodi_utils.set_property('redlight.%s' % property_key, self.category_name)

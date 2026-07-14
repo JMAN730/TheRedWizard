@@ -71,6 +71,7 @@ class source:
 							'size_label': size_label, 'debrid': self.scrape_provider, 'extraInfo': details,
 							'url_dl': file_dl, 'id': file_dl, 'downloads': False, 'direct': True,
 							'source': self.scrape_provider, 'scrape_provider': self.scrape_provider,
+							'folder_id': item['folder_id'],
 							'cloud_media_type': item.get('cloud_media_type', 'torrent'),
 						}
 						yield source_item

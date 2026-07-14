@@ -1170,6 +1170,7 @@ def default_settings():
 	'2': 'Yeb — https://aiostreams.fortheweak.cloud',
 	'3': 'Midnight — https://aiostreamsfortheweebsstable.midnightignite.me',
 	'4': 'Custom — set URL below',
+	# '5' ElfHosted — hidden from picker (Search API disabled on public host); keep id reserved.
 }},
 {'setting_id': 'aiostreams.profiles', 'setting_type': 'string', 'setting_default': '{}'},
 {'setting_id': 'aiostreams.custom_url', 'setting_type': 'string', 'setting_default': ''},
@@ -1189,6 +1190,27 @@ def default_settings():
 {'setting_id': 'results.sort_folders_first', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'results.folders_ignore_filters', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'folders.priority', 'setting_type': 'action', 'setting_default': '6', 'min_value': '1', 'max_value': '10'},
+#==================== NZB Indexers
+{'setting_id': 'provider.nzb', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'nzb1.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'nzb1.label', 'setting_type': 'string', 'setting_default': 'NZB Indexer 1'},
+{'setting_id': 'nzb1.url', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'nzb1.key', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'nzb2.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'nzb2.label', 'setting_type': 'string', 'setting_default': 'NZB Indexer 2'},
+{'setting_id': 'nzb2.url', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'nzb2.key', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'nzb3.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'nzb3.label', 'setting_type': 'string', 'setting_default': 'NZB Indexer 3'},
+{'setting_id': 'nzb3.url', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'nzb3.key', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'nzb.title_filter', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'nzb.fallback_search', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'nzb.search_width', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Focused', '1': 'Balanced', '2': 'Broad'}},
+{'setting_id': 'check.nzb', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'autoplay.nzb', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'nzb.priority', 'setting_type': 'action', 'setting_default': '7', 'min_value': '1', 'max_value': '10'},
+{'setting_id': 'provider.nzb_highlight', 'setting_type': 'string', 'setting_default': 'FFD4A017'},
 
 
 #===============================================================================#
@@ -1252,6 +1274,7 @@ def default_settings():
 {'setting_id': 'scraper_720p_highlight', 'setting_type': 'string', 'setting_default': 'FF3C9900'},
 {'setting_id': 'scraper_SD_highlight', 'setting_type': 'string', 'setting_default': 'FF0166FF'},
 {'setting_id': 'scraper_single_highlight', 'setting_type': 'string', 'setting_default': 'FF008EB2'},
+{'setting_id': 'highlight.scrape_progress_colours', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'highlight.tint_focused_background', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'highlight.background_opacity', 'setting_type': 'string', 'setting_default': '66'},
 {'setting_id': 'highlight.background_opacity_name', 'setting_type': 'string', 'setting_default': '40%'},

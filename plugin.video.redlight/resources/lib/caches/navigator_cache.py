@@ -241,11 +241,11 @@ class NavigatorCache:
 	def random_trakt_lists_public(self):
 		return [
 			{'mode': 'trakt.list.get_trakt_user_lists', 'list_type': 'trending', 'category_name': 'Random Trending User Lists', 'name': 'Random Trending User Lists (All)',
-			'iconImage': 'trakt', 'random': 'true'},
+			'iconImage': 'trakt', 'random': 'true', 'shuffle': 'true'},
 			{'mode': 'random.build_trakt_lists', 'list_type': 'trending', 'category_name': 'Random Trending User Lists', 'name': 'Random Trending User Lists (Single)',
 			'iconImage': 'trakt', 'random': 'true'},
 			{'mode': 'trakt.list.get_trakt_user_lists', 'list_type': 'popular', 'category_name': 'Random Popular User Lists', 'name': 'Random Popular User Lists (All)',
-			'iconImage': 'trakt', 'random': 'true'},
+			'iconImage': 'trakt', 'random': 'true', 'shuffle': 'true'},
 			{'mode': 'random.build_trakt_lists', 'list_type': 'popular', 'category_name': 'Random Popular User Lists', 'name': 'Random Popular User Lists (Single)',
 			'iconImage': 'trakt', 'random': 'true'}
 				]

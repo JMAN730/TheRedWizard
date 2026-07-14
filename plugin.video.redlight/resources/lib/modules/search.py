@@ -35,6 +35,8 @@ def get_key_id(params):
 		url_params, string = {'mode': 'easynews.search_easynews'}, 'easynews_video_queries'
 	elif search_type == 'easynews_image':
 		url_params, string = {'mode': 'easynews.search_easynews_image'}, 'easynews_image_queries'
+	elif search_type == 'nzb_search':
+		url_params, string = {'mode': 'nzb.search_nzb'}, 'nzb_queries'
 	elif search_type == 'trakt_lists':
 		url_params, string = {'mode': 'trakt.list.search_trakt_lists'}, 'trakt_list_queries'
 	elif search_type == 'trakt_my_lists':
@@ -81,6 +83,7 @@ def clear_search():
 	('Clear Keywords TV Show Search History', 'keyword_tmdb_tvshow_queries'),
 	('Clear EasyNews Search History', 'easynews_video_queries'),
 	('Clear EasyNews Search History', 'easynews_image_queries'),
+	('Clear NZB Indexer Search History', 'nzb_queries'),
 	('Clear Trakt User Lists Search History', 'trakt_list_queries'),
 	('Clear Trakt My Lists Search History', 'trakt_my_list_queries'),
 	('Clear Simkl List Search History', 'simkl_list_queries')]

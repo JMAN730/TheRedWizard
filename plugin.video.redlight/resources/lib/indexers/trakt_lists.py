@@ -146,11 +146,14 @@ def get_trakt_lists(params):
 				custom_fanart = get_custom_image(list_name, list_type, user, 'fanart', all_fanart)
 				if custom_fanart: background = custom_fanart
 				else: background = fanart
-				mode = 'random.build_trakt_lists_contents' if random else 'trakt.list.build_trakt_list'
+				# Parent shuffle (list-of-lists order) is separate from content randomisation.
+				# Content URLs must use random.build_trakt_lists_contents + random=true (sort_by=random),
+				# matching working shortcut-folder entries — not trakt.list.build_trakt_list + shuffle.
+				random_contents = random or shuffle_lists
+				mode = 'random.build_trakt_lists_contents' if random_contents else 'trakt.list.build_trakt_list'
 				url_params = {'mode': mode, 'user': user, 'slug': slug, 'list_type': list_type, 'list_id': list_id, 'list_name': list_name, 'iconImage': 'trakt',
-				'name': list_name, 'sort_by': sort_by, 'sort_how': sort_how}
-				if random: url_params['random'] = 'true'
-				elif shuffle_lists: url_params['shuffle'] = 'true'
+				'name': list_name, 'sort_by': 'random' if random_contents else sort_by, 'sort_how': sort_how}
+				if random_contents: url_params['random'] = 'true'
 				url = kodi_utils.build_folder_url(url_params)
 				if list_type == 'liked_lists':
 					display = '%s | [I]%s (x%s)[/I]' % (list_name, user, str(item_count))
@@ -176,37 +179,53 @@ def get_trakt_lists(params):
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, True)
 			except: pass
+	def _new_process():
+		if list_type != 'my_lists':
+			return
+		url = build_url({'mode': 'trakt.make_new_trakt_list'})
+		new_icon = kodi_utils.get_icon('new')
+		listitem = make_listitem()
+		listitem.setLabel('[I]Make New Trakt List...[/I]')
+		listitem.setArt({'icon': new_icon, 'poster': new_icon, 'thumb': new_icon, 'fanart': fanart, 'banner': fanart})
+		info_tag = listitem.getVideoInfoTag(True)
+		info_tag.setPlot(' ')
+		yield (url, listitem, False)
 	handle, trakt_icon, fanart = int(sys.argv[1]), kodi_utils.get_icon('trakt'), kodi_utils.get_addon_fanart()
+	list_type = params.get('list_type')
+	random, shuffle_lists = params.get('random', 'false') == 'true', params.get('shuffle', 'false') == 'true'
+	returning_to_list = False
+	build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
 	try:
-		list_type, random, shuffle_lists = params['list_type'], params.get('random', 'false') == 'true', params.get('shuffle', 'false') == 'true'
-		build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
 		profile_path = kodi_utils.addon_profile()
 		all_posters = kodi_utils.list_dirs(os.path.join(profile_path, 'images', 'trakt_%s_poster' % list_type))[1]
 		all_fanart = kodi_utils.list_dirs(os.path.join(profile_path, 'images', 'trakt_%s_fanart' % list_type))[1]
-		returning_to_list = False
-		data = trakt_get_lists(list_type)
+		order_prop = 'redlight.trakt.%s.lists.order' % list_type
+		data = trakt_get_lists(list_type) or []
 		all_custom_sorts = get_all_lists_custom_sort()
-		if list_type == 'liked_lists': data = [i['list'] for i in data]
+		if list_type == 'liked_lists': data = [i['list'] for i in data if isinstance(i, dict) and 'list' in i]
 		if data:
 			if shuffle_lists:
 				returning_to_list = 'build_trakt_lists_contents' in kodi_utils.folder_path()
 				if returning_to_list:
-					try: data = json.loads(kodi_utils.get_property('redlight.trakt.lists.order'))
+					try: data = json.loads(kodi_utils.get_property(order_prop))
 					except: pass
 				else:
 					shuffle(data)
-					kodi_utils.set_property('redlight.trakt.lists.order', json.dumps(data))
+					kodi_utils.set_property(order_prop, json.dumps(data))
 			else:
-				kodi_utils.clear_property('redlight.trakt.lists.order')
+				kodi_utils.clear_property(order_prop)
 				data.sort(key=lambda k: k['name'])
 			result = list(_process())
-		else: result = list(_new_process())
+		else:
+			if list_type == 'liked_lists':
+				kodi_utils.notification('No Trakt Liked Lists', 3000)
+			result = list(_new_process())
 		kodi_utils.add_items(handle, result)
 	except: pass
 	kodi_utils.set_content(handle, kodi_utils.MENU_FOLDER_CONTENT)
 	kodi_utils.set_category(handle, params.get('category_name', ''))
 	if shuffle_lists and not returning_to_list: kodi_utils.focus_index(0)
-	kodi_utils.end_directory(handle)
+	kodi_utils.end_directory(handle, cacheToDisc=not (random or shuffle_lists))
 	kodi_utils.set_view_mode('view.main', kodi_utils.MENU_FOLDER_CONTENT)
 
 def get_trakt_user_lists(params):
@@ -224,10 +243,11 @@ def get_trakt_user_lists(params):
 				if not user: continue
 				sort_by, sort_how =  item['sort_by'], item['sort_how']
 				display = '%s | [I]%s (x%s)[/I]' % (list_name, user, str(item_count))
-				mode = 'random.build_trakt_lists_contents' if random else 'trakt.list.build_trakt_list'
+				# Parent folder URLs drop random= (build_folder_url skip); shuffle= survives — same pattern as My Lists.
+				mode = 'random.build_trakt_lists_contents' if random_contents else 'trakt.list.build_trakt_list'
 				url_params = {'mode': mode, 'user': user, 'slug': slug, 'list_id': list_id, 'list_type': 'user_lists', 'list_name': list_name, 'iconImage': 'trakt',
-								'name': list_name, 'sort_by': sort_by, 'sort_how': sort_how}
-				if random: url_params['random'] = 'true'
+								'name': list_name, 'sort_by': 'random' if random_contents else sort_by, 'sort_how': sort_how}
+				if random_contents: url_params['random'] = 'true'
 				url = kodi_utils.build_folder_url(url_params)
 				listitem = make_listitem()
 				if user != 'Trakt Official':
@@ -243,18 +263,36 @@ def get_trakt_user_lists(params):
 			except: pass
 	handle, trakt_icon, fanart = int(sys.argv[1]), kodi_utils.get_icon('trakt'), kodi_utils.get_addon_fanart()
 	build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
+	list_type = params.get('list_type')
+	random, shuffle_lists = params.get('random', 'false') == 'true', params.get('shuffle', 'false') == 'true'
+	random_contents = random or shuffle_lists
+	returning_to_list = False
 	try:
-		list_type, random = params['list_type'], params.get('random', 'false') == 'true'
 		page = params.get('new_page', '1')
 		new_page = str(int(page) + 1)
-		lists = trakt_get_lists(list_type, page)
+		order_prop = 'redlight.trakt.%s.user_lists.order' % list_type
+		lists = list(trakt_get_lists(list_type, page) or [])
+		if shuffle_lists and lists:
+			returning_to_list = 'build_trakt_lists_contents' in kodi_utils.folder_path()
+			if returning_to_list:
+				try: lists = json.loads(kodi_utils.get_property(order_prop))
+				except: pass
+			else:
+				shuffle(lists)
+				kodi_utils.set_property(order_prop, json.dumps(lists))
+		elif not shuffle_lists:
+			kodi_utils.clear_property(order_prop)
 		kodi_utils.add_items(handle, list(_process()))
-		kodi_utils.add_dir(handle, {'mode': 'trakt.list.get_trakt_user_lists', 'list_type': list_type, 'new_page': new_page},
-				'Next Page (%s) >>' % new_page, 'nextpage', kodi_utils.get_icon('nextpage_landscape'))
+		next_params = {'mode': 'trakt.list.get_trakt_user_lists', 'list_type': list_type, 'new_page': new_page,
+			'category_name': params.get('category_name', 'Trakt Lists')}
+		if random: next_params['random'] = 'true'
+		if shuffle_lists: next_params['shuffle'] = 'true'
+		kodi_utils.add_dir(handle, next_params, 'Next Page (%s) >>' % new_page, 'nextpage', kodi_utils.get_icon('nextpage_landscape'))
 	except: pass
 	kodi_utils.set_content(handle, kodi_utils.MENU_FOLDER_CONTENT)
 	kodi_utils.set_category(handle, params.get('category_name', 'Trakt Lists'))
-	kodi_utils.end_directory(handle)
+	if shuffle_lists and not returning_to_list: kodi_utils.focus_index(0)
+	kodi_utils.end_directory(handle, cacheToDisc=not random_contents)
 	kodi_utils.set_view_mode('view.main', kodi_utils.MENU_FOLDER_CONTENT)
 
 def in_trakt_lists(params):
@@ -317,6 +355,12 @@ def build_trakt_list(params):
 			sort_by, sort_how = params.get('sort_by'), params.get('sort_how')
 			with_auth = list_type == 'my_lists'
 			result = get_trakt_list_contents(list_type, user, slug, with_auth, list_id, sort_by, sort_how)
+			if params.get('shuffle', 'false') == 'true':
+				shuffle(result)
+				for c, i in enumerate(result):
+					i['order'] = c
+					if i.get('type') == 'season': i['custom_order'] = c
+					elif i.get('type') == 'episode': i['custom_order'] = c
 		process_list, total_pages, paginate_start = _paginate_list(result, page_no, paginate_start)
 		all_movies = [i for i in process_list if i['type'] == 'movie']
 		all_tvshows = [i for i in process_list if i['type'] == 'show']
@@ -348,7 +392,8 @@ def build_trakt_list(params):
 	except: pass
 	kodi_utils.set_content(handle, content)
 	kodi_utils.set_category(handle, list_name)
-	kodi_utils.end_directory(handle, cacheToDisc=False if is_external else True)
+	no_disc_cache = is_external or params.get('shuffle', 'false') == 'true' or params.get('random', 'false') == 'true'
+	kodi_utils.end_directory(handle, cacheToDisc=not no_disc_cache)
 	if not is_external:
 		if params.get('refreshed') == 'true': kodi_utils.sleep(1000)
 		kodi_utils.set_view_mode('view.%s' % content, content, is_external)

@@ -272,7 +272,9 @@ def get_addon_fanart():
 def build_url(url_params):
 	return 'plugin://plugin.video.redlight/?%s' % urlencode(url_params)
 
-_FOLDER_URL_SKIP = frozenset(('iconImage', 'random_support', 'random', 'name', 'isFolder'))
+# Keep `random` / `shuffle` on folder URLs — stripping `random` broke Random Trakt Public (All)
+# and any other list-of-lists parent that only passed random=true (shuffle alone was the workaround).
+_FOLDER_URL_SKIP = frozenset(('iconImage', 'random_support', 'name', 'isFolder'))
 _FOLDER_URL_KEEP_NAME_MODES = frozenset(('navigator.build_shortcut_folder_contents',))
 
 def _folder_url_keep_name(mode):
@@ -487,16 +489,30 @@ def clear_property(prop):
 	return kodi_window().clearProperty(prop)
 
 def sync_scrape_progress_ui(percent=0, results_sd=0, results_720p=0, results_1080p=0, results_4k=0, results_total=0):
+	from caches.settings_cache import get_setting
 	set_property('redlight.scrape.percent', str(int(percent)))
 	set_property('redlight.scrape.results_sd', str(results_sd))
 	set_property('redlight.scrape.results_720p', str(results_720p))
 	set_property('redlight.scrape.results_1080p', str(results_1080p))
 	set_property('redlight.scrape.results_4k', str(results_4k))
 	set_property('redlight.scrape.results_total', str(results_total))
+	if get_setting('redlight.highlight.scrape_progress_colours', 'true') == 'true':
+		set_property('redlight.scrape.progress_4k_color', get_setting('redlight.scraper_4k_highlight', 'FFFF00FE'))
+		set_property('redlight.scrape.progress_1080p_color', get_setting('redlight.scraper_1080p_highlight', 'FFE6B800'))
+		set_property('redlight.scrape.progress_720p_color', get_setting('redlight.scraper_720p_highlight', 'FF3C9900'))
+		set_property('redlight.scrape.progress_sd_color', get_setting('redlight.scraper_SD_highlight', 'FF0166FF'))
+	else:
+		white = 'FFFFFFFF'
+		set_property('redlight.scrape.progress_4k_color', white)
+		set_property('redlight.scrape.progress_1080p_color', white)
+		set_property('redlight.scrape.progress_720p_color', white)
+		set_property('redlight.scrape.progress_sd_color', white)
 
 def clear_scrape_progress_ui():
 	for prop in ('redlight.scrape.percent', 'redlight.scrape.results_sd', 'redlight.scrape.results_720p',
 			'redlight.scrape.results_1080p', 'redlight.scrape.results_4k', 'redlight.scrape.results_total',
+			'redlight.scrape.progress_4k_color', 'redlight.scrape.progress_1080p_color',
+			'redlight.scrape.progress_720p_color', 'redlight.scrape.progress_sd_color',
 			'redlight.scrape.ready'):
 		clear_property(prop)
 

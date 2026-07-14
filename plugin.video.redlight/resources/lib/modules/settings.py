@@ -502,6 +502,26 @@ def easynews_authorized():
 	else: easynews_status = True
 	return easynews_status
 
+def nzb_indexer_active():
+	"""True when NZB Indexers are enabled and at least one slot is configured."""
+	if get_setting('redlight.provider.nzb', 'false') != 'true': return False
+	for slot in (1, 2, 3):
+		if get_setting('redlight.nzb%d.enabled' % slot, 'false') != 'true': continue
+		url = get_setting('redlight.nzb%d.url' % slot, '')
+		key = get_setting('redlight.nzb%d.key' % slot, '')
+		if url not in ('', 'empty_setting') and key not in ('', 'empty_setting'): return True
+	return False
+
+def nzb_scrape_active():
+	"""NZB title scrape — indexers plus TorBox Pro usenet for resolve."""
+	return nzb_indexer_active() and authorized_debrid_check('tb')
+
+def nzb_search_width():
+	return int(get_setting('redlight.nzb.search_width', '0'))
+
+def nzb_fallback_search():
+	return get_setting('redlight.nzb.fallback_search', 'true') == 'true'
+
 def aiostreams_authorized():
 	username = get_setting('redlight.aiostreams.username', 'empty_setting')
 	password = get_setting('redlight.aiostreams.password', 'empty_setting')
@@ -552,7 +572,7 @@ def tv_progress_location():
 
 def check_prescrape_sources(scraper, media_type):
 	"""Prescrape only when Check Before Full Search is enabled for that provider."""
-	if scraper in ('easynews', 'aiostreams', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud'):
+	if scraper in ('easynews', 'aiostreams', 'nzb', 'rd_cloud', 'pm_cloud', 'ad_cloud', 'oc_cloud', 'tb_cloud'):
 		return get_setting('redlight.check.%s' % scraper) == 'true'
 	if scraper == 'folders':
 		return get_setting('redlight.check.folders') == 'true'
@@ -824,18 +844,20 @@ def active_internal_scrapers():
 		if enabled_debrids_check(item[0]): settings_append(item[1])
 	active = [i.split('.')[1] for i in settings if get_setting('redlight.%s' % i) == 'true']
 	if aiostreams_active(): active.append('aiostreams')
+	if nzb_scrape_active(): active.append('nzb')
 	return active
 
 def provider_sort_ranks():
 	fo_priority = int(get_setting('redlight.folders.priority', '6'))
 	aio_priority = int(get_setting('redlight.aio.priority', '7'))
 	en_priority = int(get_setting('redlight.en.priority', '7'))
+	nzb_priority = int(get_setting('redlight.nzb.priority', '7'))
 	rd_priority = int(get_setting('redlight.rd.priority', '8'))
 	ad_priority = int(get_setting('redlight.ad.priority', '9'))
 	pm_priority = int(get_setting('redlight.pm.priority', '10'))
 	oc_priority = int(get_setting('redlight.oc.priority', '10'))
 	tb_priority = int(get_setting('redlight.tb.priority', '10'))
-	return {'easynews': en_priority, 'aiostreams': aio_priority, 'real-debrid': rd_priority, 'premiumize.me': pm_priority, 'alldebrid': ad_priority,
+	return {'easynews': en_priority, 'aiostreams': aio_priority, 'nzb': nzb_priority, 'real-debrid': rd_priority, 'premiumize.me': pm_priority, 'alldebrid': ad_priority,
 	'offcloud': oc_priority, 'torbox': tb_priority, 'rd_cloud': rd_priority, 'pm_cloud': pm_priority, 'ad_cloud': ad_priority, 'oc_cloud': oc_priority,
 	'tb_cloud': tb_priority, 'folders': fo_priority}
 
@@ -852,12 +874,13 @@ def scraping_settings():
 	if highlight_type == 2:
 		highlight = get_setting('redlight.scraper_single_highlight', 'FF008EB2')
 		return {'highlight_type': 1, '4k': highlight, '1080p': highlight, '720p': highlight, 'sd': highlight}
-	easynews_highlight, aiostreams_highlight, debrid_cloud_highlight, folders_highlight = '', '', '', ''
+	easynews_highlight, aiostreams_highlight, nzb_highlight, debrid_cloud_highlight, folders_highlight = '', '', '', '', ''
 	rd_highlight, pm_highlight, ad_highlight, oc_highlight, tb_highlight = '', '', '', '', ''
 	highlight_4K, highlight_1080P, highlight_720P, highlight_SD = '', '', '', ''
 	if highlight_type == 0:
 		easynews_highlight = get_setting('redlight.provider.easynews_highlight', 'FF00B3B2')
 		aiostreams_highlight = get_setting('redlight.provider.aiostreams_highlight', 'FF00D4FF')
+		nzb_highlight = get_setting('redlight.provider.nzb_highlight', 'FFD4A017')
 		debrid_cloud_highlight = get_setting('redlight.provider.debrid_cloud_highlight', 'FF7A01CC')
 		folders_highlight = get_setting('redlight.provider.folders_highlight', 'FFB36B00')
 		rd_highlight = get_setting('redlight.provider.rd_highlight', 'FF3C9900')
@@ -872,7 +895,7 @@ def scraping_settings():
 		highlight_SD = get_setting('redlight.scraper_SD_highlight', 'FF0166FF')
 	return {'highlight_type': highlight_type, 'real-debrid': rd_highlight, 'premiumize': pm_highlight, 'alldebrid': ad_highlight,
 			'offcloud': oc_highlight, 'torbox': tb_highlight, 'rd_cloud': debrid_cloud_highlight, 'pm_cloud': debrid_cloud_highlight, 'ad_cloud': debrid_cloud_highlight,
-			'oc_cloud': debrid_cloud_highlight, 'tb_cloud': debrid_cloud_highlight, 'easynews': easynews_highlight, 'aiostreams': aiostreams_highlight, 'folders': folders_highlight,
+			'oc_cloud': debrid_cloud_highlight, 'tb_cloud': debrid_cloud_highlight, 'easynews': easynews_highlight, 'aiostreams': aiostreams_highlight, 'nzb': nzb_highlight, 'folders': folders_highlight,
 			'4k': highlight_4K, '1080p': highlight_1080P, '720p': highlight_720P, 'sd': highlight_SD}
 
 def external_cache_check():

@@ -40,7 +40,7 @@ class SourcesResults(BaseDialog):
 		self.cache_check_override = kwargs.get('cache_check_override')
 		self.prerelease_values, self.prerelease_key = ('CAM', 'SCR', 'TELE'), 'CAM/SCR/TELE'
 		self.item_list, self.filter_list, self.total_results = [], [], '0'
-		self.info_icons_dict = {'easynews': get_icon('easynews'), 'aiostreams': get_icon('premiumize'), 'alldebrid': get_icon('alldebrid'), 'real-debrid': get_icon('realdebrid'),
+		self.info_icons_dict = {'easynews': get_icon('easynews'), 'aiostreams': get_icon('premiumize'), 'nzb': get_icon('torbox'), 'alldebrid': get_icon('alldebrid'), 'real-debrid': get_icon('realdebrid'),
 		'premiumize': get_icon('premiumize'), 'offcloud': get_icon('offcloud'), 'torbox': get_icon('torbox'), 'ad_cloud': get_icon('alldebrid'), 'rd_cloud': get_icon('realdebrid'),
 		'pm_cloud': get_icon('premiumize'), 'oc_cloud': get_icon('offcloud'), 'tb_cloud': get_icon('torbox')}
 		self.info_quality_dict = {'4k': get_icon('flag_4k', 'flags'), '1080p': get_icon('flag_1080p', 'flags'), '720p': get_icon('flag_720p', 'flags'),
@@ -192,6 +192,26 @@ class SourcesResults(BaseDialog):
 					if result.status_code in (401, 403, 404): return notification('Error', 1200)
 					rd_api.clear_cache()
 					self.delete_single_source(source)
+				if choice == 'tb_cloud_delete':
+					from apis.torbox_api import TorBox
+					folder_id = source.get('folder_id')
+					if folder_id is None:
+						raw = source.get('id') or source.get('url_dl') or ''
+						if isinstance(raw, str) and ',' in raw:
+							folder_id = raw.split(',', 1)[0]
+					if folder_id is None:
+						return notification('Error', 1200)
+					media_type = source.get('cloud_media_type') or 'torrent'
+					if media_type == 'webdl':
+						result = TorBox.delete_webdl(folder_id)
+					elif media_type == 'usenet':
+						result = TorBox.delete_usenet(folder_id)
+					else:
+						result = TorBox.delete_torrent(folder_id)
+					if not result or not result.get('success'):
+						return notification('Error', 1200)
+					TorBox.clear_cache()
+					self.delete_single_source(source)
 
 	def delete_single_source(self, single_source):
 		self.results.remove(single_source)
@@ -244,11 +264,16 @@ class SourcesResults(BaseDialog):
 						provider = aio_label
 						provider_icon = self.get_provider_and_path(get('aio_source_icon', 'aiostreams'))[1]
 						hoster_label = get('aio_hoster') or 'DIRECT'
+					elif scrape_provider == 'nzb':
+						source_site = (get('nzb_indexer') or 'NZB').upper()
+						provider = 'NZB'
+						provider_icon = self.get_provider_and_path('nzb')[1]
+						hoster_label = '[B]CACHED[/B]' if get('nzb_cached') else 'TORBOX'
 					else:
 						source_site = source.upper()
 						provider, provider_icon = self.get_provider_and_path(source.lower())
 						hoster_label = 'DIRECT'
-					if highlight_type == 0: key = source.lower() if scrape_provider == 'aiostreams' else provider
+					if highlight_type == 0: key = source.lower() if scrape_provider in ('aiostreams', 'nzb') else provider
 					else: key = basic_quality
 					item_highlight = self.info_highlights_dict[key]
 					set_properties({'source_type': hoster_label, 'provider': provider.upper()})
@@ -269,6 +294,12 @@ class SourcesResults(BaseDialog):
 						scraper_module_label = 'Group'
 						scraper_suffix = '     [COLOR %s][B]Group: [/B][/COLOR]%s' % (item_highlight, scraper_module.upper())
 						scraper_suffix_tint = '     [COLOR FFA8A8A8][B]Group: [/B][/COLOR][COLOR FFFFFFFF]%s[/COLOR]' % scraper_module.upper()
+				elif scrape_provider == 'nzb':
+					scraper_module = get('nzb_indexer') or ''
+					if scraper_module:
+						scraper_module_label = 'Site'
+						scraper_suffix = '     [COLOR %s][B]Site: [/B][/COLOR]%s' % (item_highlight, scraper_module.upper())
+						scraper_suffix_tint = '     [COLOR FFA8A8A8][B]Site: [/B][/COLOR][COLOR FFFFFFFF]%s[/COLOR]' % scraper_module.upper()
 				set_properties({'name': name.upper(), 'source_site': source_site, 'provider_icon': provider_icon, 'quality_icon': quality_icon, 'count': '%02d.' % count,
 						'size_label': get('size_label', 'N/A'), 'extraInfo': extraInfo, 'quality': quality.upper(), 'hash': get('hash', 'N/A'), 'source': json.dumps(item),
 						'highlight': item_highlight, 'highlight_bg': highlight_bg, 'scraper_module': scraper_module.upper() if scraper_module else '', 'scraper_module_label': scraper_module_label,
@@ -393,6 +424,7 @@ class SourcesResults(BaseDialog):
 		if down_pack_params: choices_append(('Download Pack', down_pack_params))
 		if down_file_params: choices_append(('Download File', down_file_params))
 		if provider_source == 'rd_cloud': choices_append(('Delete from RD Cloud', 'rd_cloud_delete'))
+		if provider_source == 'tb_cloud': choices_append(('Delete from TorBox Cloud', 'tb_cloud_delete'))
 		list_items = [{'line1': i[0], 'icon': self.poster} for i in choices]
 		kwargs = {'items': json.dumps(list_items)}
 		choice = select_dialog([i[1] for i in choices], **kwargs)
