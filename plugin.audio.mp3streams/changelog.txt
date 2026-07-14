@@ -1,3 +1,7 @@
+2026.07.16
+- fix album downloads from different artists with the same title overwriting each other — album folders are keyed by album artist plus album title again (thanks Cursor daily review)
+- album playback and stream-cache paths use the same album storage helper and track-numbered filenames as album downloads
+
 2026.07.15
 - genre menu icons: rename thrash_speedmetal typo, add topworld/nordicfolk/topclassical from parent genre art, rename r&b folder to r_b to match path code; resolve genre icons with parent fallbacks
 
