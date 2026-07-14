@@ -306,11 +306,7 @@ def all_artists(name, url):
     link = GET_url(url)#.decode('utf-8')
     all_artists = re.compile('<li class="small_list__item"><a class="small_list__link" href="(.+?)">(.+?)</a></li>').findall(link)
     for url1, title in all_artists:
-        icon_path = os.path.join(ARTIST_ART, settings.sanitize_filename(title) + '.jpg')
-        if os.path.exists(icon_path):
-            iconimage = icon_path
-        else:
-            iconimage = iconart
+        iconimage = artist_list_icon(title)
         addDir(title,'http://musicmp3.ru' + url1,22,iconimage,'artists')
     pgnumf = url.find('page=') + 5
     pgnum = int(url[pgnumf:]) + 1
@@ -406,12 +402,7 @@ def search_artists(query):
         plugin_notice('No artist results for: %s' % settings.decode_text(query))
         return_to_main_menu()
     for url1, title in all_artists:
-        icon_path = os.path.join(ARTIST_ART, settings.sanitize_filename(title) + '.jpg')
-        if os.path.exists(icon_path):
-            iconimage = icon_path
-        else:
-            iconimage = iconart
-        addDir(title,'http://musicmp3.ru' + url1,22,iconimage,'artists')
+        addDir(title,'http://musicmp3.ru' + url1,22,artist_list_icon(title),'artists')
     setView('', 'default')
 
 def search_albums(query):
@@ -834,9 +825,9 @@ class Getid3Thread(Thread):
 
 def get_artist_icon(name, url):
     xbmc.log("724 name = {0}\nurl = {1}".format(name, url), xbmc.LOGINFO)
-    data_path = os.path.join(ARTIST_ART, settings.sanitize_filename(name) + '.jpg')
+    data_path = os.path.join(ARTIST_ART, settings.sanitize_filename(settings.decode_text(name)) + '.jpg')
     xbmc.log("726 datapath = {0}".format(data_path), xbmc.LOGINFO)
-    if not os.path.exists(data_path):
+    if url and 'no_image' not in url and not os.path.exists(data_path):
         dlThread = DownloadIconThread(name, url, data_path)
         dlThread.start()
 
@@ -898,10 +889,33 @@ class DownloadIconThread(Thread):
         Thread.__init__(self)
 
     def run(self):
-        path = str(self.path)
-        data = self.data
-        urllib.request.urlretrieve(data, path)
+        try:
+            url = self.data
+            if not url or 'no_image' in url:
+                return
+            if url.startswith('/'):
+                url = 'https://musicmp3.ru' + url
+            response = requests.get(
+                url,
+                headers={'User-Agent': ua, 'Referer': 'https://musicmp3.ru/'},
+                timeout=15,
+            )
+            if response.status_code == 200 and response.content and len(response.content) > 200:
+                with open(self.path, 'wb') as outfile:
+                    outfile.write(response.content)
+        except Exception:
+            pass
 
+
+def artist_list_icon(name):
+    """Cached artist photo when present; otherwise the Artists menu art."""
+    path = os.path.join(ARTIST_ART, settings.sanitize_filename(settings.decode_text(name)) + '.jpg')
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > 200:
+            return path
+    except OSError:
+        pass
+    return art + 'artists.jpg'
 
 def favourite_artists():
     lines = read_favourite_lines(FAV_ARTIST)
@@ -914,9 +928,7 @@ def favourite_artists():
             continue
         title = settings.decode_text(parts[0])
         url = parts[1]
-        icon_path = os.path.join(ARTIST_ART, settings.sanitize_filename(title) + '.jpg')
-        iconimage = icon_path if os.path.exists(icon_path) else iconart
-        addDir(title, url, 22, iconimage, 'artists')
+        addDir(title, url, 22, artist_list_icon(title), 'artists')
     setView('', 'default')
 
 def favourite_albums():
@@ -1290,8 +1302,12 @@ def addDir(name, url, mode, iconimage, type):
                 suffix = ' [COLOR lime]+[/COLOR]'
                 contextMenuItems.append(("[COLOR orange]Remove from Favourite Albums[/COLOR]",'RunPlugin(%s?name=%s&url=%s&mode=65)' % (sys.argv[0], urllib.parse.quote_plus(name.replace(',', '')), urllib.parse.quote_plus(list))))
         liz = xbmcgui.ListItem(name + suffix)
-        # Callers pass cover URLs for albums; artists use cached photo or iconart.
-        apply_list_art(liz, iconimage if (iconimage and str(iconimage).strip()) else iconart)
+        # Albums: cover URL. Artists: cached photo or art/artists.jpg (not addon icon).
+        if type == 'artists':
+            art_image = iconimage if (iconimage and str(iconimage).strip()) else (art + 'artists.jpg')
+        else:
+            art_image = iconimage if (iconimage and str(iconimage).strip()) else iconart
+        apply_list_art(liz, art_image)
         liz.addContextMenuItems(contextMenuItems, replaceItems=False)
         liz.setInfo( type="Audio", infoLabels={ "Title": name } )
         ok = xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)

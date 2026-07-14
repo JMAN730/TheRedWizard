@@ -5,7 +5,7 @@
 - remove deprecated start="startup" from xbmc.service declaration in addon.xml (thanks JMAN730)
 - fix addon fanart and icon paths in addon.xml (art/fanart.jpg, art/icon.png)
 - fix browse fanart and notification icon paths to match addon.xml assets (art/fanart.jpg, art/icon.png)
-- Estuary WideList icons: set ListItem.Icon, empty list content (not files), and musicmp3 Referer/UA on remote cover URLs (Red Light pattern); artists fall back to the addon icon
+- Estuary WideList icons: set ListItem.Icon, empty list content (not files), and musicmp3 Referer/UA on remote cover URLs (Red Light pattern); artist rows use art/artists.jpg when no cached photo
 
 2026.05.26
 - fix songs with "/" in titles not appearing in search or downloading
