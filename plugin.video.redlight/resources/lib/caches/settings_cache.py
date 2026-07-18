@@ -934,6 +934,7 @@ def default_settings():
 {'setting_id': 'simkl.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'mdblist.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'external_scraper.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'trakt_watchlist.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'cm_manager_order_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'cm_manager_order_migrated_v2', 'setting_type': 'boolean', 'setting_default': 'false'},
 #======+============= Trakt Cache
