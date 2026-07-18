@@ -2,6 +2,7 @@
 import sys
 import json
 from modules.metadata import tvshow_meta
+from modules.trakt_actions import watchlist_context_menu_item
 from modules.utils import get_datetime, get_current_timestamp, paginate_list, TaskPool, manual_function_import
 from modules import kodi_utils, settings, watched_status
 # logger = kodi_utils.logger
@@ -238,8 +239,8 @@ class TVShows:
 										'key_id': 'tvshow|%s' % tmdb_id, 'name': 'Similar based on %s' % title})
 			browse_in_trakt_list_params = self.build_url({'mode': 'trakt.list.in_trakt_lists', 'media_type': 'tvshow', 'imdb_id': imdb_id, 'is_external': self.is_external,
 										'category_name': '%s In Trakt Lists' % title})
-			trakt_manager_params = self.build_url({'mode': 'trakt_manager_choice', 'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id, 'media_type': 'tvshow',
-													'title': title, 'icon': poster})
+			trakt_item_params = {'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id, 'media_type': 'tvshow', 'title': title, 'icon': poster}
+			trakt_manager_params = self.build_url(dict(trakt_item_params, mode='trakt_manager_choice'))
 			simkl_manager_params = ''
 			if settings.simkl_user_active():
 				simkl_manager_params = self.build_url({'mode': 'simkl_manager_choice', 'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id, 'media_type': 'tvshow',
@@ -273,6 +274,7 @@ class TVShows:
 			cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
 			cm_append(['personal_manager', ('[B]Personal Lists Manager[/B]', 'RunPlugin(%s)' % personal_manager_params)])
 			cm_append(['favorites_manager', ('[B]Favorites Manager[/B]', 'RunPlugin(%s)' % favorites_manager_params)])
+			cm_append(watchlist_context_menu_item(self.build_url, trakt_item_params))
 			if playcount:
 				if self.widget_hide_watched: return
 			elif not unaired:

@@ -1,4 +1,5 @@
 [COLOR red][B]Version 1.9.1[/B][/COLOR]
+- [B]Trakt[/B]: movies and TV shows now offer a single-click [B]Add to Watchlist[/B] context-menu action. The action can be enabled, disabled, and reordered under [B]Settings > Content > Context Menu[/B].
 - [B]Browse[/B]: choosing [B]Browse[/B] on a source no longer closes the sources results window underneath (progress-dialog cleanup was force-closing it) — fixes being kicked back to the previous screen with the file picker floating over it, and the [B]Source search already running[/B] lockout (until Kodi restart) when backing out of the picker without playing. Backing out or a failed file resolve now returns to the sources list; play/stop returns to the sources list as before.
 
 [COLOR red][B]Version 1.9.0[/B][/COLOR]

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from caches.settings_cache import get_setting, set_setting, default_setting_values, _EXTRAS_LIST_DEFAULT
+from modules.context_menu import DEFAULT_CONTEXT_MENU_ITEMS
 from modules.kodi_utils import translate_path, get_property, addon_profile, make_directory
 from modules.kodi_utils import logger
 
@@ -1053,8 +1054,7 @@ def rescrape_action_value(action, default='0'):
 	return int(get_setting('redlight.rescrape.%s' % action, default))
 
 def cm_enabled():
-	default = 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-				'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'
+	default = ','.join(DEFAULT_CONTEXT_MENU_ITEMS)
 	setting = get_setting('redlight.context_menu.enabled', default)
 	if setting in ('', None, 'noop', '[]'): return default.split(',')
 	return setting.split(',')
@@ -1089,6 +1089,33 @@ def _normalize_cm_list_order(order):
 		ti, pi = order.index('tmdb_manager'), order.index('personal_manager')
 		if pi < ti: order[ti], order[pi] = order[pi], order[ti]
 	return order
+
+
+def _insert_trakt_watchlist_context_item(items):
+	items = list(items)
+	item = 'trakt_watchlist'
+	if item in items: return items
+	if 'mark_watched' in items: items.insert(items.index('mark_watched'), item)
+	elif 'trakt_manager' in items: items.insert(items.index('trakt_manager') + 1, item)
+	else: items.append(item)
+	return items
+
+
+def migrate_trakt_watchlist_context_menu_for_upgrade(had_existing_settings):
+	if get_setting('redlight.trakt_watchlist.cm_menu_migrated', 'false') == 'true': return False
+	set_setting('trakt_watchlist.cm_menu_migrated', 'true')
+	if not had_existing_settings: return False
+	changed = False
+	for setting_key in ('context_menu.enabled', 'context_menu.order'):
+		raw = get_setting('redlight.%s' % setting_key, '')
+		if raw in ('', None, 'noop', '[]'): continue
+		parts = [part for part in raw.split(',') if part]
+		updated = _insert_trakt_watchlist_context_item(parts)
+		if updated == parts: continue
+		set_setting(setting_key, ','.join(updated))
+		changed = True
+	return changed
+
 
 def migrate_external_scraper_context_menu_for_upgrade(had_existing_settings):
 	if get_setting('redlight.external_scraper.cm_menu_migrated', 'false') == 'true': return False
@@ -1153,8 +1180,7 @@ def migrate_cm_manager_order_for_upgrade():
 	return get_setting('redlight.context_menu.order', '') != before
 
 def cm_current_order():
-	default = 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-				'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'
+	default = ','.join(DEFAULT_CONTEXT_MENU_ITEMS)
 	setting = get_setting('redlight.context_menu.order', default)
 	if setting in ('', None, 'noop', '[]'): order = default.split(',')
 	else: order = setting.split(',')

@@ -658,7 +658,6 @@ def _trakt_manager_mark(params, action):
 
 def trakt_manager_choice(params):
 	if not settings.trakt_user_active(): return kodi_utils.notification('No Active Trakt Account', 3500)
-	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params['tvdb_id'], params['imdb_id'], params['media_type']
 	icon = params.get('icon', None) or kodi_utils.get_icon('trakt')
 	choices = [('Add to [B]Watchlist[/B]', 'add_watchlist'), ('Remove from [B]Watchlist[/B]', 'remove_watchlist'),
 				('Add to [B]Collection[/B]', 'add_collection'), ('Remove from [B]Collection[/B]', 'remove_collection'),
@@ -668,13 +667,9 @@ def trakt_manager_choice(params):
 	choice = kodi_utils.select_dialog([i[1] for i in choices], **kwargs)
 	if choice == None: return
 	from apis import trakt_api
-	if media_type == 'movie': key, media_key, media_id = ('movies', 'tmdb', int(tmdb_id))
-	else:
-		key = 'shows'
-		media_ids = [(tmdb_id, 'tmdb'), (imdb_id, 'imdb'), (tvdb_id, 'tvdb')]
-		media_id, media_key = next(item for item in media_ids if item[0] not in ('None', None, ''))
-		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
-	data = {key: [{'ids': {media_key: media_id}}]}
+	from modules.trakt_actions import build_list_item_payload
+	try: data = build_list_item_payload(params)
+	except (KeyError, TypeError, ValueError): return kodi_utils.notification('Invalid media information', 3500)
 	if choice == 'add_watchlist': return trakt_api.add_to_watchlist(data)
 	if choice == 'remove_watchlist': return trakt_api.remove_from_watchlist(data)
 	if choice == 'add_collection': return trakt_api.add_to_collection(data)

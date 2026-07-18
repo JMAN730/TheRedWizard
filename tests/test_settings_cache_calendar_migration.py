@@ -11,6 +11,7 @@ SETTINGS_CACHE_PATH = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'ca
 
 def _load_settings_cache_module():
 	properties = {}
+	migration_calls = []
 	kodi_utils = types.ModuleType('modules.kodi_utils')
 	kodi_utils.addon_fanart = lambda: ''
 	kodi_utils.addon_info = lambda key: 'test-version' if key == 'version' else ''
@@ -25,7 +26,7 @@ def _load_settings_cache_module():
 	kodi_utils.translate_path = lambda path: path
 
 	modules = types.ModuleType('modules')
-	modules.__path__ = []
+	modules.__path__ = [str(ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'modules')]
 	modules.kodi_utils = kodi_utils
 	settings = types.ModuleType('modules.settings')
 	settings.migrate_cm_manager_order_for_upgrade = lambda: False
@@ -34,6 +35,7 @@ def _load_settings_cache_module():
 	settings.migrate_external_scraper_slots_for_upgrade = lambda had_existing: False
 	settings.migrate_mdblist_context_menu_for_upgrade = lambda had_existing: False
 	settings.migrate_simkl_context_menu_for_upgrade = lambda had_existing: False
+	settings.migrate_trakt_watchlist_context_menu_for_upgrade = lambda had_existing: migration_calls.append(had_existing) or False
 
 	caches = types.ModuleType('caches')
 	caches.__path__ = []
@@ -50,6 +52,7 @@ def _load_settings_cache_module():
 	module = importlib.util.module_from_spec(spec)
 	spec.loader.exec_module(module)
 	module._test_properties = properties
+	module._test_migration_calls = migration_calls
 	return module
 
 
@@ -86,14 +89,14 @@ class CalendarDisplayMigrationTests(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		cls._original_sys_modules = {}
-		for key in ('modules', 'modules.kodi_utils', 'modules.settings', 'caches', 'caches.base_cache'):
+		for key in ('modules', 'modules.context_menu', 'modules.kodi_utils', 'modules.settings', 'caches', 'caches.base_cache'):
 			if key in sys.modules:
 				cls._original_sys_modules[key] = sys.modules[key]
 		cls.module = _load_settings_cache_module()
 
 	@classmethod
 	def tearDownClass(cls):
-		for key in ('modules', 'modules.kodi_utils', 'modules.settings', 'caches', 'caches.base_cache'):
+		for key in ('modules', 'modules.context_menu', 'modules.kodi_utils', 'modules.settings', 'caches', 'caches.base_cache'):
 			if key in cls._original_sys_modules:
 				sys.modules[key] = cls._original_sys_modules[key]
 			else:
@@ -101,6 +104,7 @@ class CalendarDisplayMigrationTests(unittest.TestCase):
 
 	def setUp(self):
 		self.module._test_properties.clear()
+		self.module._test_migration_calls.clear()
 		production_defaults = self.module.default_settings()
 		calendar_settings = {
 			s['setting_id']: s for s in production_defaults
@@ -131,6 +135,23 @@ class CalendarDisplayMigrationTests(unittest.TestCase):
 		result = self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'})
 		self.assertEqual('synced', result)
 		return cache
+
+	def test_context_menu_defaults_include_direct_trakt_watchlist_action(self):
+		defaults = {
+			item['setting_id']: item['setting_default']
+			for item in self.module.default_settings()
+			if item['setting_id'] in ('context_menu.enabled', 'context_menu.order')
+		}
+
+		for setting_id in ('context_menu.enabled', 'context_menu.order'):
+			items = defaults[setting_id].split(',')
+			self.assertIn('trakt_watchlist', items)
+			self.assertEqual(items.index('trakt_watchlist') + 1, items.index('mark_watched'))
+
+	def test_settings_sync_runs_trakt_watchlist_context_menu_migration(self):
+		self._sync({'context_menu.enabled': 'extras,mark_watched'})
+
+		self.assertEqual([True], self.module._test_migration_calls)
 
 	def test_upgrade_copies_existing_single_episode_preferences(self):
 		cache = self._sync({

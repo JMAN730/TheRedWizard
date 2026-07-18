@@ -73,6 +73,9 @@ def routing(sys):
 	elif 'mdblist.' in mode:
 		from apis import mdblist_api
 		return exec('mdblist_api.%s(params)' % mode.split('.')[1])
+	elif mode == 'trakt.add_to_watchlist_item':
+		from modules.trakt_actions import add_to_watchlist_item
+		return add_to_watchlist_item(params)
 	elif 'trakt.' in mode:
 		if '.list' in mode:
 			from indexers import trakt_lists
