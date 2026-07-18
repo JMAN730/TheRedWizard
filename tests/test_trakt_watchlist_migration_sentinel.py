@@ -7,7 +7,7 @@ from test_trakt_watchlist_context_menu import _load_settings_module
 
 class TraktWatchlistMigrationSentinelTests(unittest.TestCase):
 	@classmethod
-	def setUpClass(cls):
+	def setUpClass(cls) -> None:
 		cls._original_sys_modules = {}
 		for key in ('modules', 'modules.kodi_utils', 'modules.settings', 'caches', 'caches.base_cache', 'caches.settings_cache'):
 			if key in sys.modules:
@@ -15,7 +15,7 @@ class TraktWatchlistMigrationSentinelTests(unittest.TestCase):
 		cls.module = _load_settings_cache_module()
 
 	@classmethod
-	def tearDownClass(cls):
+	def tearDownClass(cls) -> None:
 		for key in ('modules', 'modules.kodi_utils', 'modules.settings', 'caches', 'caches.base_cache', 'caches.settings_cache'):
 			if key in cls._original_sys_modules:
 				sys.modules[key] = cls._original_sys_modules[key]
@@ -50,7 +50,7 @@ class TraktWatchlistMigrationSentinelTests(unittest.TestCase):
 		try:
 			self._sync(cache)
 		finally:
-			sys.modules['modules.settings'].migrate_trakt_watchlist_context_menu_for_upgrade = lambda had_existing: False
+			sys.modules['modules.settings'].migrate_trakt_watchlist_context_menu_for_upgrade = lambda _had_existing: False
 		self.assertEqual('true', cache.data.get('trakt_watchlist.cm_menu_migrated'))
 		self.assertEqual(customized, cache.data.get('context_menu.enabled'))
 		self.assertEqual(customized, cache.data.get('context_menu.order'))
