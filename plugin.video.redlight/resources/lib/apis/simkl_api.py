@@ -292,8 +292,8 @@ def simkl_plantowatch_tmdb_ids(media_type):
 	try:
 		media_kind = 'movies' if media_type == 'movie' else 'shows'
 		data = simkl_plantowatch(media_kind)
+		return set(str((i.get('media_ids') or {}).get('tmdb', '')) for i in data if (i.get('media_ids') or {}).get('tmdb'))
 	except: return set()
-	return set(str((i.get('media_ids') or {}).get('tmdb', '')) for i in data if (i.get('media_ids') or {}).get('tmdb'))
 
 def simkl_completed(media_kind, page_no=None):
 	if media_kind == 'shows': return _simkl_fetch_tv_status('completed')

@@ -187,44 +187,61 @@ class ToggleWatchlistDispatchTests(unittest.TestCase):
 		name, args, kwargs = stubs['trakt'].calls[0]
 		self.assertEqual('toggle_watchlist', name)
 		self.assertEqual((params,), args)
+		self.assertEqual([], stubs['simkl'].calls)
+		self.assertEqual([], stubs['mdblist'].calls)
 
 	def test_simkl_add_movie_targets_plantowatch(self):
 		watchlist, stubs = _load_watchlist_module()
 		params = {'provider': 'simkl', 'action': 'add', 'tmdb_id': '5', 'imdb_id': 'tt5', 'tvdb_id': 'None', 'media_type': 'movie'}
 		watchlist.toggle_watchlist(params)
+		self.assertEqual(1, len(stubs['simkl'].calls))
 		name, args, kwargs = stubs['simkl'].calls[0]
 		self.assertEqual('simkl_add_to_list', name)
 		self.assertEqual(('plantowatch', '5', 'movie', 'tt5', 'None'), args)
+		self.assertEqual([], stubs['trakt'].calls)
+		self.assertEqual([], stubs['mdblist'].calls)
 
 	def test_simkl_remove_tvshow_targets_plantowatch(self):
 		watchlist, stubs = _load_watchlist_module()
 		params = {'provider': 'simkl', 'action': 'remove', 'tmdb_id': '7', 'imdb_id': 'tt7', 'tvdb_id': '77', 'media_type': 'tvshow'}
 		watchlist.toggle_watchlist(params)
+		self.assertEqual(1, len(stubs['simkl'].calls))
 		name, args, kwargs = stubs['simkl'].calls[0]
 		self.assertEqual('simkl_remove_from_list', name)
 		self.assertEqual(('plantowatch', '7', 'tvshow', 'tt7', '77'), args)
+		self.assertEqual([], stubs['trakt'].calls)
+		self.assertEqual([], stubs['mdblist'].calls)
 
 	def test_mdblist_add_movie(self):
 		watchlist, stubs = _load_watchlist_module()
 		params = {'provider': 'mdblist', 'action': 'add', 'tmdb_id': '9', 'imdb_id': 'tt9', 'media_type': 'movie'}
 		watchlist.toggle_watchlist(params)
+		self.assertEqual(1, len(stubs['mdblist'].calls))
 		name, args, kwargs = stubs['mdblist'].calls[0]
 		self.assertEqual('mdblist_add_to_watchlist', name)
 		self.assertEqual(('9', 'movie', 'tt9'), args)
+		self.assertEqual([], stubs['trakt'].calls)
+		self.assertEqual([], stubs['simkl'].calls)
 
 	def test_mdblist_remove_tvshow(self):
 		watchlist, stubs = _load_watchlist_module()
 		params = {'provider': 'mdblist', 'action': 'remove', 'tmdb_id': '9', 'imdb_id': 'tt9', 'media_type': 'tvshow'}
 		watchlist.toggle_watchlist(params)
+		self.assertEqual(1, len(stubs['mdblist'].calls))
 		name, args, kwargs = stubs['mdblist'].calls[0]
 		self.assertEqual('mdblist_remove_from_watchlist', name)
 		self.assertEqual(('9', 'tvshow', 'tt9'), args)
+		self.assertEqual([], stubs['trakt'].calls)
+		self.assertEqual([], stubs['simkl'].calls)
 
 	def test_missing_provider_resolves_from_settings(self):
 		watchlist, stubs = _load_watchlist_module(provider='simkl')
 		params = {'action': 'add', 'tmdb_id': '5', 'imdb_id': 'None', 'tvdb_id': 'None', 'media_type': 'movie'}
 		watchlist.toggle_watchlist(params)
+		self.assertEqual(1, len(stubs['simkl'].calls))
 		self.assertEqual('simkl_add_to_list', stubs['simkl'].calls[0][0])
+		self.assertEqual([], stubs['trakt'].calls)
+		self.assertEqual([], stubs['mdblist'].calls)
 
 	def test_no_active_provider_notifies_without_api_calls(self):
 		watchlist, stubs = _load_watchlist_module(provider=None)
