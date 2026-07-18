@@ -34,6 +34,7 @@ def _load_settings_cache_module():
 	settings.migrate_external_scraper_slots_for_upgrade = lambda had_existing: False
 	settings.migrate_mdblist_context_menu_for_upgrade = lambda had_existing: False
 	settings.migrate_simkl_context_menu_for_upgrade = lambda had_existing: False
+	settings.migrate_trakt_watchlist_context_menu_for_upgrade = lambda had_existing: False
 
 	caches = types.ModuleType('caches')
 	caches.__path__ = []

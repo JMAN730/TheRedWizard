@@ -1054,7 +1054,7 @@ def rescrape_action_value(action, default='0'):
 
 def cm_enabled():
 	default = 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-				'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'
+				'trakt_watchlist,mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'
 	setting = get_setting('redlight.context_menu.enabled', default)
 	if setting in ('', None, 'noop', '[]'): return default.split(',')
 	return setting.split(',')
@@ -1062,6 +1062,7 @@ def cm_enabled():
 def _merge_cm_order_with_enabled(order, enabled):
 	order = [i for i in order if i]
 	manager_insert = {
+		'trakt_watchlist': ('mdblist_manager', 'simkl_manager', 'trakt_manager'),
 		'mdblist_manager': ('simkl_manager', 'trakt_manager'),
 		'simkl_manager': ('trakt_manager',),
 	}
@@ -1144,6 +1145,25 @@ def migrate_mdblist_context_menu_for_upgrade(had_existing_settings):
 			changed = True
 	return changed
 
+def migrate_trakt_watchlist_context_menu_for_upgrade(had_existing_settings):
+	if get_setting('redlight.trakt_watchlist.cm_menu_migrated', 'false') == 'true': return False
+	set_setting('trakt_watchlist.cm_menu_migrated', 'true')
+	if not had_existing_settings: return False
+	item, changed = 'trakt_watchlist', False
+	raw = get_setting('redlight.context_menu.enabled', '')
+	if raw and raw not in ('noop', '[]'):
+		parts = [p for p in raw.split(',') if p]
+		if item not in parts:
+			set_setting('context_menu.enabled', ','.join(parts + [item]))
+			changed = True
+	raw = get_setting('redlight.context_menu.order', '')
+	if raw and raw not in ('noop', '[]'):
+		parts = _merge_cm_order_with_enabled([p for p in raw.split(',') if p], cm_enabled())
+		if item not in raw.split(','):
+			set_setting('context_menu.order', ','.join(parts))
+			changed = True
+	return changed
+
 def migrate_cm_manager_order_for_upgrade():
 	if get_setting('redlight.cm_manager_order_migrated_v2', 'false') == 'true': return False
 	set_setting('cm_manager_order_migrated_v2', 'true')
@@ -1154,7 +1174,7 @@ def migrate_cm_manager_order_for_upgrade():
 
 def cm_current_order():
 	default = 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-				'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'
+				'trakt_watchlist,mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'
 	setting = get_setting('redlight.context_menu.order', default)
 	if setting in ('', None, 'noop', '[]'): order = default.split(',')
 	else: order = setting.split(',')
