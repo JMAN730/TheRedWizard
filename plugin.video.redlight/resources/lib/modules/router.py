@@ -64,6 +64,9 @@ def routing(sys):
 	elif 'custom_key.' in mode:
 		from modules import custom_keys
 		return exec('custom_keys.%s()' % mode.split('custom_key.')[1])
+	elif mode.startswith('watchlist.'):
+		from modules import watchlist
+		return exec('watchlist.%s(params)' % mode.split('.')[1])
 	elif 'simkl.' in mode:
 		if '.list.' in mode:
 			from indexers import simkl_lists

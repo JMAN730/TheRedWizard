@@ -235,10 +235,10 @@ class Movies:
 			tmdb_manager_params = self.build_url({'mode': 'tmdblists_manager_choice', 'media_type': 'movie', 'tmdb_id': tmdb_id, 'icon': poster})
 			favorites_manager_params = self.build_url({'mode': 'favorites_manager_choice', 'media_type': 'movie', 'tmdb_id': tmdb_id, 'title': title})
 			trakt_watchlist_params = ''
-			if self.trakt_user:
+			if self.watchlist_provider:
 				watchlist_action = 'remove' if str_tmdb_id in self.watchlist_ids else 'add'
-				trakt_watchlist_params = self.build_url({'mode': 'trakt.toggle_watchlist', 'action': watchlist_action, 'tmdb_id': tmdb_id, 'imdb_id': imdb_id,
-														'tvdb_id': 'None', 'media_type': 'movie'})
+				trakt_watchlist_params = self.build_url({'mode': 'watchlist.toggle_watchlist', 'provider': self.watchlist_provider, 'action': watchlist_action,
+														'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': 'None', 'media_type': 'movie'})
 			belongs_to_movieset = 'true' if all([movieset_id, movieset_name]) else 'false'
 			skip_special = self.skip_inprogress and progress
 			item_open_extras = self.open_extras and not skip_special
@@ -341,10 +341,10 @@ class Movies:
 		self.rpdb_api_key, self.rpdb_format = rpdb_info['rpdb_api_key'], rpdb_info['rpdb_format']
 		watched_db = watched_status.get_database(self.watched_indicators)
 		self.watched_info, self.bookmarks = watched_status.watched_info_movie(watched_db), watched_status.get_bookmarks_movie(watched_db)
-		self.trakt_user = settings.trakt_user_active()
-		if self.trakt_user:
-			from apis.trakt_api import trakt_watchlist_tmdb_ids
-			self.watchlist_ids = trakt_watchlist_tmdb_ids('movie')
+		self.watchlist_provider = settings.active_watchlist_provider()
+		if self.watchlist_provider:
+			from modules.watchlist import watchlist_tmdb_ids
+			self.watchlist_ids = watchlist_tmdb_ids(self.watchlist_provider, 'movie')
 		else: self.watchlist_ids = set()
 		self.window_command = 'ActivateWindow(Videos,%s,return)' if self.is_external else 'Container.Update(%s)'
 		open_action = settings.media_open_action('movie')

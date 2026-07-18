@@ -579,6 +579,24 @@ def mdblist_watchlist(media_kind, page_no):
 	if settings.paginate(is_home): return paginate_list(original_list, page_no, settings.page_limit(is_home))
 	return original_list, 1
 
+def mdblist_watchlist_tmdb_ids(media_type):
+	try:
+		raw = _mdbl_watchlist_raw()
+		key = 'movies' if media_type == 'movie' else 'shows'
+		original_list = list(raw.get(key) or [])
+		if not original_list:
+			for item in raw.get('items') or []:
+				kind = _mdbl_item_media_kind(item)
+				if key == 'movies' and kind == 'movie': original_list.append(item)
+				elif key == 'shows' and kind == 'show': original_list.append(item)
+		media_kind = 'movie' if media_type == 'movie' else 'show'
+		ids = set()
+		for item in original_list:
+			entry = _mdbl_item_to_list_entry(item, media_kind)
+			if entry and entry.get('id'): ids.add(str(entry['id']))
+		return ids
+	except: return set()
+
 def mdblist_collection(media_kind, page_no):
 	string, url = 'mdblist_collection', 'sync/collection'
 	original_list = _mdbl_personal_list(_mdbl_collection_watchlist_items(string, url), media_kind)

@@ -35,6 +35,21 @@ def mdblist_user_active():
 	token = settings_cache.read_db_value('mdblist.token')
 	return user not in (None, 'empty_setting', '') and token not in (None, '0', '', 'empty_setting')
 
+WATCHLIST_PROVIDERS = ('trakt', 'simkl', 'mdblist')
+
+def watchlist_provider_setting():
+	return get_setting('redlight.watchlist.provider', 'auto')
+
+def active_watchlist_provider():
+	"""Watchlist provider for the context menu toggle: the user's choice when that service is
+	authorized, otherwise the first active service in WATCHLIST_PROVIDERS order, else None."""
+	checks = {'trakt': trakt_user_active, 'simkl': simkl_user_active, 'mdblist': mdblist_user_active}
+	preferred = watchlist_provider_setting()
+	if preferred in checks and checks[preferred](): return preferred
+	for provider in WATCHLIST_PROVIDERS:
+		if checks[provider](): return provider
+	return None
+
 def mdblist_sync_interval():
 	setting = get_setting('redlight.mdblist.sync_interval', '60')
 	try: interval = max(5, int(setting))
