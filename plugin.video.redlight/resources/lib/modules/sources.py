@@ -2494,24 +2494,6 @@ class Sources():
 		kodi_utils.notification('[B]Next Episode Ready:[/B] %s S%02dE%02d' \
 				% (meta.get('title'), meta.get('season'), meta.get('episode')), 6500, meta.get('poster') or None)
 
-	def _sync_autoscrape_ready_notified_player(self):
-		try:
-			player = kodi_utils.kodi_player()
-			if isinstance(player, RedLightPlayer):
-				player._autoscrape_ready_notified = True
-		except:
-			pass
-
-	def _notify_autoscrape_ready_immediate(self, remaining, window_time):
-		if getattr(self, '_autoscrape_ready_notified', False):
-			return
-		kodi_utils.logger('Red Light', 'Autoscrape next episode ready (confirm): %s S%02dE%02d remaining=%ss alert_window=%ss' % (
-			self.meta.get('title'), self.meta.get('season'), self.meta.get('episode'), remaining, window_time))
-		self._autoscrape_ready_notified = True
-		self._mark_autoscrape_nextep_ready()
-		self._show_autoscrape_ready_notification()
-		self._sync_autoscrape_ready_notified_player()
-
 	def _notify_autoscrape_ready(self, remaining, window_time):
 		kodi_utils.logger('Red Light', 'Autoscrape next episode ready: %s S%02dE%02d remaining=%ss alert_window=%ss' % (
 			self.meta.get('title'), self.meta.get('season'), self.meta.get('episode'), remaining, window_time))
@@ -2627,12 +2609,10 @@ class Sources():
 		return False
 
 	def autoscrape_nextep_handler(self):
-		autoscrape_confirmed = False
 		if settings.autoscrape_confirm():
 			if not self._make_still_watching_dialog('Autoscrape Next Episode of [B]%s[/B]?', heading='Autoscrape Next Episode?', right_align=True):
 				self._decline_nextep_prep('autoscrape confirm')
 				return
-			autoscrape_confirmed = True
 		player = kodi_utils.kodi_player()
 		if not self._player_episode_active(player):
 			return
@@ -2663,9 +2643,9 @@ class Sources():
 				kodi_utils.logger('Red Light', 'Autoscrape next episode ready (stopped during scrape): %s S%02dE%02d remaining=%ss alert_window=%ss' % (
 					self.meta.get('title'), self.meta.get('season'), self.meta.get('episode'), remaining, window_time))
 			return self._display_results_nextep_handoff(results)
-		if autoscrape_confirmed:
-			self._notify_autoscrape_ready_immediate(remaining, window_time)
-		elif remaining is not None and remaining <= int(window_time):
+		# Toast only in the alert window (same with or without Confirm) — Ready must mean
+		# handoff is imminent, not merely that the background scrape finished.
+		if remaining is not None and remaining <= int(window_time):
 			self._notify_autoscrape_ready(remaining, window_time)
 		else:
 			remaining, should_notify = self._wait_autoscrape_pop_window(player, window_time)
