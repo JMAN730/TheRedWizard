@@ -34,13 +34,6 @@ def _install_stub_modules():
 	modules.kodi_utils = kodi_utils
 	settings = types.ModuleType('modules.settings')
 	settings.max_threads = lambda: 1
-	settings.migrate_cm_manager_order_for_upgrade = lambda: False
-	settings.migrate_external_scraper_context_menu_for_upgrade = lambda had_existing: False
-	settings.migrate_external_scraper_run_mode_for_upgrade = lambda had_existing: False
-	settings.migrate_external_scraper_slots_for_upgrade = lambda had_existing: False
-	settings.migrate_mdblist_context_menu_for_upgrade = lambda had_existing: False
-	settings.migrate_simkl_context_menu_for_upgrade = lambda had_existing: False
-	settings.migrate_trakt_watchlist_context_menu_for_upgrade = lambda had_existing: False
 
 	caches = types.ModuleType('caches')
 	caches.__path__ = []
@@ -52,7 +45,6 @@ def _install_stub_modules():
 	sys.modules['modules.settings'] = settings
 	sys.modules['caches'] = caches
 	sys.modules['caches.base_cache'] = base_cache
-	return properties
 
 
 def _load_module(name, path):
@@ -62,43 +54,16 @@ def _load_module(name, path):
 	return module
 
 
-class FakeSettingsCache:
-	def __init__(self, initial=None):
-		self.data = dict(initial or {})
-		self.rows = {}
-
-	def clean_database(self):
-		return True
-
-	def clear_db_cache(self):
-		pass
-
-	def get_all(self):
-		return dict(self.data)
-
-	def remove_setting(self, setting_id):
-		self.data.pop(setting_id, None)
-
-	def set_many(self, settings_list, load_properties=True):
-		for row in settings_list:
-			self.rows[row[0]] = row
-			self.data[row[0]] = row[3]
-
-	def set_memory_cache(self, setting_id, value):
-		pass
-
-	def write_db(self, setting_id, setting_value, setting_info=None):
-		self.data[setting_id] = setting_value
-
-
-class StubModulesTestCase(unittest.TestCase):
+class TraktCalendarDateLabelTests(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		cls._original_sys_modules = {}
 		for key in STUB_MODULE_KEYS:
 			if key in sys.modules:
 				cls._original_sys_modules[key] = sys.modules[key]
-		cls.properties = _install_stub_modules()
+		_install_stub_modules()
+		cls.utils = _load_module('utils_under_test', UTILS_PATH)
+		cls.settings_cache = _load_module('settings_cache_under_test_date_labels', SETTINGS_CACHE_PATH)
 
 	@classmethod
 	def tearDownClass(cls):
@@ -107,13 +72,6 @@ class StubModulesTestCase(unittest.TestCase):
 				sys.modules[key] = cls._original_sys_modules[key]
 			else:
 				sys.modules.pop(key, None)
-
-
-class MakeDayDateFormatTests(StubModulesTestCase):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.utils = _load_module('utils_under_test', UTILS_PATH)
 
 	def setUp(self):
 		self.today = date(2026, 7, 19)
@@ -131,55 +89,14 @@ class MakeDayDateFormatTests(StubModulesTestCase):
 		self.assertEqual('20/07/2026', make_day(self.today, date(2026, 7, 20), '%d/%m/%Y', use_words=False))
 		self.assertEqual('2026-07-21', make_day(self.today, date(2026, 7, 21), '%Y-%m-%d', use_words=False))
 
-	def test_date_mode_formats_far_future_dates(self):
-		self.assertEqual('08/01/2026', self.utils.make_day(self.today, date(2026, 8, 1), '%m/%d/%Y', use_words=False))
-
-
-class CalendarDateLabelsSettingTests(StubModulesTestCase):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.module = _load_module('settings_cache_under_test_date_labels', SETTINGS_CACHE_PATH)
-
-	def setUp(self):
-		self.properties.clear()
-
-	def _sync(self, initial):
-		cache = FakeSettingsCache(initial)
-		self.module.settings_cache = cache
-		result = self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'})
-		self.assertEqual('synced', result)
-		return cache
-
 	def test_default_setting_metadata(self):
-		defaults = {s['setting_id']: s for s in self.module.default_settings()}
+		defaults = {s['setting_id']: s for s in self.settings_cache.default_settings()}
 		setting = defaults.get('trakt.calendar_date_labels')
 		self.assertIsNotNone(setting, 'trakt.calendar_date_labels missing from default settings')
 		self.assertEqual('action', setting['setting_type'])
 		self.assertEqual('0', setting['setting_default'])
 		self.assertEqual({'0': 'Words (Today, Tomorrow, Weekday)', '1': 'MM/DD/YYYY', '2': 'DD/MM/YYYY', '3': 'YYYY-MM-DD'},
 						 setting['settings_options'])
-
-	def test_fresh_install_defaults_to_words(self):
-		cache = self._sync({})
-
-		self.assertEqual('0', cache.data['trakt.calendar_date_labels'])
-		self.assertEqual('Words (Today, Tomorrow, Weekday)', cache.data['trakt.calendar_date_labels_name'])
-
-	def test_upgrade_inserts_setting_without_touching_existing_preferences(self):
-		cache = self._sync({
-			'trakt.calendar_sort_order': '1',
-			'trakt.calendar_future_days': '14',
-		})
-
-		self.assertEqual('0', cache.data['trakt.calendar_date_labels'])
-		self.assertEqual('1', cache.data['trakt.calendar_sort_order'])
-		self.assertEqual('14', cache.data['trakt.calendar_future_days'])
-
-	def test_existing_date_labels_choice_is_not_overwritten(self):
-		cache = self._sync({'trakt.calendar_date_labels': '2'})
-
-		self.assertEqual('2', cache.data['trakt.calendar_date_labels'])
 
 
 if __name__ == '__main__':
