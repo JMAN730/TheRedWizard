@@ -35,17 +35,39 @@ def audio_filter_choices():
 ('8CH AUDIO', '8CH'), ('7CH AUDIO', '7CH'), ('6CH AUDIO', '6CH'), ('2CH AUDIO', '2CH'))
 
 def audio_lang_choices():
+	# Alphabetical by display name (Sort To Top / filter menu order).
 	return (
 ('ENGLISH AUDIO', 'ENG', ('.eng.', '.english.')),
-('SPANISH AUDIO', 'SPA', ('.spa.', '.spanish.', '.esp.', '.castellano.', '.latino.')),
 ('FRENCH AUDIO', 'FRE', ('.fre.', '.french.', '.fra.', '.vff.', '.vfq.', '.truefrench.')),
 ('GERMAN AUDIO', 'GER', ('.ger.', '.german.', '.deu.')),
-('ITALIAN AUDIO', 'ITA', ('.ita.', '.italian.')),
-('PORTUGUESE AUDIO', 'POR', ('.por.', '.portuguese.', '.dublado.')),
 ('HINDI AUDIO', 'HIN', ('.hin.', '.hindi.')),
+('ITALIAN AUDIO', 'ITA', ('.ita.', '.italian.')),
 ('JAPANESE AUDIO', 'JPN', ('.jpn.', '.japanese.', '.jap.')),
 ('KOREAN AUDIO', 'KOR', ('.kor.', '.korean.')),
-('RUSSIAN AUDIO', 'RUS', ('.rus.', '.russian.')))
+('PORTUGUESE AUDIO', 'POR', ('.por.', '.portuguese.', '.dublado.')),
+('RUSSIAN AUDIO', 'RUS', ('.rus.', '.russian.')),
+('SPANISH AUDIO', 'SPA', ('.spa.', '.spanish.', '.esp.', '.castellano.', '.latino.')))
+
+ENG_OR_UNTAGGED_FILTER = ('ENGLISH OR UNTAGGED', 'ENG-OR-UNTAGGED')
+
+def foreign_audio_lang_tags():
+	return frozenset(tag for _, tag, _ in audio_lang_choices() if tag != 'ENG')
+
+def matches_english_or_untagged(tags):
+	# ENG tag, or no other audio-language tag (plain English rips are usually untagged).
+	tag_set = set()
+	for tag in tags or ():
+		cleaned = str(tag).replace('[B]', '').replace('[/B]', '').strip()
+		if cleaned: tag_set.add(cleaned)
+	if 'ENG' in tag_set: return True
+	return not tag_set.intersection(foreign_audio_lang_tags())
+
+def audio_lang_filter_entries():
+	entries = []
+	for name, tag, _ in audio_lang_choices():
+		entries.append((name, tag))
+		if tag == 'ENG': entries.append(ENG_OR_UNTAGGED_FILTER)
+	return tuple(entries)
 
 def source_filters():
 	return (
@@ -53,8 +75,8 @@ def source_filters():
 ('HEVC (X265)', '[B]HEVC[/B]'), ('REMUX', 'REMUX'), ('BLURAY', 'BLURAY'), ('AI ENHANCED/UPSCALED', '[B]AI ENHANCED/UPSCALED[/B]'), ('SDR', 'SDR'), ('3D', '[B]3D[/B]'),
 ('DOLBY ATMOS', 'ATMOS'), ('DOLBY TRUEHD', 'TRUEHD'), ('DOLBY DIGITAL EX', 'DD-EX'), ('DOLBY DIGITAL PLUS', 'DD+'), ('DOLBY DIGITAL', 'DD'),
 ('DTS-HD MASTER AUDIO', 'DTS-HD MA'), ('DTS-X', 'DTS-X'), ('DTS-HD', 'DTS-HD'), ('DTS', 'DTS'), ('AAC', 'AAC'), ('OPUS', 'OPUS'), ('MP3', 'MP3'), ('8CH AUDIO', '8CH'),
-('7CH AUDIO', '7CH'), ('6CH AUDIO', '6CH'), ('2CH AUDIO', '2CH'), ('DVD SOURCE', 'DVD'), ('WEB SOURCE', 'WEB'), ('MULTIPLE LANGUAGES', 'MULTI-LANG'),
-('SUBTITLES', 'SUBS')) + tuple((name, tag) for name, tag, _ in audio_lang_choices())
+('7CH AUDIO', '7CH'), ('6CH AUDIO', '6CH'), ('2CH AUDIO', '2CH'), ('DVD SOURCE', 'DVD'), ('WEB SOURCE', 'WEB'),
+('SUBTITLES', 'SUBS'), ('MULTIPLE LANGUAGES', 'MULTI-LANG')) + audio_lang_filter_entries()
 
 def include_exclude_filters():
 	return {'hevc': 'HEVC', '3d': '3D', 'hdr': 'HDR', 'dv': 'D/VISION', 'av1': 'AV1', 'enhanced_upscaled': 'AI ENHANCED/UPSCALED', 'hybrid': 'HYBRID'}

@@ -58,9 +58,9 @@ def _load_source_utils_module():
 source_utils = _load_source_utils_module()
 
 EXPECTED_LANGS = (
-	('ENGLISH AUDIO', 'ENG'), ('SPANISH AUDIO', 'SPA'), ('FRENCH AUDIO', 'FRE'), ('GERMAN AUDIO', 'GER'),
-	('ITALIAN AUDIO', 'ITA'), ('PORTUGUESE AUDIO', 'POR'), ('HINDI AUDIO', 'HIN'), ('JAPANESE AUDIO', 'JPN'),
-	('KOREAN AUDIO', 'KOR'), ('RUSSIAN AUDIO', 'RUS'))
+	('ENGLISH AUDIO', 'ENG'), ('FRENCH AUDIO', 'FRE'), ('GERMAN AUDIO', 'GER'), ('HINDI AUDIO', 'HIN'),
+	('ITALIAN AUDIO', 'ITA'), ('JAPANESE AUDIO', 'JPN'), ('KOREAN AUDIO', 'KOR'), ('PORTUGUESE AUDIO', 'POR'),
+	('RUSSIAN AUDIO', 'RUS'), ('SPANISH AUDIO', 'SPA'))
 
 
 def _info_tags(release_title):
@@ -122,6 +122,24 @@ class TestSourceFilters(unittest.TestCase):
 		filters = source_utils.source_filters()
 		for name, tag in EXPECTED_LANGS:
 			self.assertIn((name, tag), filters)
+		self.assertIn(source_utils.ENG_OR_UNTAGGED_FILTER, filters)
+
+	def test_english_or_untagged_follows_english_audio(self):
+		filters = source_utils.source_filters()
+		eng_idx = filters.index(('ENGLISH AUDIO', 'ENG'))
+		self.assertEqual(filters[eng_idx + 1], source_utils.ENG_OR_UNTAGGED_FILTER)
+
+	def test_language_block_order(self):
+		filters = source_utils.source_filters()
+		subs_idx = filters.index(('SUBTITLES', 'SUBS'))
+		multi_idx = filters.index(('MULTIPLE LANGUAGES', 'MULTI-LANG'))
+		eng_idx = filters.index(('ENGLISH AUDIO', 'ENG'))
+		self.assertLess(subs_idx, multi_idx)
+		self.assertEqual(multi_idx, subs_idx + 1)
+		self.assertEqual(eng_idx, multi_idx + 1)
+		self.assertEqual(filters[eng_idx + 1], source_utils.ENG_OR_UNTAGGED_FILTER)
+		lang_tail = filters[eng_idx + 2:eng_idx + 2 + len(EXPECTED_LANGS) - 1]
+		self.assertEqual(lang_tail, EXPECTED_LANGS[1:])
 
 	def test_audio_lang_choices_shape(self):
 		choices = source_utils.audio_lang_choices()
@@ -130,6 +148,24 @@ class TestSourceFilters(unittest.TestCase):
 			self.assertTrue(patterns)
 			for pattern in patterns:
 				self.assertTrue(pattern.startswith('.') and pattern.endswith('.'))
+
+
+class TestEnglishOrUntagged(unittest.TestCase):
+
+	def test_plain_release_matches(self):
+		self.assertTrue(source_utils.matches_english_or_untagged(['BLURAY', 'WEB', 'HEVC']))
+
+	def test_eng_tagged_matches(self):
+		self.assertTrue(source_utils.matches_english_or_untagged(['BLURAY', 'ENG']))
+
+	def test_dual_audio_with_eng_matches(self):
+		self.assertTrue(source_utils.matches_english_or_untagged(['ITA', 'ENG', 'MULTI-LANG']))
+
+	def test_foreign_only_does_not_match(self):
+		self.assertFalse(source_utils.matches_english_or_untagged(['ITA', 'BLURAY']))
+
+	def test_multi_lang_alone_matches(self):
+		self.assertTrue(source_utils.matches_english_or_untagged(['MULTI-LANG', 'WEB']))
 
 
 if __name__ == '__main__':

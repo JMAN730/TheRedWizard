@@ -624,6 +624,17 @@ def get_in_progress_tvshows(dummy_arg, page_no):
 	else: results = sorted(results, key=lambda x: x['last_played'], reverse=True)
 	return results
 
+def get_in_progress_tvshow_ids(watched_db=None):
+	"""TMDb IDs for shows that have at least one in-progress episode resume bookmark."""
+	if not watched_db: watched_db = get_database()
+	try:
+		rows = watched_db.execute(
+			'SELECT DISTINCT media_id FROM progress WHERE db_type = ? AND CAST(resume_point AS FLOAT) > 1',
+			('episode',)).fetchall()
+		return set(str(i[0]) for i in rows if i[0] not in (None, ''))
+	except:
+		return set()
+
 def get_in_progress_episodes():
 	watched_indicators = settings.watched_indicators()
 	dbcon = get_database(watched_indicators)

@@ -852,15 +852,16 @@
                           <property name="setting_label">Movies</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.media_open_action_movie_name)]</property>
-                          <property name="setting_description">Choose the Open Action when a Movie is selected in Red Light. Choices Are None, Open Extras, Open Movie Set, Both. "Both" will open the Movie Set if available or open Extras</property>
+                          <property name="setting_description">Choose the Open Action when a Movie is selected in Red Light. Choices Are None, Open Extras, Open Movie Set, Both. "Both" will open the Movie Set if available or open Extras.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=media_open_action_movie)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(20)</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.media_open_action_movie),0)</visible>
                           <property name="setting_label">Skip on In-Progress Movies</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.media_open_action_skip_inprogress_movie)]</property>
-                          <property name="setting_description">Choose this and the Movies Open Action (Extras / Movie Set) is skipped for in-progress movies, resuming playback directly. Extras and Movie Set remain available in the context menu</property>
+                          <property name="setting_description">Choose this and the Movies Open Action (Extras / Movie Set) is skipped for in-progress movies, resuming playback directly. Extras and Movie Set remain available in the context menu.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=media_open_action_skip_inprogress_movie)</onclick>
                       </item>
                       <item>
@@ -868,8 +869,17 @@
                           <property name="setting_label">TV Shows</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.media_open_action_tvshow_name)]</property>
-                          <property name="setting_description">Choose the Open Action when a TV Show is selected in Red Light. Choices Are None or Open Extras</property>
+                          <property name="setting_description">Choose the Open Action when a TV Show is selected in Red Light. Choices Are None or Open Extras.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=media_open_action_tvshow)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(20)</visible>
+                          <visible>!String.IsEqual(Window(10000).Property(redlight.media_open_action_tvshow),0)</visible>
+                          <property name="setting_label">Skip on In-Progress Shows</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(redlight.media_open_action_skip_inprogress_tvshow)]</property>
+                          <property name="setting_description">Choose this and the TV Shows Open Action (Extras) is skipped when the show has an in-progress episode, opening seasons/episodes instead. Partially watched shows without a resume point are unchanged. Extras remains available in the context menu.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_boolean&amp;setting_id=media_open_action_skip_inprogress_tvshow)</onclick>
                       </item>
         <!-- RPDb Ratings Posters -->
                       <item>
@@ -1562,7 +1572,7 @@
                           <property name="setting_label">Calendar Date Labels</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.trakt.calendar_date_labels_name)]</property>
-                          <property name="setting_description">Choose how Red Light labels the airdate of episodes in the Trakt Calendar. Words uses Today, Tomorrow and weekday names. The date formats always show the full date, keeping the list in plain chronological order</property>
+                          <property name="setting_description">Choose how Red Light labels the airdate of episodes in the Trakt Calendar. Words uses Today, Tomorrow and weekday names. The date formats always show the full date, keeping the list in plain chronological order.</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=trakt.calendar_date_labels)</onclick>
                       </item>
                       <item>

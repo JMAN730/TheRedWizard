@@ -256,7 +256,9 @@ class TVShows:
 				if self.all_episodes == 1 and total_seasons > 1: url_params = self.build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
 				else: url_params = self.build_url({'mode': 'build_episode_list', 'tmdb_id': tmdb_id, 'season': 'all'})
 			else: url_params = self.build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
-			if self.open_extras:
+			item_open_extras = self.open_extras and not (self.skip_inprogress and str(tmdb_id) in self.in_progress_show_ids)
+			item_is_folder = not item_open_extras
+			if item_open_extras:
 				cm_append(['extras', ('[B]Browse[/B]', 'Container.Update(%s)' % url_params)])
 				url_params = extras_params
 			else: cm_append(['extras', ('[B]Extras[/B]', 'RunPlugin(%s)' % extras_params)])
@@ -271,6 +273,7 @@ class TVShows:
 			if simkl_manager_params: cm_append(['simkl_manager', ('[B]Simkl Lists Manager[/B]', 'RunPlugin(%s)' % simkl_manager_params)])
 			cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
 			cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
+			settings.append_list_shortcut_context_menus(cm_append, self.build_url, self.cm_sort_order, 'tvshow', tmdb_id, imdb_id, tvdb_id, title, poster)
 			cm_append(['personal_manager', ('[B]Personal Lists Manager[/B]', 'RunPlugin(%s)' % personal_manager_params)])
 			cm_append(['favorites_manager', ('[B]Favorites Manager[/B]', 'RunPlugin(%s)' % favorites_manager_params)])
 			if playcount:
@@ -317,7 +320,7 @@ class TVShows:
 				'redlight.tmdb_manager_params': tmdb_manager_params,
 				'redlight.favorites_manager_params': favorites_manager_params
 				})
-			self.append(((url_params, listitem, self.is_folder), _position))
+			self.append(((url_params, listitem, item_is_folder), _position))
 		except: pass
 
 	def worker(self):
@@ -331,8 +334,10 @@ class TVShows:
 		self.all_episodes, self.open_extras = settings.default_all_episodes(), settings.media_open_action('tvshow') == 1
 		self.cm_sort_order = settings.cm_sort_order()
 		self.custom_cm_menu = self.cm_sort_order != settings.cm_default_order()
-		self.is_folder = False if self.open_extras else True
 		self.watched_indicators = settings.watched_indicators()
+		self.skip_inprogress = settings.media_open_action_skip_inprogress_tvshow()
+		watched_db = watched_status.get_database(self.watched_indicators)
+		self.in_progress_show_ids = watched_status.get_in_progress_tvshow_ids(watched_db) if self.skip_inprogress else set()
 		browsing_external_lists = self.action in self.simkl_personal or self.action in self.mdblist_personal or self.action in self.trakt_personal
 		if self.watched_indicators == 2 and settings.simkl_user_active() and not browsing_external_lists:
 			from apis.simkl_api import simkl_sync_activities
@@ -340,7 +345,7 @@ class TVShows:
 		if self.watched_indicators == 3 and settings.mdblist_user_active() and not browsing_external_lists:
 			from apis.mdblist_api import mdblist_sync_activities
 			mdblist_sync_activities()
-		self.watched_info = watched_status.watched_info_tvshow(watched_status.get_database(self.watched_indicators))
+		self.watched_info = watched_status.watched_info_tvshow(watched_db)
 		self.window_command = 'ActivateWindow(Videos,%s,return)' if self.is_external else 'Container.Update(%s)'
 		if self.custom_order:
 			threads = TaskPool().tasks(self.build_tvshow_content, self.list, min(len(self.list), settings.max_threads()))

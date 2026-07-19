@@ -251,6 +251,7 @@ class Movies:
 				url_params = play_params
 			cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
 			cm_append(['playback_options', ('[B]Play Options[/B]', 'RunPlugin(%s)' % playback_options_params)])
+			settings.append_source_shortcut_context_menus(cm_append, self.build_url, self.cm_sort_order, 'movie', tmdb_id)
 			settings.append_external_scraper_settings_cm(cm_append, self.build_url)
 			if belongs_to_movieset == 'true' and not self.movieset_list_active and not item_open_movieset:
 				browse_movie_set_params = self.build_url({'mode': 'build_movie_list', 'action': 'tmdb_movies_sets', 'key_id': movieset_id,
@@ -266,6 +267,7 @@ class Movies:
 			if simkl_manager_params: cm_append(['simkl_manager', ('[B]Simkl Lists Manager[/B]', 'RunPlugin(%s)' % simkl_manager_params)])
 			cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
 			cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
+			settings.append_list_shortcut_context_menus(cm_append, self.build_url, self.cm_sort_order, 'movie', tmdb_id, imdb_id, 'None', title, poster)
 			cm_append(['personal_manager', ('[B]Personal Lists Manager[/B]', 'RunPlugin(%s)' % personal_manager_params)])
 			cm_append(['favorites_manager', ('[B]Favorites Manager[/B]', 'RunPlugin(%s)' % favorites_manager_params)])
 			if playcount:

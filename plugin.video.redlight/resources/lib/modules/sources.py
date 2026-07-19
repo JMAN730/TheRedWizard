@@ -10,7 +10,7 @@ from caches.settings_cache import get_setting
 from scrapers import external, folders
 from modules import debrid, kodi_utils, settings, metadata, watched_status
 from modules.player import RedLightPlayer
-from modules.source_utils import get_cache_expiry, make_alias_dict, include_exclude_filters, get_file_info, release_info_format, audio_lang_choices
+from modules.source_utils import get_cache_expiry, make_alias_dict, include_exclude_filters, get_file_info, release_info_format, audio_lang_choices, matches_english_or_untagged
 from modules.utils import clean_file_name, string_to_float, safe_string, remove_accents, get_datetime, append_module_to_syspath, manual_function_import
 # logger = kodi_utils.logger
 
@@ -717,7 +717,8 @@ class Sources():
 	def _normalize_pref_tag(self, tag):
 		key = (tag or '').lower().replace('[b]', '').replace('[/b]', '').strip()
 		if key in self.filter_keys: return self.filter_keys[key]
-		aliases = {'d/vision': 'D/VISION', 'dolby vision': 'D/VISION', 'hdr': 'HDR', 'high dynamic range (hdr)': 'HDR', 'dolby atmos': 'ATMOS', 'atmos': 'ATMOS', 'hevc (x265)': 'HEVC', 'hevc': 'HEVC'}
+		aliases = {'d/vision': 'D/VISION', 'dolby vision': 'D/VISION', 'hdr': 'HDR', 'high dynamic range (hdr)': 'HDR', 'dolby atmos': 'ATMOS', 'atmos': 'ATMOS', 'hevc (x265)': 'HEVC', 'hevc': 'HEVC',
+					'english or untagged': 'ENG-OR-UNTAGGED', 'eng-or-untagged': 'ENG-OR-UNTAGGED'}
 		aliases.update({name.lower(): lang_tag for name, lang_tag, _ in audio_lang_choices()})
 		return aliases.get(key, tag)
 
@@ -769,10 +770,12 @@ class Sources():
 		return 'SDR' in self._all_extra_info_tags(item)
 
 	def _pref_tag_in_result(self, tag, item):
+		normalized = self._normalize_pref_tag(tag)
+		if normalized == 'ENG-OR-UNTAGGED':
+			return matches_english_or_untagged(self._parse_extra_info_tags(self._all_extra_info_tags(item)))
 		if self._pref_tag_in_extra_info(tag, item.get('extraInfo', '')): return True
 		if self._pref_tag_in_extra_info(tag, self._all_extra_info_tags(item)): return True
 		if self._explicit_sdr_release(item): return False
-		normalized = self._normalize_pref_tag(tag)
 		blob = self._normalized_title_blob(item)
 		if normalized == 'D/VISION' and any(x in blob for x in ('dolby vision', 'dolbyvision', ' dovi ', ' dv ', 'dovi', 'profile 8', 'profile8')): return True
 		if normalized == 'ATMOS' and ('atmos' in blob or ('ddp' in blob and 'atmos' in blob)): return True

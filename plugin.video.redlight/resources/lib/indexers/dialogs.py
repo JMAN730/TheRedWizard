@@ -656,9 +656,18 @@ def _trakt_manager_mark(params, action):
 	except: pass
 	return ws.mark_tvshow(mark_params)
 
+def _trakt_manager_payload(params):
+	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params.get('tvdb_id'), params.get('imdb_id'), params['media_type']
+	if media_type == 'movie': key, media_key, media_id = ('movies', 'tmdb', int(tmdb_id))
+	else:
+		key = 'shows'
+		media_ids = [(tmdb_id, 'tmdb'), (imdb_id, 'imdb'), (tvdb_id, 'tvdb')]
+		media_id, media_key = next(item for item in media_ids if item[0] not in ('None', None, ''))
+		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
+	return {key: [{'ids': {media_key: media_id}}]}
+
 def trakt_manager_choice(params):
 	if not settings.trakt_user_active(): return kodi_utils.notification('No Active Trakt Account', 3500)
-	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params['tvdb_id'], params['imdb_id'], params['media_type']
 	icon = params.get('icon', None) or kodi_utils.get_icon('trakt')
 	choices = [('Add to [B]Watchlist[/B]', 'add_watchlist'), ('Remove from [B]Watchlist[/B]', 'remove_watchlist'),
 				('Add to [B]Collection[/B]', 'add_collection'), ('Remove from [B]Collection[/B]', 'remove_collection'),
@@ -668,13 +677,7 @@ def trakt_manager_choice(params):
 	choice = kodi_utils.select_dialog([i[1] for i in choices], **kwargs)
 	if choice == None: return
 	from apis import trakt_api
-	if media_type == 'movie': key, media_key, media_id = ('movies', 'tmdb', int(tmdb_id))
-	else:
-		key = 'shows'
-		media_ids = [(tmdb_id, 'tmdb'), (imdb_id, 'imdb'), (tvdb_id, 'tvdb')]
-		media_id, media_key = next(item for item in media_ids if item[0] not in ('None', None, ''))
-		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
-	data = {key: [{'ids': {media_key: media_id}}]}
+	data = _trakt_manager_payload(params)
 	if choice == 'add_watchlist': return trakt_api.add_to_watchlist(data)
 	if choice == 'remove_watchlist': return trakt_api.remove_from_watchlist(data)
 	if choice == 'add_collection': return trakt_api.add_to_collection(data)
@@ -683,13 +686,100 @@ def trakt_manager_choice(params):
 	if selected == None: return
 	trakt_api.add_to_list(selected['user'], selected['slug'], data) if choice == 'add' else trakt_api.remove_from_list(selected['user'], selected['slug'], data)
 
+def _trakt_list_shortcut_choice(params, list_type):
+	if not settings.trakt_user_active(): return kodi_utils.notification('No Active Trakt Account', 3500)
+	from apis import trakt_api
+	label = 'Watchlist' if list_type == 'watchlist' else 'Collection'
+	heading = params.get('title') or ('Trakt %s' % label)
+	in_list = trakt_api.trakt_item_in_sync_list(list_type, params['media_type'], params.get('tmdb_id'), params.get('imdb_id'), params.get('tvdb_id'))
+	text = 'Remove from %s?' % label if in_list else 'Add to %s?' % label
+	if not kodi_utils.confirm_dialog(heading=heading, text=text): return
+	data = _trakt_manager_payload(params)
+	if list_type == 'watchlist':
+		return trakt_api.remove_from_watchlist(data) if in_list else trakt_api.add_to_watchlist(data)
+	return trakt_api.remove_from_collection(data) if in_list else trakt_api.add_to_collection(data)
+
+def trakt_watchlist_shortcut_choice(params):
+	return _trakt_list_shortcut_choice(params, 'watchlist')
+
+def trakt_collection_shortcut_choice(params):
+	return _trakt_list_shortcut_choice(params, 'collection')
+
 def simkl_manager_choice(params):
 	from apis import simkl_api
 	return simkl_api.simkl_manager_choice(params)
 
+def simkl_plantowatch_shortcut_choice(params):
+	if not settings.simkl_user_active(): return kodi_utils.notification('No Active Simkl Account', 3500)
+	from apis import simkl_api
+	media_type = params.get('media_type') or 'movie'
+	list_media = 'movie' if media_type == 'movie' else 'tvshow'
+	tmdb_id, imdb_id, tvdb_id = params.get('tmdb_id'), params.get('imdb_id'), params.get('tvdb_id')
+	heading = params.get('title') or 'Simkl Plan to Watch'
+	in_list = simkl_api._simkl_item_in_status(list_media, 'plantowatch', imdb_id, tvdb_id, tmdb_id)
+	text = 'Remove from Plan to Watch?' if in_list else 'Add to Plan to Watch?'
+	if not kodi_utils.confirm_dialog(heading=heading, text=text): return
+	if in_list: return simkl_api.simkl_remove_from_list('plantowatch', tmdb_id, list_media, imdb_id, tvdb_id)
+	return simkl_api.simkl_add_to_list('plantowatch', tmdb_id, list_media, imdb_id, tvdb_id)
+
 def mdblist_manager_choice(params):
 	from apis import mdblist_api
 	return mdblist_api.mdblist_manager_choice(params)
+
+def _mdblist_list_shortcut_choice(params, list_type):
+	if not settings.mdblist_user_active(): return kodi_utils.notification('No Active MDBList Account', 3500)
+	from apis import mdblist_api
+	media_type = params.get('media_type') or 'movie'
+	list_media = 'movie' if media_type == 'movie' else 'tvshow'
+	tmdb_id, imdb_id = params.get('tmdb_id'), params.get('imdb_id')
+	label = 'MDBList Watchlist' if list_type == 'watchlist' else 'MDBList Library'
+	heading = params.get('title') or label
+	in_list = mdblist_api._mdbl_item_in_watchlist(list_media, tmdb_id) if list_type == 'watchlist' else mdblist_api._mdbl_item_in_library(list_media, tmdb_id)
+	text = 'Remove from %s?' % label if in_list else 'Add to %s?' % label
+	if not kodi_utils.confirm_dialog(heading=heading, text=text): return
+	if list_type == 'watchlist':
+		return mdblist_api.mdblist_remove_from_watchlist(tmdb_id, list_media, imdb_id) if in_list else mdblist_api.mdblist_add_to_watchlist(tmdb_id, list_media, imdb_id)
+	return mdblist_api.mdblist_remove_from_library(tmdb_id, list_media, imdb_id) if in_list else mdblist_api.mdblist_add_to_library(tmdb_id, list_media, imdb_id)
+
+def mdblist_watchlist_shortcut_choice(params):
+	return _mdblist_list_shortcut_choice(params, 'watchlist')
+
+def mdblist_library_shortcut_choice(params):
+	return _mdblist_list_shortcut_choice(params, 'library')
+
+def _tmdb_watchfav_shortcut_choice(params, list_id):
+	from caches.tmdb_lists import tmdb_lists_cache
+	from indexers.tmdb_lists import check_item_status_watchfav, add_remove_watchfavs
+	media_type, tmdb_id = params['media_type'], params['tmdb_id']
+	if media_type in ('movie', 'movies'): media_type = 'movie'
+	else: media_type = 'tv'
+	try: tmdb_id = int(tmdb_id)
+	except: return kodi_utils.notification('Error', 3000)
+	label = 'TMDb Watchlist' if list_id == 'watchlist' else 'TMDb Favorites'
+	heading = params.get('title') or label
+	in_list = check_item_status_watchfav(list_id, media_type, tmdb_id)
+	text = 'Remove from %s?' % label if in_list else 'Add to %s?' % label
+	if not kodi_utils.confirm_dialog(heading=heading, text=text): return
+	success = add_remove_watchfavs(media_type, tmdb_id, list_id, not in_list)
+	tmdb_lists_cache.clear_watchfavrecs(list_id, media_type)
+	if not success: return
+	kodi_utils.notification('Success', 3000)
+
+def tmdb_watchlist_shortcut_choice(params):
+	return _tmdb_watchfav_shortcut_choice(params, 'watchlist')
+
+def tmdb_favorites_shortcut_choice(params):
+	return _tmdb_watchfav_shortcut_choice(params, 'favorites')
+
+def select_source_choice(params):
+	p = dict(params)
+	p['playback_action'] = 'scrape'
+	return playback_choice(p)
+
+def rescrape_select_source_choice(params):
+	p = dict(params)
+	p['playback_action'] = 'clear_and_rescrape'
+	return playback_choice(p)
 
 def episode_groups_choice(params):
 	from modules.metadata import episode_groups
@@ -752,10 +842,12 @@ def playback_choice(params):
 	if media_type == 'episode': items.append({'line': 'Scrape with Custom Episode Groups Value', 'function': 'scrape_with_episode_group'})
 	if aliases: items.append({'line': 'Scrape with an Alias', 'function': 'scrape_with_aliases'})
 	items.append({'line': 'Scrape with Custom Values', 'function': 'scrape_with_custom_values'})
-	list_items = [{'line1': i['line'], 'icon': poster} for i in items]
-	kwargs = {'items': json.dumps(list_items), 'heading': 'Playback Options'}
-	choice = kodi_utils.select_dialog([i['function'] for i in items], **kwargs)
-	if choice == None: return kodi_utils.notification('Cancelled', 2500)
+	choice = params.get('playback_action')
+	if not choice:
+		list_items = [{'line1': i['line'], 'icon': poster} for i in items]
+		kwargs = {'items': json.dumps(list_items), 'heading': 'Playback Options'}
+		choice = kodi_utils.select_dialog([i['function'] for i in items], **kwargs)
+		if choice == None: return kodi_utils.notification('Cancelled', 2500)
 	if choice in ('clear_and_rescrape', 'scrape_with_custom_values'):
 		kodi_utils.show_busy_dialog()
 		from caches.base_cache import clear_cache

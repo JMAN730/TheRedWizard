@@ -481,6 +481,26 @@ def remove_from_list(user, slug, data):
 	if kodi_utils.path_check('my_lists') or kodi_utils.external(): kodi_utils.kodi_refresh()
 	return result
 
+def trakt_item_in_sync_list(list_type, media_type, tmdb_id=None, imdb_id=None, tvdb_id=None):
+	media = 'movie' if media_type in ('movie', 'movies') else 'show'
+	try:
+		data = trakt_fetch_collection_watchlist(list_type, media) or []
+	except:
+		return False
+	for item in data:
+		ids = item.get('media_ids') or {}
+		try:
+			if tmdb_id not in (None, '', 'None') and ids.get('tmdb') not in (None, '', 'None') and int(ids['tmdb']) == int(tmdb_id):
+				return True
+		except: pass
+		if imdb_id not in (None, '', 'None') and ids.get('imdb') and str(ids['imdb']) == str(imdb_id):
+			return True
+		try:
+			if tvdb_id not in (None, '', 'None') and ids.get('tvdb') not in (None, '', 'None') and int(ids['tvdb']) == int(tvdb_id):
+				return True
+		except: pass
+	return False
+
 def add_to_watchlist(data):
 	result = call_trakt('/sync/watchlist', data=data)
 	if result['existing']['movies'] + result['existing']['shows'] > 0: return kodi_utils.notification('Already In List', 3000)

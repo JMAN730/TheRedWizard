@@ -745,6 +745,43 @@ def append_external_scraper_settings_cm(cm_append, build_url_fn):
 	cm_append(['external_scraper_settings', ('[B]%s[/B]' % external_scraper_settings_tools_label(),
 		'RunPlugin(%s)' % build_url_fn({'mode': 'open_external_scraper_settings'}))])
 
+def append_cm_if_enabled(cm_append, cm_sort_order, key, label, command):
+	# Opt-in shortcuts must gate on enabled membership — stock menus show every cm_append.
+	if key not in (cm_sort_order or {}): return
+	cm_append([key, (label, command)])
+
+def append_list_shortcut_context_menus(cm_append, build_url_fn, cm_sort_order, media_type, tmdb_id, imdb_id, tvdb_id, title, poster):
+	# Catalog lists every service; live CM only appends shortcuts for authorised accounts.
+	base = {'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id or 'None', 'media_type': media_type, 'title': title, 'icon': poster}
+	if mdblist_user_active():
+		append_cm_if_enabled(cm_append, cm_sort_order, 'mdblist_watchlist', '[B]MDBList Watchlist[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='mdblist_watchlist_shortcut_choice')))
+		append_cm_if_enabled(cm_append, cm_sort_order, 'mdblist_library', '[B]MDBList Library[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='mdblist_library_shortcut_choice')))
+	if simkl_user_active():
+		append_cm_if_enabled(cm_append, cm_sort_order, 'simkl_plantowatch', '[B]Simkl Plan to Watch[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='simkl_plantowatch_shortcut_choice')))
+	if trakt_user_active():
+		append_cm_if_enabled(cm_append, cm_sort_order, 'trakt_watchlist', '[B]Trakt Watchlist[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='trakt_watchlist_shortcut_choice')))
+		append_cm_if_enabled(cm_append, cm_sort_order, 'trakt_collection', '[B]Trakt Collection[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='trakt_collection_shortcut_choice')))
+	if tmdblist_user_active():
+		tmdb_media = 'movie' if media_type == 'movie' else 'tv'
+		append_cm_if_enabled(cm_append, cm_sort_order, 'tmdb_watchlist', '[B]TMDb Watchlist[/B]',
+			'RunPlugin(%s)' % build_url_fn({'mode': 'tmdb_watchlist_shortcut_choice', 'media_type': tmdb_media, 'tmdb_id': tmdb_id, 'title': title, 'icon': poster}))
+		append_cm_if_enabled(cm_append, cm_sort_order, 'tmdb_favorites', '[B]TMDb Favorites[/B]',
+			'RunPlugin(%s)' % build_url_fn({'mode': 'tmdb_favorites_shortcut_choice', 'media_type': tmdb_media, 'tmdb_id': tmdb_id, 'title': title, 'icon': poster}))
+
+def append_source_shortcut_context_menus(cm_append, build_url_fn, cm_sort_order, media_type, meta, season='', episode='', playcount='0'):
+	params = {'media_type': media_type, 'meta': meta, 'playcount': playcount}
+	if media_type == 'episode':
+		params.update({'season': season, 'episode': episode})
+	append_cm_if_enabled(cm_append, cm_sort_order, 'select_source', '[B]Select Source[/B]',
+		'RunPlugin(%s)' % build_url_fn(dict(params, mode='select_source_choice')))
+	append_cm_if_enabled(cm_append, cm_sort_order, 'rescrape_select_source', '[B]Rescrape & Select Source[/B]',
+		'RunPlugin(%s)' % build_url_fn(dict(params, mode='rescrape_select_source_choice')))
+
 def external_scraper_run_mode():
 	return str(get_setting('redlight.external_scraper.run_mode', '1'))
 
@@ -959,6 +996,9 @@ def media_open_action(media_type):
 
 def media_open_action_skip_inprogress_movie():
 	return get_setting('redlight.media_open_action_skip_inprogress_movie', 'false') == 'true'
+
+def media_open_action_skip_inprogress_tvshow():
+	return get_setting('redlight.media_open_action_skip_inprogress_tvshow', 'false') == 'true'
 
 def _resolve_watched_provider():
 	ind = int(get_setting('redlight.watched_indicators', '0'))
