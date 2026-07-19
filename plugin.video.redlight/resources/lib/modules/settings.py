@@ -941,7 +941,9 @@ def calendar_sort_order():
 def calendar_date_format():
 	# None means word labels (Today, Tomorrow, weekday names)
 	formats = {1: '%m/%d/%Y', 2: '%d/%m/%Y', 3: '%Y-%m-%d'}
-	return formats.get(int(get_setting('redlight.trakt.calendar_date_labels', '0')))
+	try: choice = int(get_setting('redlight.trakt.calendar_date_labels', '0'))
+	except (TypeError, ValueError): return None
+	return formats.get(choice)
 
 def ignore_articles():
 	return get_setting('redlight.ignore_articles', 'false') == 'true'

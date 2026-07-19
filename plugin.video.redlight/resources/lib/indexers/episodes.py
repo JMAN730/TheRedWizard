@@ -220,9 +220,12 @@ def build_single_episode(list_type, params={}):
 				else: highlight_start, highlight_end = '', ''
 				display = '%s%s%s%s%s%s' % (display_premiered, title_str, highlight_start, seas_ep, ep_name, highlight_end)
 			elif list_type_compare == 'trakt_calendar':
-				if not episode_date: display_premiered = 'UNKNOWN'
-				elif calendar_date_format: display_premiered = make_day(current_date, episode_date, calendar_date_format, use_words=False)
-				else: display_premiered = make_day(current_date, episode_date)
+				if not episode_date:
+					display_premiered = 'UNKNOWN'
+				elif calendar_date_format:
+					display_premiered = make_day(current_date, episode_date, calendar_date_format, use_words=False)
+				else:
+					display_premiered = make_day(current_date, episode_date)
 				display = '[%s] %s%s%s' % (display_premiered, title_str, seas_ep, ep_name)
 			else: display = '%s%s%s' % (title_str, seas_ep, ep_name)
 			if no_spoilers and not playcount: thumb, plot = show_landscape or show_fanart, tvshow_plot or '* Hidden to Prevent Spoilers *'
