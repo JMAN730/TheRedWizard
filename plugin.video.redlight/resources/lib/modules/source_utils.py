@@ -34,6 +34,19 @@ def audio_filter_choices():
 ('DTS', 'DTS'), ('DTS-HD MASTER AUDIO', 'DTS-HD MA'), ('DTS-X', 'DTS-X'), ('DTS-HD', 'DTS-HD'), ('AAC', 'AAC'), ('OPUS', 'OPUS'), ('MP3', 'MP3'),
 ('8CH AUDIO', '8CH'), ('7CH AUDIO', '7CH'), ('6CH AUDIO', '6CH'), ('2CH AUDIO', '2CH'))
 
+def audio_lang_choices():
+	return (
+('ENGLISH AUDIO', 'ENG', ('.eng.', '.english.')),
+('SPANISH AUDIO', 'SPA', ('.spa.', '.spanish.', '.esp.', '.castellano.', '.latino.')),
+('FRENCH AUDIO', 'FRE', ('.fre.', '.french.', '.fra.', '.vff.', '.vfq.', '.truefrench.')),
+('GERMAN AUDIO', 'GER', ('.ger.', '.german.', '.deu.')),
+('ITALIAN AUDIO', 'ITA', ('.ita.', '.italian.')),
+('PORTUGUESE AUDIO', 'POR', ('.por.', '.portuguese.', '.dublado.')),
+('HINDI AUDIO', 'HIN', ('.hin.', '.hindi.')),
+('JAPANESE AUDIO', 'JPN', ('.jpn.', '.japanese.', '.jap.')),
+('KOREAN AUDIO', 'KOR', ('.kor.', '.korean.')),
+('RUSSIAN AUDIO', 'RUS', ('.rus.', '.russian.')))
+
 def source_filters():
 	return (
 ('PACK', 'PACK'), ('DOLBY VISION', '[B]D/VISION[/B]'), ('HIGH DYNAMIC RANGE (HDR)', '[B]HDR[/B]'), ('IMAX', 'IMAX'), ('HYBRID', '[B]HYBRID[/B]'), ('AV1', '[B]AV1[/B]'),
@@ -41,7 +54,7 @@ def source_filters():
 ('DOLBY ATMOS', 'ATMOS'), ('DOLBY TRUEHD', 'TRUEHD'), ('DOLBY DIGITAL EX', 'DD-EX'), ('DOLBY DIGITAL PLUS', 'DD+'), ('DOLBY DIGITAL', 'DD'),
 ('DTS-HD MASTER AUDIO', 'DTS-HD MA'), ('DTS-X', 'DTS-X'), ('DTS-HD', 'DTS-HD'), ('DTS', 'DTS'), ('AAC', 'AAC'), ('OPUS', 'OPUS'), ('MP3', 'MP3'), ('8CH AUDIO', '8CH'),
 ('7CH AUDIO', '7CH'), ('6CH AUDIO', '6CH'), ('2CH AUDIO', '2CH'), ('DVD SOURCE', 'DVD'), ('WEB SOURCE', 'WEB'), ('MULTIPLE LANGUAGES', 'MULTI-LANG'),
-('SUBTITLES', 'SUBS'))
+('SUBTITLES', 'SUBS')) + tuple((name, tag) for name, tag, _ in audio_lang_choices())
 
 def include_exclude_filters():
 	return {'hevc': 'HEVC', '3d': '3D', 'hdr': 'HDR', 'dv': 'D/VISION', 'av1': 'AV1', 'enhanced_upscaled': 'AI ENHANCED/UPSCALED', 'hybrid': 'HYBRID'}
@@ -407,6 +420,12 @@ def get_info(title):
 		info_append('AVI')
 	elif any(i in title for i in ('.mkv', 'matroska')):
 		info_append('MKV')
+	# audio language tags: subtitle-adjacent codes (eng.subs, subs.eng) are subtitles, not audio
+	lang_title = re.sub(r'\.(subs?|subbed)\.([a-z]{2,12})\.', '.', title)
+	lang_title = re.sub(r'\.([a-z]{2,12})\.(subs?|subbed)\.', '.', lang_title)
+	for _, lang_tag, lang_patterns in audio_lang_choices():
+		if any(i in lang_title for i in lang_patterns):
+			info_append(lang_tag)
 	if any(i in title for i in ('hindi.eng', 'ara.eng', 'ces.eng', 'chi.eng', 'cze.eng', 'dan.eng', 'dut.eng', 'ell.eng', 'esl.eng', 'esp.eng', 'fin.eng', 'fra.eng',
 		'fre.eng', 'frn.eng', 'gai.eng', 'ger.eng', 'gle.eng', 'gre.eng', 'gtm.eng', 'heb.eng', 'hin.eng', 'hun.eng', 'ind.eng', 'iri.eng', 'ita.eng', 'jap.eng',
 		'jpn.eng', 'kor.eng', 'lat.eng', 'lebb.eng', 'lit.eng', 'nor.eng', 'pol.eng', 'por.eng', 'rus.eng', 'som.eng', 'spa.eng', 'sve.eng', 'swe.eng', 'tha.eng',
