@@ -10,7 +10,7 @@ from caches.settings_cache import get_setting
 from scrapers import external, folders
 from modules import debrid, kodi_utils, settings, metadata, watched_status
 from modules.player import RedLightPlayer
-from modules.source_utils import get_cache_expiry, make_alias_dict, include_exclude_filters, get_file_info, release_info_format
+from modules.source_utils import get_cache_expiry, make_alias_dict, include_exclude_filters, get_file_info, release_info_format, audio_lang_choices
 from modules.utils import clean_file_name, string_to_float, safe_string, remove_accents, get_datetime, append_module_to_syspath, manual_function_import
 # logger = kodi_utils.logger
 
@@ -718,6 +718,7 @@ class Sources():
 		key = (tag or '').lower().replace('[b]', '').replace('[/b]', '').strip()
 		if key in self.filter_keys: return self.filter_keys[key]
 		aliases = {'d/vision': 'D/VISION', 'dolby vision': 'D/VISION', 'hdr': 'HDR', 'high dynamic range (hdr)': 'HDR', 'dolby atmos': 'ATMOS', 'atmos': 'ATMOS', 'hevc (x265)': 'HEVC', 'hevc': 'HEVC'}
+		aliases.update({name.lower(): lang_tag for name, lang_tag, _ in audio_lang_choices()})
 		return aliases.get(key, tag)
 
 	def _parse_extra_info_tags(self, extra_info):
