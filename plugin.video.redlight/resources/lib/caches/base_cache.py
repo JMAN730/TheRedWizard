@@ -67,7 +67,9 @@ expires integer, unique (provider, db_type, tmdb_id, title, year, season, episod
 'tmdb_lists_db': (
 'CREATE TABLE IF NOT EXISTS tmdb_lists (id text unique, data text, expires integer)',),
 'random_widgets_db': (
-'CREATE TABLE IF NOT EXISTS random_widgets (id text unique, data text, expires integer)',)
+'CREATE TABLE IF NOT EXISTS random_widgets (id text unique, data text, expires integer)',),
+'list_sort_db': (
+'CREATE TABLE IF NOT EXISTS list_sort (scope text unique, spec text)',)
 		}
 
 def locations():
@@ -75,7 +77,7 @@ def locations():
 'navigator_db': 'navigator.db', 'watched_db': 'watched.db', 'favorites_db': 'favourites.db', 'settings_db': 'settings.db', 'trakt_db': 'traktcache.db', 'simkl_db': 'simklcache.db', 'mdblist_db': 'mdblistcache.db',
 'maincache_db': 'maincache.db', 'metacache_db': 'metacache.db', 'debridcache_db': 'debridcache.db', 'lists_db': 'lists.db', 'tmdb_lists_db': 'tmdb_lists.db',
 'discover_db': 'discover.db', 'external_db': 'external.db', 'episode_groups_db': 'episode_groups.db', 'personal_lists_db': 'personal_lists.db',
-'random_widgets_db': 'random_widgets.db'
+'random_widgets_db': 'random_widgets.db', 'list_sort_db': 'list_sort.db'
 			}
 
 def database_locations(database_name):
