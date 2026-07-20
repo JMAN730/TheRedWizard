@@ -53,6 +53,16 @@ def spec_label(spec):
 	return '%s (%s)' % (label, DIRECTION_LABELS.get(spec.get('direction', 'asc'), 'ascending'))
 
 
+def _safe_int(value, default):
+	"""Best-effort int() coercion for sort keys. Falls back to default on missing or malformed values
+	instead of raising, so one bad row from an external API can't silently unsort the whole list."""
+	if not value: return default
+	try:
+		return int(value)
+	except (TypeError, ValueError):
+		return default
+
+
 def strip_articles(title, ignore_articles):
 	"""Lower-cased sort key for a title. Strips a leading 'the '/'a '/'an ' when enabled."""
 	try:
@@ -148,7 +158,7 @@ MDBLIST_COLLECTION = {
 	'fields': {
 		'title': lambda i: i.get('title'),
 		'date_added': lambda i: i.get('collected_at') or '',
-		'release_date': lambda i: int(i.get('year') or 9999),
+		'release_date': lambda i: _safe_int(i.get('year'), 9999),
 	}
 }
 
@@ -156,7 +166,7 @@ PERSONAL = {
 	'capabilities': ('title', 'date_added', 'release_date', 'random', 'default'),
 	'fields': {
 		'title': lambda i: i.get('title'),
-		'date_added': lambda i: int(i.get('date_added') or 0),
+		'date_added': lambda i: _safe_int(i.get('date_added'), 0),
 		'release_date': lambda i: i.get('release_date') or MISSING_DATE,
 	}
 }

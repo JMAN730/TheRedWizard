@@ -104,6 +104,15 @@ class MdblistAdapterTests(unittest.TestCase):
 		result = list_sort.apply(data, {'field': 'release_date', 'direction': 'asc'}, list_sort.MDBLIST_COLLECTION)
 		self.assertEqual(['A', 'B'], [i['title'] for i in result])
 
+	def test_collection_malformed_year_sorts_last_without_unsorting_others(self):
+		data = [
+			{'title': 'C', 'collected_at': '', 'year': 'TBA'},
+			{'title': 'B', 'collected_at': '', 'year': 2001},
+			{'title': 'A', 'collected_at': '', 'year': 1999},
+		]
+		result = list_sort.apply(data, {'field': 'release_date', 'direction': 'asc'}, list_sort.MDBLIST_COLLECTION)
+		self.assertEqual(['A', 'B', 'C'], [i['title'] for i in result])
+
 
 class PersonalAdapterTests(unittest.TestCase):
 	def test_date_added_compares_numerically(self):
@@ -115,6 +124,15 @@ class PersonalAdapterTests(unittest.TestCase):
 		data = [{'title': 'B', 'date_added': '1', 'release_date': None}, {'title': 'A', 'date_added': '2', 'release_date': '1999-01-01'}]
 		result = list_sort.apply(data, {'field': 'release_date', 'direction': 'asc'}, list_sort.PERSONAL)
 		self.assertEqual(['A', 'B'], [i['title'] for i in result])
+
+	def test_malformed_date_added_sorts_last_without_unsorting_others(self):
+		data = [
+			{'title': 'C', 'date_added': 'corrupt', 'release_date': None},
+			{'title': 'B', 'date_added': '100', 'release_date': None},
+			{'title': 'A', 'date_added': '20', 'release_date': None},
+		]
+		result = list_sort.apply(data, {'field': 'date_added', 'direction': 'asc'}, list_sort.PERSONAL)
+		self.assertEqual(['C', 'A', 'B'], [i['title'] for i in result])
 
 
 class TmdbAdapterTests(unittest.TestCase):
