@@ -1,4 +1,6 @@
+import ast
 import importlib.util
+import inspect
 import sqlite3
 import sys
 import types
@@ -86,6 +88,46 @@ class OverrideStoreTests(unittest.TestCase):
 
 	def test_get_all_on_empty_table(self):
 		self.assertEqual({}, self.module.get_all_overrides())
+
+	def test_get_all_coerces_null_spec_to_empty_string(self):
+		self.connection.execute('INSERT INTO list_sort (scope, spec) VALUES (?, ?)', ('trakt.watchlist:movies', None))
+		self.assertEqual({'trakt.watchlist:movies': ''}, self.module.get_all_overrides())
+
+
+class DatabaseRegistrationTests(unittest.TestCase):
+	"""Guard against repeating the list_sort_db integrity_check omission for future database additions."""
+
+	@classmethod
+	def setUpClass(cls):
+		modules = sys.modules.get('modules') or types.ModuleType('modules')
+		modules.__path__ = []
+		kodi_utils = types.ModuleType('modules.kodi_utils')
+		kodi_utils.logger = lambda *args, **kwargs: None
+		sys.modules['modules'] = modules
+		sys.modules['modules.kodi_utils'] = kodi_utils
+		base_cache_path = CACHE_PATH.parent / 'base_cache.py'
+		spec = importlib.util.spec_from_file_location('base_cache_under_test', base_cache_path)
+		module = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(module)
+		cls.module = module
+
+	def test_list_sort_db_registered_in_table_creators(self):
+		self.assertIn('list_sort_db', self.module.table_creators())
+
+	def test_list_sort_db_registered_in_locations(self):
+		self.assertIn('list_sort_db', self.module.locations())
+
+	def test_list_sort_db_registered_in_integrity_check(self):
+		# integrity_check is a local dict inside check_databases_integrity, not returned by the
+		# function, so parse the source to recover its keys rather than duplicating the dict here.
+		source = inspect.getsource(self.module.check_databases_integrity)
+		tree = ast.parse(source)
+		function_def = tree.body[0]
+		assign = next(
+			node for node in ast.walk(function_def)
+			if isinstance(node, ast.Assign) and any(getattr(t, 'id', None) == 'integrity_check' for t in node.targets))
+		integrity_check = ast.literal_eval(assign.value)
+		self.assertIn('list_sort_db', integrity_check)
 
 
 if __name__ == '__main__':

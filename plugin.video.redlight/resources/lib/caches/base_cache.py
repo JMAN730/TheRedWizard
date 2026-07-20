@@ -131,7 +131,7 @@ def get_timestamp(offset=0):
 def remove_old_databases():
 	databases_path = path.join(kodi_utils.addon_profile(), 'databases/')
 	current_dbs = ('navigator.db', 'watched.db', 'favourites.db', 'traktcache.db', 'simklcache.db', 'mdblistcache.db', 'maincache.db', 'lists.db', 'tmdb_lists.db', 'discover.db',
-	'metacache.db', 'debridcache.db', 'external.db', 'settings.db', 'episode_groups.db', 'personal_lists_db', 'episode_groups_db', 'personal_lists_db', 'random_widgets_db')
+	'metacache.db', 'debridcache.db', 'external.db', 'settings.db', 'episode_groups.db', 'personal_lists_db', 'episode_groups_db', 'personal_lists_db', 'random_widgets_db', 'list_sort.db')
 	try:
 		files = kodi_utils.list_dirs(databases_path)[1]
 		for item in files:
@@ -144,7 +144,8 @@ def check_databases_integrity(silent=False):
 	integrity_check = {
 	'settings_db': 1,              'navigator_db': 1,              'watched_db': 3,              'favorites_db': 1,              'trakt_db': 4,              'simkl_db': 4,              'mdblist_db': 4,
 	'maincache_db': 1,             'metacache_db': 3,              'lists_db': 1,                'tmdb_lists_db': 1,             'discover_db': 1,
-	'debridcache_db': 1,           'external_db': 1,               'episode_groups_db': 1,       'personal_lists_db': 1,         'random_widgets_db': 1
+	'debridcache_db': 1,           'external_db': 1,               'episode_groups_db': 1,       'personal_lists_db': 1,         'random_widgets_db': 1,
+	'list_sort_db': 1
 			}
 	def _process(database_name, tables):
 		cursor, error = None, False

@@ -38,7 +38,7 @@ def get_all_overrides():
 	try:
 		dbcon = connect_database('list_sort_db')
 		rows = dbcon.execute('SELECT scope, spec FROM list_sort').fetchall()
-		return dict((i[0], i[1]) for i in rows)
+		return dict((i[0], i[1] or '') for i in rows)
 	except: return {}
 
 
