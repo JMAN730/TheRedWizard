@@ -213,6 +213,12 @@ LEGACY_SYNC_CODES = {'0': 'title:asc', '1': 'date_added:desc', '2': 'release_dat
 
 LEGACY_TMDB_CODES = {'0': 'title:asc', '1': 'release_date:asc', '2': 'release_date:desc', '3': 'random:asc', '4': 'default:asc'}
 
+# MDBList only ever honoured three of the five legacy codes (apis/mdblist_api.py:574-577, :585-588):
+# 2 -> release date / year descending, 1 -> watchlist_at / collected_at descending, and everything
+# else - including 0, 3 and 4 - falls through to title. Translating it through LEGACY_SYNC_CODES
+# would silently change the ordering of every MDBList list belonging to a user on code 3 or 4.
+LEGACY_MDBLIST_CODES = {'0': 'title:asc', '1': 'date_added:desc', '2': 'release_date:desc', '3': 'title:asc', '4': 'title:asc'}
+
 LEGACY_PERSONAL_CODES = {'0': 'title:asc', '1': 'date_added:asc', '2': 'date_added:desc', '3': 'release_date:asc',
 	'4': 'release_date:desc', '5': 'random:asc', 'None': 'default:asc', '': 'title:asc'}
 
@@ -229,18 +235,32 @@ def translate_trakt_custom_sort(sort_by, sort_how):
 	return '%s:%s' % (field, direction)
 
 
+class SortMigrationError(Exception):
+	"""A translated sort preference could not be persisted."""
+
+
 def migrate_legacy_sort_settings(old_settings):
 	"""Pure translation of the old settings dict into new defaults and overrides."""
 	defaults, overrides = {}, {}
-	watchlist_spec = LEGACY_SYNC_CODES.get(str(old_settings.get('sort.watchlist', '')))
+	watchlist_code = str(old_settings.get('sort.watchlist', ''))
+	collection_code = str(old_settings.get('sort.collection', ''))
+	watchlist_spec = LEGACY_SYNC_CODES.get(watchlist_code)
 	if watchlist_spec:
 		defaults['sort.default.movies'] = watchlist_spec
 		defaults['sort.default.shows'] = watchlist_spec
 	baseline = watchlist_spec or LEGACY_SYNC_CODES['0']
-	collection_spec = LEGACY_SYNC_CODES.get(str(old_settings.get('sort.collection', '')))
+	collection_spec = LEGACY_SYNC_CODES.get(collection_code)
 	if collection_spec and collection_spec != baseline:
-		for scope in ('trakt.collection:movies', 'trakt.collection:shows', 'mdblist.collection:movies', 'mdblist.collection:shows'):
-			overrides[scope] = collection_spec
+		overrides['trakt.collection:movies'] = collection_spec
+		overrides['trakt.collection:shows'] = collection_spec
+	# MDBList reads the same two settings but implements a different, narrower mapping, so it is
+	# always pinned explicitly. Inheriting the global default - which is seeded from sort.watchlist
+	# through LEGACY_SYNC_CODES - would give it an ordering it never honoured.
+	for legacy_code, list_key in ((watchlist_code, 'mdblist.watchlist'), (collection_code, 'mdblist.collection')):
+		mdblist_spec = LEGACY_MDBLIST_CODES.get(legacy_code)
+		if not mdblist_spec: continue
+		overrides['%s:movies' % list_key] = mdblist_spec
+		overrides['%s:shows' % list_key] = mdblist_spec
 	simkl_spec = LEGACY_SYNC_CODES.get(str(old_settings.get('sort.simkl', '')))
 	if simkl_spec and simkl_spec != baseline:
 		overrides['simkl:movies'] = simkl_spec
@@ -254,7 +274,13 @@ def migrate_legacy_sort_settings(old_settings):
 def run_sort_migration(old_settings, write_setting):
 	"""Apply the translation. write_setting(setting_id, value) persists a setting.
 
-	Returns True when anything was written.
+	Returns True when anything was written, False when there was nothing to migrate.
+
+	Raises SortMigrationError when an override could not be persisted. set_override() swallows
+	its own exceptions and reports False, so an unwritable store would otherwise look like a
+	clean success and the caller would record the migration as done with the user's
+	preferences already deleted. Every override is attempted before raising, so a single bad
+	row does not discard the ones that can still be saved.
 	"""
 	result = migrate_legacy_sort_settings(old_settings)
 	if not result['defaults'] and not result['overrides']: return False
@@ -262,6 +288,7 @@ def run_sort_migration(old_settings, write_setting):
 	for setting_id, spec_string in result['defaults'].items():
 		write_setting(setting_id, spec_string)
 		write_setting('%s_name' % setting_id, spec_label(parse_spec(spec_string)))
-	for scope, spec_string in result['overrides'].items():
-		set_override(scope, spec_string)
+	failed = [scope for scope, spec_string in result['overrides'].items() if not set_override(scope, spec_string)]
+	if failed:
+		raise SortMigrationError('could not persist sort overrides: %s' % ', '.join(sorted(failed)))
 	return True

@@ -649,6 +649,10 @@ def sync_settings(params={}):
 			currentsettings['migration.my_content_nav_mode_v136'] = 'true'
 			if load_properties: settings_cache.set_memory_cache('migration.my_content_nav_mode_v136', 'true')
 		if currentsettings.get('migration.unified_list_sort') != 'true':
+			# The obsolete purge above has already deleted the legacy sort ids, so a failed run
+			# cannot be recovered from settings.db. Only record the migration as done when it did
+			# not raise, so a failure stays visible instead of being silently written off.
+			sort_migration_ok = True
 			try:
 				from modules.list_sort import run_sort_migration
 				def _write_sort_setting(setting_id, value):
@@ -657,10 +661,13 @@ def sync_settings(params={}):
 					if load_properties: settings_cache.set_memory_cache(setting_id, value)
 				if run_sort_migration(legacy_sort_settings, _write_sort_setting): migrated = True
 			except Exception as e:
+				sort_migration_ok = False
+				migrated = True # a partial run may already have written the mediatype defaults
 				kodi_utils.logger('sync_settings', 'unified list sort migration: %s' % e)
-			settings_cache.write_db('migration.unified_list_sort', 'true', defaults_map.get('migration.unified_list_sort'))
-			currentsettings['migration.unified_list_sort'] = 'true'
-			if load_properties: settings_cache.set_memory_cache('migration.unified_list_sort', 'true')
+			if sort_migration_ok:
+				settings_cache.write_db('migration.unified_list_sort', 'true', defaults_map.get('migration.unified_list_sort'))
+				currentsettings['migration.unified_list_sort'] = 'true'
+				if load_properties: settings_cache.set_memory_cache('migration.unified_list_sort', 'true')
 		for setting_id, value in list(currentsettings.items()):
 			if setting_id not in defaults_map: continue
 			sanitized = sanitize_setting_value(setting_id, value, defaults_map[setting_id], validate_paths=False)
