@@ -326,6 +326,8 @@ def sort_source(data, list_key, media_type, adapter_name):
 	try:
 		from modules.settings import ignore_articles
 		articles = ignore_articles()
+		spec = resolve(list_key, media_type)
 	except Exception:
 		articles = False
-	return apply(data, resolve(list_key, media_type), adapter, ignore_articles=articles)
+		spec = dict(DEFAULT_SPEC)
+	return apply(data, spec, adapter, ignore_articles=articles)
