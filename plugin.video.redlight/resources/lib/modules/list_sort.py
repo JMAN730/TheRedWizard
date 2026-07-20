@@ -153,6 +153,11 @@ MDBLIST_WATCHLIST = {
 	}
 }
 
+# NOTE: this adapter's release_date extractor returns an integer year, not a date string like every
+# other adapter's. That is deliberate - the old MDBList collection code sorted on 'year', which is the
+# only date-ish field the payload carries - but it means the spec string 'release_date:desc' denotes
+# different data here than elsewhere. Keys from two adapters are never comparable; do not assume a
+# future shared sort UI can merge or compare them.
 MDBLIST_COLLECTION = {
 	'capabilities': ('title', 'date_added', 'release_date', 'random'),
 	'fields': {
@@ -239,11 +244,28 @@ class SortMigrationError(Exception):
 	"""A translated sort preference could not be persisted."""
 
 
+# An absent row is not "no preference" - it is the fallback the old getter hardcoded, and the list was
+# ordered by it. lists_sort_order used int(get_setting('redlight.sort.%s', '0')) -> code 0 (title), and
+# tmdblists_sort_order used get_setting('redlight.tmdbsort.%s', '4') -> code 4 (provider order). Reading
+# a missing row as '' would map to nothing, write nothing, and let the scope inherit the new global
+# default (seeded from sort.watchlist) - silently reordering the list.
+LEGACY_SETTING_FALLBACKS = {'sort.watchlist': '0', 'sort.collection': '0', 'sort.simkl': '0',
+	'tmdbsort.watchlist': '4', 'tmdbsort.favorites': '4'}
+
+
+def _legacy_code(old_settings, setting_id):
+	"""The stored legacy code, or the fallback the old getter used when the row is absent or blank."""
+	fallback = LEGACY_SETTING_FALLBACKS[setting_id]
+	value = old_settings.get(setting_id, fallback)
+	if value is None or value == '': return fallback
+	return str(value)
+
+
 def migrate_legacy_sort_settings(old_settings):
 	"""Pure translation of the old settings dict into new defaults and overrides."""
 	defaults, overrides = {}, {}
-	watchlist_code = str(old_settings.get('sort.watchlist', ''))
-	collection_code = str(old_settings.get('sort.collection', ''))
+	watchlist_code = _legacy_code(old_settings, 'sort.watchlist')
+	collection_code = _legacy_code(old_settings, 'sort.collection')
 	watchlist_spec = LEGACY_SYNC_CODES.get(watchlist_code)
 	if watchlist_spec:
 		defaults['sort.default.movies'] = watchlist_spec
@@ -261,12 +283,12 @@ def migrate_legacy_sort_settings(old_settings):
 		if not mdblist_spec: continue
 		overrides['%s:movies' % list_key] = mdblist_spec
 		overrides['%s:shows' % list_key] = mdblist_spec
-	simkl_spec = LEGACY_SYNC_CODES.get(str(old_settings.get('sort.simkl', '')))
+	simkl_spec = LEGACY_SYNC_CODES.get(_legacy_code(old_settings, 'sort.simkl'))
 	if simkl_spec and simkl_spec != baseline:
 		overrides['simkl:movies'] = simkl_spec
 		overrides['simkl:shows'] = simkl_spec
 	for old_id, scope in (('tmdbsort.watchlist', 'tmdb:watchlist'), ('tmdbsort.favorites', 'tmdb:favorites')):
-		tmdb_spec = LEGACY_TMDB_CODES.get(str(old_settings.get(old_id, '')))
+		tmdb_spec = LEGACY_TMDB_CODES.get(_legacy_code(old_settings, old_id))
 		if tmdb_spec: overrides[scope] = tmdb_spec
 	return {'defaults': defaults, 'overrides': overrides}
 
@@ -274,7 +296,9 @@ def migrate_legacy_sort_settings(old_settings):
 def run_sort_migration(old_settings, write_setting):
 	"""Apply the translation. write_setting(setting_id, value) persists a setting.
 
-	Returns True when anything was written, False when there was nothing to migrate.
+	Returns True when anything was written, False when there was nothing to migrate. Note that
+	since every legacy setting is read through its documented fallback, an empty old_settings
+	dict still translates to the fallback ordering, so False is now a defensive case only.
 
 	Raises SortMigrationError when an override could not be persisted. set_override() swallows
 	its own exceptions and reports False, so an unwritable store would otherwise look like a

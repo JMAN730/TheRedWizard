@@ -60,10 +60,36 @@ class MigrationTests(unittest.TestCase):
 		self.assertEqual('date_added:desc', result['defaults']['sort.default.movies'])
 		self.assertEqual('date_added:desc', result['defaults']['sort.default.shows'])
 
-	def test_no_old_settings_produces_nothing(self):
+	def test_absent_settings_use_the_old_getters_own_fallbacks(self):
+		# An absent row is not "no preference": lists_sort_order fell back to code 0 (title) and
+		# tmdblists_sort_order to code 4 (provider order), and lists were ordered by exactly that.
 		result = list_sort.migrate_legacy_sort_settings({})
-		self.assertEqual({}, result['defaults'])
-		self.assertEqual({}, result['overrides'])
+		self.assertEqual('title:asc', result['defaults']['sort.default.movies'])
+		self.assertEqual('title:asc', result['defaults']['sort.default.shows'])
+		for scope in ('mdblist.watchlist:movies', 'mdblist.watchlist:shows',
+				'mdblist.collection:movies', 'mdblist.collection:shows'):
+			self.assertEqual('title:asc', result['overrides'][scope], scope)
+		self.assertEqual('default:asc', result['overrides']['tmdb:watchlist'])
+		self.assertEqual('default:asc', result['overrides']['tmdb:favorites'])
+		# Trakt collection and Simkl matched the title baseline, so they need no override.
+		self.assertNotIn('trakt.collection:movies', result['overrides'])
+		self.assertNotIn('simkl:movies', result['overrides'])
+
+	def test_blank_stored_value_is_treated_as_absent(self):
+		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '', 'tmdbsort.favorites': ''})
+		self.assertEqual('title:asc', result['defaults']['sort.default.movies'])
+		self.assertEqual('default:asc', result['overrides']['tmdb:favorites'])
+
+	def test_absent_collection_keeps_title_not_the_watchlist_default(self):
+		# The regression: with only sort.watchlist stored, the collection scopes used to inherit the
+		# new global default seeded from it, where the old code gave them title.
+		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '1'})
+		self.assertEqual('date_added:desc', result['defaults']['sort.default.movies'])
+		self.assertEqual('title:asc', result['overrides']['trakt.collection:movies'])
+		self.assertEqual('title:asc', result['overrides']['trakt.collection:shows'])
+		self.assertEqual('title:asc', result['overrides']['simkl:movies'])
+		self.assertEqual('title:asc', result['overrides']['simkl:shows'])
+		self.assertEqual('default:asc', result['overrides']['tmdb:watchlist'])
 
 	def test_matching_collection_produces_no_trakt_override(self):
 		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '2', 'sort.collection': '2'})
@@ -72,11 +98,14 @@ class MigrationTests(unittest.TestCase):
 
 	def test_differing_collection_overrides_trakt_only(self):
 		# MDBList is no longer written from the Trakt collection branch; it has its own table.
-		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '0', 'sort.collection': '1'})
-		self.assertEqual('date_added:desc', result['overrides']['trakt.collection:movies'])
-		self.assertEqual('date_added:desc', result['overrides']['trakt.collection:shows'])
-		self.assertEqual('date_added:desc', result['overrides']['mdblist.collection:movies'])
-		self.assertEqual('date_added:desc', result['overrides']['mdblist.collection:shows'])
+		# Code 3 is deliberate: LEGACY_SYNC_CODES['3'] is date_added:asc but LEGACY_MDBLIST_CODES['3']
+		# is title:asc, so this pins the separation. A code where the two tables agree (e.g. '1')
+		# would pass whichever branch produced the value.
+		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '0', 'sort.collection': '3'})
+		self.assertEqual('date_added:asc', result['overrides']['trakt.collection:movies'])
+		self.assertEqual('date_added:asc', result['overrides']['trakt.collection:shows'])
+		self.assertEqual('title:asc', result['overrides']['mdblist.collection:movies'])
+		self.assertEqual('title:asc', result['overrides']['mdblist.collection:shows'])
 
 	def test_differing_simkl_overrides_both_media_types(self):
 		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '0', 'sort.simkl': '4'})
@@ -105,11 +134,13 @@ class MigrationTests(unittest.TestCase):
 		self.assertEqual('release_date:desc', result['overrides']['mdblist.collection:movies'])
 		self.assertEqual('release_date:desc', result['overrides']['mdblist.collection:shows'])
 
-	def test_mdblist_scope_absent_when_legacy_setting_absent(self):
+	def test_mdblist_ordering_preserved_when_legacy_setting_absent(self):
+		# An absent sort.collection meant title (the old getter's '0' fallback). Leaving the scope
+		# unwritten would let it inherit the global default seeded from sort.watchlist instead.
 		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '1'})
 		self.assertEqual('date_added:desc', result['overrides']['mdblist.watchlist:movies'])
-		self.assertNotIn('mdblist.collection:movies', result['overrides'])
-		self.assertNotIn('mdblist.collection:shows', result['overrides'])
+		self.assertEqual('title:asc', result['overrides']['mdblist.collection:movies'])
+		self.assertEqual('title:asc', result['overrides']['mdblist.collection:shows'])
 
 	def test_unknown_mdblist_code_writes_no_override(self):
 		result = list_sort.migrate_legacy_sort_settings({'sort.watchlist': '99'})
@@ -184,9 +215,17 @@ class RunMigrationTests(unittest.TestCase):
 		self.assertEqual('Date Added (descending)', written_settings['sort.default.movies_name'])
 		self.assertEqual('release_date:desc', written_overrides['trakt.collection:movies'])
 
-	def test_no_legacy_settings_reports_no_change(self):
-		changed = list_sort.run_sort_migration({}, lambda setting_id, value: None)
-		self.assertFalse(changed)
+	def test_absent_legacy_settings_still_pin_the_documented_fallbacks(self):
+		# There is no "nothing to migrate" case any more: a profile with no legacy rows was still
+		# being ordered by the old getters' fallbacks, and those have to be written down.
+		written_settings, written_overrides = {}, {}
+		list_sort_cache = sys.modules['caches.list_sort_cache']
+		list_sort_cache.set_override = lambda scope, spec: written_overrides.__setitem__(scope, spec) or True
+		changed = list_sort.run_sort_migration({}, lambda setting_id, value: written_settings.__setitem__(setting_id, value))
+		self.assertTrue(changed)
+		self.assertEqual('title:asc', written_settings['sort.default.movies'])
+		self.assertEqual('default:asc', written_overrides['tmdb:watchlist'])
+		self.assertEqual('title:asc', written_overrides['mdblist.watchlist:movies'])
 
 	def test_failed_override_raises_instead_of_reporting_success(self):
 		# set_override() swallows its own exceptions and returns False, so an unwritable store
@@ -266,6 +305,12 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 				self._original_sys_modules[key] = sys.modules[key]
 		from test_settings_cache_calendar_migration import _load_settings_cache_module
 		self.module = _load_settings_cache_module()
+		# A second sync_settings() run sanitizes the settings the first run inserted from the
+		# defaults, and several of those reach back into modules.settings for their option tables.
+		# The shared harness stub only declares the migration helpers, so answer anything else with
+		# an empty option map (which sanitizes those settings to their declared defaults) rather
+		# than mutating the harness the other test files depend on.
+		sys.modules['modules.settings'].__getattr__ = lambda name: (lambda *args, **kwargs: {})
 		# _load_settings_cache_module() replaces sys.modules['caches'], so install the modules the
 		# lazy imports inside the migration resolve at call time afterwards, not before.
 		self.overrides = {}
@@ -315,7 +360,12 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.assertEqual('release_date:asc', self.overrides['simkl:shows'])
 		self.assertEqual('default:asc', self.overrides['tmdb:watchlist'])
 		self.assertEqual('true', cache.data['migration.unified_list_sort'])
-		# The legacy ids themselves are gone.
+		# The legacy ids are held back from the obsolete purge until the sentinel is set, so they
+		# are still present on the run that migrates them and only disappear on the next sync.
+		self.assertIn('sort.watchlist', cache.data)
+		self.assertIn('tmdbsort.watchlist', cache.data)
+		self.module.settings_cache = cache
+		self.assertEqual('synced', self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'}))
 		self.assertNotIn('sort.watchlist', cache.data)
 		self.assertNotIn('tmdbsort.watchlist', cache.data)
 
@@ -335,11 +385,40 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.assertNotEqual('true', cache.data.get('migration.unified_list_sort'))
 		self.assertEqual('false', cache.data['migration.unified_list_sort'])
 
-	def test_sentinel_set_on_a_profile_with_nothing_to_migrate(self):
+	def test_failed_migration_is_retried_for_real_on_the_next_sync(self):
+		# The retry is only real if the legacy ids survive the failed pass. Without the purge
+		# deferral they are deleted on the first sync, the second sync migrates an empty snapshot
+		# and flips the sentinel - the door closes instead of reopening, and every per-list
+		# override is lost permanently.
+		self.override_result = False
+		cache = self._sync({'sort.watchlist': '1', 'sort.collection': '2', 'tmdbsort.watchlist': '3'})
+		self.assertEqual('false', cache.data['migration.unified_list_sort'])
+		self.assertEqual({}, self.overrides)
+		self.assertIn('sort.collection', cache.data)
+
+		self.override_result = True
+		self.module.settings_cache = cache
+		self.assertEqual('synced', self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'}))
+
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
+		self.assertEqual('release_date:desc', self.overrides['trakt.collection:movies'])
+		self.assertEqual('release_date:desc', self.overrides['trakt.collection:shows'])
+		self.assertEqual('release_date:desc', self.overrides['mdblist.collection:movies'])
+		self.assertEqual('date_added:desc', self.overrides['mdblist.watchlist:movies'])
+		self.assertEqual('random:asc', self.overrides['tmdb:watchlist'])
+		self.assertEqual('date_added:desc', cache.data['sort.default.movies'])
+
+	def test_profile_with_no_legacy_rows_pins_the_old_fallbacks(self):
 		cache = self._sync({'general.check_settings_file': 'true'})
 
 		self.assertEqual('true', cache.data['migration.unified_list_sort'])
-		self.assertEqual({}, self.overrides)
+		self.assertEqual('title:asc', cache.data['sort.default.movies'])
+		self.assertEqual('title:asc', cache.data['sort.default.shows'])
+		self.assertEqual('title:asc', self.overrides['mdblist.watchlist:movies'])
+		self.assertEqual('default:asc', self.overrides['tmdb:watchlist'])
+		self.assertEqual('default:asc', self.overrides['tmdb:favorites'])
+		self.assertNotIn('trakt.collection:movies', self.overrides)
+		self.assertNotIn('simkl:movies', self.overrides)
 
 	def test_migration_does_not_rerun_once_the_sentinel_is_set(self):
 		cache = self._sync({'sort.watchlist': '1', 'migration.unified_list_sort': 'true'})

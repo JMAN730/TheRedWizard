@@ -507,6 +507,13 @@ _DIRECTORY_LISTING_MODES = frozenset((
 	'build_in_progress_episode', 'build_recently_watched_episode', 'build_next_episode',
 	'build_my_calendar', 'build_next_episode_manager'))
 
+# The five settings the unified-list-sort migration reads. They are no longer in default_settings(),
+# so the obsolete-id purge in sync_settings() would delete them on the same pass that migrates them -
+# leaving nothing to retry from if the migration fails. The purge is deferred until the sentinel says
+# the migration succeeded, which happens in the same run, so they are removed on the following sync.
+_LEGACY_SORT_SETTING_IDS = frozenset((
+	'sort.watchlist', 'sort.collection', 'sort.simkl', 'tmdbsort.watchlist', 'tmdbsort.favorites'))
+
 def is_directory_listing_mode(mode):
 	if not mode: return False
 	if mode.startswith('navigator.'): return True
@@ -578,7 +585,11 @@ def sync_settings(params={}):
 	defaults_map = {i['setting_id']: i for i in d_settings}
 	try:
 		c_settings = currentsettings.items()
-		obsoletesettings_ids = [k for k, v in c_settings if not k in defaultsettings_ids]
+		# Keep the legacy sort ids alive until the migration below has actually recorded success,
+		# otherwise a failed run purges the only copy of the user's per-list orderings.
+		defer_legacy_sort = currentsettings.get('migration.unified_list_sort') != 'true'
+		obsoletesettings_ids = [k for k, v in c_settings
+			if not k in defaultsettings_ids and not (defer_legacy_sort and k in _LEGACY_SORT_SETTING_IDS)]
 		if obsoletesettings_ids:
 			for item in obsoletesettings_ids: settings_cache.remove_setting(item)
 			migrated = True
@@ -649,9 +660,10 @@ def sync_settings(params={}):
 			currentsettings['migration.my_content_nav_mode_v136'] = 'true'
 			if load_properties: settings_cache.set_memory_cache('migration.my_content_nav_mode_v136', 'true')
 		if currentsettings.get('migration.unified_list_sort') != 'true':
-			# The obsolete purge above has already deleted the legacy sort ids, so a failed run
-			# cannot be recovered from settings.db. Only record the migration as done when it did
-			# not raise, so a failure stays visible instead of being silently written off.
+			# Only record the migration as done when it did not raise. The obsolete purge above
+			# holds back the five legacy sort ids while this sentinel is unset, so a failed run
+			# leaves both the sentinel and the source values in place and the next sync retries
+			# for real. They are purged on that following sync, once the sentinel is 'true'.
 			sort_migration_ok = True
 			try:
 				from modules.list_sort import run_sort_migration
@@ -661,6 +673,8 @@ def sync_settings(params={}):
 					if load_properties: settings_cache.set_memory_cache(setting_id, value)
 				if run_sort_migration(legacy_sort_settings, _write_sort_setting): migrated = True
 			except Exception as e:
+				# Deliberately catches an ImportError on modules.list_sort too: the sentinel stays false, so a
+				# genuinely broken install retries and logs on every sync rather than once. Do not narrow this.
 				sort_migration_ok = False
 				migrated = True # a partial run may already have written the mediatype defaults
 				kodi_utils.logger('sync_settings', 'unified list sort migration: %s' % e)
