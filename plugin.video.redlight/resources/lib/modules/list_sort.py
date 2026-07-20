@@ -190,3 +190,20 @@ def field_choices(adapter_name):
 	adapter = ADAPTERS.get(adapter_name)
 	if not adapter: return ()
 	return adapter['capabilities']
+
+
+DEFAULT_SETTING_IDS = {'movies': 'redlight.sort.default.movies', 'shows': 'redlight.sort.default.shows'}
+
+
+def resolve(list_key, media_type=None):
+	"""Per-list override, else the mediatype default, else DEFAULT_SPEC."""
+	from caches.list_sort_cache import scope_key, normalize_media_type, get_override
+	scope = scope_key(list_key, media_type)
+	raw = get_override(scope)
+	if raw:
+		spec = parse_spec(raw, fallback=None)
+		if format_spec(spec) == raw: return spec
+	normalized = normalize_media_type(media_type)
+	if not normalized: return dict(DEFAULT_SPEC)
+	from caches.settings_cache import get_setting
+	return parse_spec(get_setting(DEFAULT_SETTING_IDS[normalized], ''))

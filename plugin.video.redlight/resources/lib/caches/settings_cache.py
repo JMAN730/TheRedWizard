@@ -1003,16 +1003,11 @@ def default_settings():
 #==================== Contents Sort Order For Watched Progress
 {'setting_id': 'sort.progress', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Title', '1': 'Recently Watched'}},
 {'setting_id': 'sort.watched', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Title', '1': 'Recently Watched'}},
-#==================== Contents Sort Order For Simkl Lists
-{'setting_id': 'sort.simkl', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Title', '1': 'Date Added (desc)', '2': 'Release Date (desc)', '3': 'Date Added (asc)', '4': 'Release Date (asc)'}},
-#==================== Contents Sort Order For Trakt Lists
-{'setting_id': 'sort.collection', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Title', '1': 'Date Added (desc)', '2': 'Release Date (desc)', '3': 'Date Added (asc)', '4': 'Release Date (asc)'}},
-{'setting_id': 'sort.watchlist', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Title', '1': 'Date Added (desc)', '2': 'Release Date (desc)', '3': 'Date Added (asc)', '4': 'Release Date (asc)'}},
-#==================== Contents Sort Order For TMDb Lists
-{'setting_id': 'tmdbsort.watchlist', 'setting_type': 'action', 'setting_default': '4', 'settings_options': {'0': 'Title', '1': 'Release Date (asc)', '2': 'Release Date (desc)',
-'3': 'Shuffle', '4': 'Default from TMDb (None)'}},
-{'setting_id': 'tmdbsort.favorites', 'setting_type': 'action', 'setting_default': '4', 'settings_options': {'0': 'Title', '1': 'Release Date (asc)', '2': 'Release Date (desc)',
-'3': 'Shuffle', '4': 'Default from TMDb (None)'}},
+#==================== Contents Sort Order Defaults (per media type, all lists)
+{'setting_id': 'sort.default.movies', 'setting_type': 'string', 'setting_default': 'title:asc'},
+{'setting_id': 'sort.default.movies_name', 'setting_type': 'name', 'setting_default': 'Title (ascending)'},
+{'setting_id': 'sort.default.shows', 'setting_type': 'string', 'setting_default': 'title:asc'},
+{'setting_id': 'sort.default.shows_name', 'setting_type': 'name', 'setting_default': 'Title (ascending)'},
 #==================== Personal Lists
 {'setting_id': 'personal_list.sort_unseen_to_top', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'personal_list.highlight_unseen', 'setting_type': 'boolean', 'setting_default': 'false'},
