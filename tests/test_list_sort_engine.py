@@ -126,6 +126,28 @@ class ApplyTests(unittest.TestCase):
 		result = list_sort.apply(self.data, {'field': 'title', 'direction': 'asc'}, broken)
 		self.assertEqual(['Banana', 'The Apple', 'cherry'], self._titles(result))
 
+	def test_default_field_returns_new_list_not_same_object(self):
+		result = list_sort.apply(self.data, {'field': 'default', 'direction': 'asc'}, ADAPTER)
+		self.assertIsNot(self.data, result)
+
+	def test_sorting_path_returns_new_list_not_same_object(self):
+		result = list_sort.apply(self.data, {'field': 'title', 'direction': 'asc'}, ADAPTER)
+		self.assertIsNot(self.data, result)
+
+	def test_mutating_result_does_not_affect_input_on_aliasing_path(self):
+		original = list(self.data)
+		result = list_sort.apply(self.data, {'field': 'default', 'direction': 'asc'}, ADAPTER)
+		result.append({'title': 'Zebra', 'added': '2024-01-04', 'released': None, 'rating': 1.0})
+		result.sort(key=lambda i: i['title'])
+		self.assertEqual(original, self.data)
+
+	def test_mutating_result_does_not_affect_input_on_sorting_path(self):
+		original = list(self.data)
+		result = list_sort.apply(self.data, {'field': 'title', 'direction': 'asc'}, ADAPTER)
+		result.append({'title': 'Zebra', 'added': '2024-01-04', 'released': None, 'rating': 1.0})
+		result.sort(key=lambda i: i['title'])
+		self.assertEqual(original, self.data)
+
 
 if __name__ == '__main__':
 	unittest.main()

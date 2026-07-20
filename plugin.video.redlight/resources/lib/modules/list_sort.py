@@ -65,13 +65,20 @@ def strip_articles(title, ignore_articles):
 
 
 def apply(data, spec, adapter, ignore_articles=False):
-	"""Return data sorted by spec using adapter's field extractors. Never raises."""
-	if not data: return data
+	"""Return data sorted by spec using adapter's field extractors. Never raises.
+
+	Always returns a new list, never the caller's original object.
+	"""
+	if not data: return []
 	field = spec.get('field', 'title')
-	if field == 'default': return data
-	if field == 'random': return sorted(data, key=lambda k: _random())
+	if field == 'default': return list(data)
+	if field == 'random':
+		try:
+			return sorted(data, key=lambda k: _random())
+		except Exception:
+			return list(data)
 	extractor = adapter.get('fields', {}).get(field)
-	if extractor is None: return data
+	if extractor is None: return list(data)
 	reverse = spec.get('direction', 'asc') == 'desc'
 	if field == 'title':
 		key = lambda i: strip_articles(extractor(i), ignore_articles)
@@ -80,4 +87,4 @@ def apply(data, spec, adapter, ignore_articles=False):
 	try:
 		return sorted(data, key=key, reverse=reverse)
 	except Exception:
-		return data
+		return list(data)
