@@ -284,20 +284,12 @@ def released_key(item):
 	return '2050-01-01'
 
 def title_key(title, ignore_articles):
-	if not ignore_articles: return title
-	try:
-		if title is None: title = ''
-		articles = ['the', 'a', 'an']
-		match = re.match(r'^((\w+)\s+)', title.lower())
-		if match and match.group(2) in articles: offset = len(match.group(1))
-		else: offset = 0
-		return title[offset:]
-	except: return title
+	from modules.list_sort import strip_articles
+	return strip_articles(title, ignore_articles)
 
 def sort_for_article(_list, _key, ignore_articles):
-	try:
-		if not ignore_articles: _list.sort(key=lambda k: k.get(_key))
-		else: _list.sort(key=lambda k: re.sub(r'(^the |^a |^an )', '', k.get(_key).lower()))
+	from modules.list_sort import strip_articles
+	try: _list.sort(key=lambda k: strip_articles(k.get(_key), ignore_articles))
 	except: pass
 	return _list
 	
