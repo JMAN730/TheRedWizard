@@ -9,10 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / 'plugin.video.redlight' / 'resources' / 'lib'
 SETTINGS_PATH = LIB / 'modules' / 'settings.py'
 WATCHLIST_PATH = LIB / 'modules' / 'watchlist.py'
+CUSTOM_KEYS_PATH = LIB / 'modules' / 'custom_keys.py'
 
 _STUB_KEYS = (
 	'caches', 'caches.settings_cache', 'modules', 'modules.kodi_utils', 'modules.settings',
-	'apis', 'apis.trakt_api', 'apis.simkl_api', 'apis.mdblist_api',
+	'modules.watchlist', 'apis', 'apis.trakt_api', 'apis.simkl_api', 'apis.mdblist_api',
+	'indexers', 'indexers.dialogs',
 )
 
 
@@ -250,6 +252,72 @@ class ToggleWatchlistDispatchTests(unittest.TestCase):
 		self.assertEqual([], stubs['simkl'].calls)
 		self.assertEqual([], stubs['mdblist'].calls)
 		self.assertEqual('notification', stubs['kodi_utils'].calls[0][0])
+
+
+def _load_custom_keys_module(watchlist_url):
+	kodi_utils = _RecordingModule('modules.kodi_utils')
+	kodi_utils.get_infolabel = lambda label: watchlist_url
+	kodi_utils._record('activate_window', result=None)
+	kodi_utils._record('container_update', result=None)
+	kodi_utils._record('hide_busy_dialog', result=None)
+
+	watchlist = _RecordingModule('modules.watchlist')
+	watchlist._record('toggle_watchlist')
+
+	trakt_api = _RecordingModule('apis.trakt_api')
+	trakt_api._record('toggle_watchlist')
+
+	modules = types.ModuleType('modules')
+	modules.__path__ = []
+	modules.kodi_utils = kodi_utils
+	modules.watchlist = watchlist
+
+	apis = types.ModuleType('apis')
+	apis.__path__ = []
+
+	indexers = types.ModuleType('indexers')
+	indexers.__path__ = []
+	dialogs = types.ModuleType('indexers.dialogs')
+	indexers.dialogs = dialogs
+
+	sys.modules['modules'] = modules
+	sys.modules['modules.kodi_utils'] = kodi_utils
+	sys.modules['modules.watchlist'] = watchlist
+	sys.modules['apis'] = apis
+	sys.modules['apis.trakt_api'] = trakt_api
+	sys.modules['indexers'] = indexers
+	sys.modules['indexers.dialogs'] = dialogs
+
+	spec = importlib.util.spec_from_file_location('custom_keys_under_test', CUSTOM_KEYS_PATH)
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	return module, {'watchlist': watchlist, 'trakt': trakt_api}
+
+
+class CustomKeyWatchlistTests(unittest.TestCase):
+	def setUp(self):
+		self._snapshot = _snapshot_modules()
+
+	def tearDown(self):
+		_restore_modules(self._snapshot)
+
+	def test_custom_key_routes_through_provider_dispatcher(self):
+		url = ('plugin://plugin.video.redlight/?mode=watchlist.toggle_watchlist&provider=simkl&action=add'
+			'&tmdb_id=5&imdb_id=tt5&tvdb_id=None&media_type=movie')
+		custom_keys, stubs = _load_custom_keys_module(url)
+		custom_keys.trakt_watchlist()
+		self.assertEqual([], stubs['trakt'].calls)
+		self.assertEqual(1, len(stubs['watchlist'].calls))
+		name, args, kwargs = stubs['watchlist'].calls[0]
+		self.assertEqual('toggle_watchlist', name)
+		self.assertEqual('simkl', args[0]['provider'])
+		self.assertEqual('5', args[0]['tmdb_id'])
+
+	def test_custom_key_no_params_is_noop(self):
+		custom_keys, stubs = _load_custom_keys_module('')
+		custom_keys.trakt_watchlist()
+		self.assertEqual([], stubs['watchlist'].calls)
+		self.assertEqual([], stubs['trakt'].calls)
 
 
 class WatchlistTmdbIdsTests(unittest.TestCase):

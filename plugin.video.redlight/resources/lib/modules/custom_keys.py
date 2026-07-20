@@ -56,7 +56,7 @@ def browse_in_trakt_list():
 def trakt_watchlist():
 	params = get_params('trakt_watchlist_params')
 	if params:
-		from apis.trakt_api import toggle_watchlist
+		from modules.watchlist import toggle_watchlist
 		toggle_watchlist(params)
 
 def trakt_manager():
