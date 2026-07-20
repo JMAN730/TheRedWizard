@@ -50,7 +50,20 @@ class ResolveTests(unittest.TestCase):
 		# When the full suite runs, collection order can clobber our stub before these tests
 		# execute, since resolve() re-reads sys.modules lazily on every call. Reinstall ours
 		# here so each test sees the fakes this file installed, regardless of collection order.
+		self._original_sys_modules = {}
+		for key in ('caches', 'caches.list_sort_cache', 'caches.settings_cache'):
+			if key in sys.modules:
+				self._original_sys_modules[key] = sys.modules[key]
 		_install_stubs()
+		OVERRIDES.clear()
+		SETTINGS.clear()
+
+	def tearDown(self):
+		for key in ('caches', 'caches.list_sort_cache', 'caches.settings_cache'):
+			if key in self._original_sys_modules:
+				sys.modules[key] = self._original_sys_modules[key]
+			else:
+				sys.modules.pop(key, None)
 		OVERRIDES.clear()
 		SETTINGS.clear()
 
