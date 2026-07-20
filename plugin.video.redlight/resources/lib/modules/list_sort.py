@@ -88,3 +88,95 @@ def apply(data, spec, adapter, ignore_articles=False):
 		return sorted(data, key=key, reverse=reverse)
 	except Exception:
 		return list(data)
+
+
+def _node(item):
+	"""Trakt list rows nest the payload under a key named by item['type']."""
+	try: return item.get(item.get('type')) or {}
+	except Exception: return {}
+
+
+def _trakt_list_released(item):
+	node = _node(item)
+	if 'released' in node: return node.get('released') or MISSING_DATE
+	if 'first_aired' in node: return node.get('first_aired') or MISSING_DATE
+	return MISSING_DATE
+
+
+TRAKT_SYNC = {
+	'capabilities': ('title', 'date_added', 'release_date', 'random'),
+	'fields': {
+		'title': lambda i: i.get('title'),
+		'date_added': lambda i: i.get('collected_at') or '',
+		'release_date': lambda i: i.get('released') or MISSING_DATE,
+	}
+}
+
+TRAKT_LIST = {
+	'capabilities': ('title', 'date_added', 'release_date', 'rating', 'votes', 'runtime', 'rank', 'random', 'default'),
+	'fields': {
+		'title': lambda i: _node(i).get('title'),
+		'date_added': lambda i: i.get('listed_at') or '',
+		'release_date': _trakt_list_released,
+		'rating': lambda i: _node(i).get('rating') or 0,
+		'votes': lambda i: _node(i).get('votes') or 0,
+		'runtime': lambda i: _node(i).get('runtime') or 0,
+		'rank': lambda i: i.get('rank') or 0,
+	}
+}
+
+SIMKL = {
+	'capabilities': ('title', 'date_added', 'release_date', 'random', 'default'),
+	'fields': {
+		'title': lambda i: i.get('title'),
+		'date_added': lambda i: i.get('collected_at') or '',
+		'release_date': lambda i: i.get('released') or MISSING_DATE,
+	}
+}
+
+MDBLIST_WATCHLIST = {
+	'capabilities': ('title', 'date_added', 'release_date', 'random'),
+	'fields': {
+		'title': lambda i: i.get('title'),
+		'date_added': lambda i: i.get('watchlist_at') or '',
+		'release_date': lambda i: i.get('release_date') or MISSING_DATE,
+	}
+}
+
+MDBLIST_COLLECTION = {
+	'capabilities': ('title', 'date_added', 'release_date', 'random'),
+	'fields': {
+		'title': lambda i: i.get('title'),
+		'date_added': lambda i: i.get('collected_at') or '',
+		'release_date': lambda i: int(i.get('year') or 9999),
+	}
+}
+
+PERSONAL = {
+	'capabilities': ('title', 'date_added', 'release_date', 'random', 'default'),
+	'fields': {
+		'title': lambda i: i.get('title'),
+		'date_added': lambda i: int(i.get('date_added') or 0),
+		'release_date': lambda i: i.get('release_date') or MISSING_DATE,
+	}
+}
+
+TMDB = {
+	'capabilities': ('title', 'release_date', 'random', 'default'),
+	'fields': {
+		'title': lambda i: i.get('title'),
+		'release_date': lambda i: i.get('release_date') or MISSING_DATE,
+	}
+}
+
+ADAPTERS = {
+	'trakt_sync': TRAKT_SYNC, 'trakt_list': TRAKT_LIST, 'simkl': SIMKL,
+	'mdblist_watchlist': MDBLIST_WATCHLIST, 'mdblist_collection': MDBLIST_COLLECTION,
+	'personal': PERSONAL, 'tmdb': TMDB
+}
+
+
+def field_choices(adapter_name):
+	adapter = ADAPTERS.get(adapter_name)
+	if not adapter: return ()
+	return adapter['capabilities']
