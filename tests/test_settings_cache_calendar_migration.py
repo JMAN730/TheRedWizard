@@ -35,6 +35,14 @@ def _load_settings_cache_module():
 	settings.migrate_mdblist_context_menu_for_upgrade = lambda had_existing: False
 	settings.migrate_simkl_context_menu_for_upgrade = lambda had_existing: False
 	settings.migrate_trakt_watchlist_context_menu_for_upgrade = lambda had_existing: False
+	# sanitize_setting_value() reaches back into modules.settings for these option tables whenever the
+	# settings they belong to are present with a non-default value - which only happens once a profile
+	# already holds them, i.e. on a second sync_settings() run. An empty map sanitizes those settings to
+	# their declared defaults. Declared by name on purpose: a catch-all __getattr__ would answer a
+	# genuinely missing name with an empty map instead of failing loudly.
+	settings.watched_provider_options = lambda: {}
+	settings.subtitles_source_options = lambda: {}
+	settings.alert_timing_options = lambda next_episode=False: {}
 
 	caches = types.ModuleType('caches')
 	caches.__path__ = []

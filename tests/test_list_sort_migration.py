@@ -290,10 +290,13 @@ class SentinelTests(unittest.TestCase):
 class SyncSettingsMigrationTests(unittest.TestCase):
 	"""End-to-end: run the real sync_settings() over a fake profile holding legacy sort settings.
 
-	This is what protects the pre-purge snapshot. sync_settings() deletes sort.watchlist and
-	friends as obsolete ids before the migration block runs, so taking the snapshot after the
-	purge - or passing the post-purge currentsettings - silently migrates nothing. The unit
-	tests above cannot see that; these can.
+	The primary guard here is the obsolete purge deferral: sync_settings() would otherwise delete
+	sort.watchlist and friends as obsolete ids before the migration block runs, so a failed run
+	would destroy the only copy of the user's per-list orderings. These tests pin that deferral.
+
+	The pre-purge legacy_sort_settings snapshot is secondary and deliberately unpinned - with the
+	deferral in place, passing currentsettings directly leaves every test here green. It is kept as
+	belt-and-braces for the day the deferral is removed, not because anything covers it.
 	"""
 	_KEYS = ('modules', 'modules.kodi_utils', 'modules.settings', 'modules.list_sort',
 		'caches', 'caches.base_cache', 'caches.settings_cache', 'caches.list_sort_cache')
@@ -305,12 +308,6 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 				self._original_sys_modules[key] = sys.modules[key]
 		from test_settings_cache_calendar_migration import _load_settings_cache_module
 		self.module = _load_settings_cache_module()
-		# A second sync_settings() run sanitizes the settings the first run inserted from the
-		# defaults, and several of those reach back into modules.settings for their option tables.
-		# The shared harness stub only declares the migration helpers, so answer anything else with
-		# an empty option map (which sanitizes those settings to their declared defaults) rather
-		# than mutating the harness the other test files depend on.
-		sys.modules['modules.settings'].__getattr__ = lambda name: (lambda *args, **kwargs: {})
 		# _load_settings_cache_module() replaces sys.modules['caches'], so install the modules the
 		# lazy imports inside the migration resolve at call time afterwards, not before.
 		self.overrides = {}
@@ -340,7 +337,7 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.assertEqual('synced', result)
 		return cache
 
-	def test_legacy_settings_survive_the_obsolete_purge(self):
+	def test_legacy_values_migrate_then_purge_on_the_following_sync(self):
 		cache = self._sync({
 			'sort.watchlist': '3',
 			'sort.collection': '2',
@@ -348,8 +345,9 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 			'tmdbsort.watchlist': '4',
 		})
 
-		# Fails if the snapshot moves below the purge: sort.watchlist is deleted as an obsolete id
-		# before the migration block runs, so the defaults would never be written.
+		# Fails if the purge deferral is removed: sort.watchlist would be deleted as an obsolete id
+		# before the migration block runs, so the defaults would never be written. The pre-purge
+		# snapshot is not what is being pinned here - it is redundant while the deferral holds.
 		self.assertEqual('date_added:asc', cache.data['sort.default.movies'])
 		self.assertEqual('date_added:asc', cache.data['sort.default.shows'])
 		self.assertEqual('Date Added (ascending)', cache.data['sort.default.movies_name'])
@@ -419,6 +417,19 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.assertEqual('default:asc', self.overrides['tmdb:favorites'])
 		self.assertNotIn('trakt.collection:movies', self.overrides)
 		self.assertNotIn('simkl:movies', self.overrides)
+
+	def test_fresh_install_writes_no_overrides_at_all(self):
+		# A brand-new profile has nothing to migrate, but the migration reads absent legacy ids as
+		# their old fallbacks and would pin six overrides for a user who never touched a sort setting.
+		# The sentinel is seeded 'true' on the fresh-install pass so the block never runs here.
+		cache = self._sync({})
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
+		self.assertEqual({}, self.overrides)
+
+		self.module.settings_cache = cache
+		self.assertEqual('synced', self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'}))
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
+		self.assertEqual({}, self.overrides)
 
 	def test_migration_does_not_rerun_once_the_sentinel_is_set(self):
 		cache = self._sync({'sort.watchlist': '1', 'migration.unified_list_sort': 'true'})

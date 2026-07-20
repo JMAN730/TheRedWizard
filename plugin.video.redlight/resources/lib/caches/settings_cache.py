@@ -77,6 +77,11 @@ def _new_settings_affect_widgets(insert_list):
 
 def _new_setting_value(setting_id, setting_default, currentsettings, had_existing_settings) -> str:
 	if not had_existing_settings:
+		# A genuine fresh install has nothing to migrate, but migrate_legacy_sort_settings() reads each
+		# absent legacy id as its own old getter fallback, so it would write six override rows for a user
+		# who has never touched a sort setting - breaking list_sort_cache's "a row means the user
+		# overrode this list" invariant. Seed the sentinel as already done so it never runs here.
+		if setting_id == 'migration.unified_list_sort': return 'true'
 		return setting_default
 	old_setting_id = _NEW_SETTING_VALUE_MIGRATIONS.get(setting_id)
 	if not old_setting_id:
@@ -578,6 +583,9 @@ def sync_settings(params={}):
 	insert_list = []
 	insert_list_append = insert_list.append
 	currentsettings = settings_cache.get_all()
+	# Redundant by design: the obsolete purge below defers the legacy sort ids until the migration has
+	# recorded success, so currentsettings still holds them when the migration runs. This pre-purge
+	# snapshot is the second line of defence if that deferral is ever removed - keep both.
 	legacy_sort_settings = {k: v for k, v in currentsettings.items() if k.startswith('sort.') or k.startswith('tmdbsort.')}
 	had_existing_settings = bool(currentsettings)
 	d_settings = default_settings()
