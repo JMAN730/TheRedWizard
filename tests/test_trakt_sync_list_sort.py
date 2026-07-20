@@ -58,8 +58,8 @@ MOVIES = [
 	{'title': 'The Apple', 'collected_at': '2024-01-02', 'released': '1999-01-01'},
 ]
 SHOWS = [
-	{'title': 'Zulu', 'collected_at': '2024-01-02', 'released': '2001-01-01'},
-	{'title': 'Alpha', 'collected_at': '2024-01-03', 'released': '1999-01-01'},
+	{'title': 'Zulu', 'collected_at': '2024-01-03', 'released': '2001-01-01'},
+	{'title': 'Alpha', 'collected_at': '2024-01-02', 'released': '1999-01-01'},
 ]
 
 

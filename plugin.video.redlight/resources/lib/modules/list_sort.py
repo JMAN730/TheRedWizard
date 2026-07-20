@@ -324,10 +324,12 @@ def sort_source(data, list_key, media_type, adapter_name):
 	adapter = ADAPTERS.get(adapter_name)
 	if not adapter: return data
 	try:
-		from modules.settings import ignore_articles
-		articles = ignore_articles()
 		spec = resolve(list_key, media_type)
 	except Exception:
-		articles = False
 		spec = dict(DEFAULT_SPEC)
+	try:
+		from modules.settings import ignore_articles
+		articles = ignore_articles()
+	except Exception:
+		articles = False
 	return apply(data, spec, adapter, ignore_articles=articles)
