@@ -433,8 +433,8 @@ def process_trakt_list(chosen_list):
 		trakt_media_type = chosen_list.get('media_type')
 		result = trakt_fetch_collection_watchlist(trakt_list_type, trakt_media_type)
 		try:
-			from modules.settings import sort_trakt_sync_list
-			result = sort_trakt_sync_list(result, trakt_list_type)
+			from modules import list_sort
+			result = list_sort.sort_source(result, 'trakt.%s' % trakt_list_type, trakt_media_type, 'trakt_sync')
 		except: pass
 	else:
 		result = get_trakt_list_contents(trakt_list_type, chosen_list.get('user'), chosen_list.get('slug'), trakt_list_type == 'my_lists')

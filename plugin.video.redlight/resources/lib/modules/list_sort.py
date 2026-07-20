@@ -316,3 +316,16 @@ def run_sort_migration(old_settings, write_setting):
 	if failed:
 		raise SortMigrationError('could not persist sort overrides: %s' % ', '.join(sorted(failed)))
 	return True
+
+
+def sort_source(data, list_key, media_type, adapter_name):
+	"""Resolve the spec for this list and media type, then sort. Never raises."""
+	if not data: return data
+	adapter = ADAPTERS.get(adapter_name)
+	if not adapter: return data
+	try:
+		from modules.settings import ignore_articles
+		articles = ignore_articles()
+	except Exception:
+		articles = False
+	return apply(data, resolve(list_key, media_type), adapter, ignore_articles=articles)

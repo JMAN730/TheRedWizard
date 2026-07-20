@@ -12,7 +12,7 @@ def _trakt_setting(setting_id, fallback=''):
 	return val
 from caches.main_cache import cache_object
 from caches.lists_cache import lists_cache_object
-from modules import kodi_utils, settings
+from modules import kodi_utils, settings, list_sort
 from modules.metadata import movie_meta_external_id, tvshow_meta_external_id
 from modules.utils import sort_list, sort_for_article, get_datetime, timedelta, replace_html_codes, copy2clip, make_qrcode, make_tinyurl, \
 							TaskPool, jsondate_to_datetime as js2date
@@ -437,7 +437,7 @@ def trakt_watchlist_lists(media_type, list_type=None):
 
 def trakt_collection(media_type, dummy_arg):
 	data = trakt_fetch_collection_watchlist('collection', media_type)
-	return settings.sort_trakt_sync_list(data, 'collection')
+	return list_sort.sort_source(data, 'trakt.collection', media_type, 'trakt_sync')
 
 def trakt_watchlist(media_type, dummy_arg):
 	data = trakt_fetch_collection_watchlist('watchlist', media_type)
@@ -445,8 +445,7 @@ def trakt_watchlist(media_type, dummy_arg):
 		current_date = get_datetime()
 		str_format = '%Y-%m-%d' if media_type in ('movie', 'movies') else '%Y-%m-%dT%H:%M:%S.%fZ'
 		data = [i for i in data if i.get('released', None) and js2date(i.get('released'), str_format, remove_time=True) <= current_date]
-	data = settings.sort_trakt_sync_list(data, 'watchlist')
-	return data
+	return list_sort.sort_source(data, 'trakt.watchlist', media_type, 'trakt_sync')
 
 def trakt_fetch_collection_watchlist(list_type, media_type):
 	def _process(params):
