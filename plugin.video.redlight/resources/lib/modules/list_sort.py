@@ -207,3 +207,61 @@ def resolve(list_key, media_type=None):
 	if not normalized: return dict(DEFAULT_SPEC)
 	from caches.settings_cache import get_setting
 	return parse_spec(get_setting(DEFAULT_SETTING_IDS[normalized], ''))
+
+
+LEGACY_SYNC_CODES = {'0': 'title:asc', '1': 'date_added:desc', '2': 'release_date:desc', '3': 'date_added:asc', '4': 'release_date:asc'}
+
+LEGACY_TMDB_CODES = {'0': 'title:asc', '1': 'release_date:asc', '2': 'release_date:desc', '3': 'random:asc', '4': 'default:asc'}
+
+LEGACY_PERSONAL_CODES = {'0': 'title:asc', '1': 'date_added:asc', '2': 'date_added:desc', '3': 'release_date:asc',
+	'4': 'release_date:desc', '5': 'random:asc', 'None': 'default:asc', '': 'title:asc'}
+
+# Trakt user-list sort_by values -> canonical fields.
+LEGACY_TRAKT_FIELDS = {'added': 'date_added', 'released': 'release_date', 'popularity': 'votes', 'percentage': 'rating',
+	'title': 'title', 'runtime': 'runtime', 'rank': 'rank', 'votes': 'votes', 'random': 'random', 'default': 'default'}
+
+
+def translate_trakt_custom_sort(sort_by, sort_how):
+	"""Legacy Trakt per-list sort_by/sort_how -> 'field:direction'. '' when unmappable."""
+	field = LEGACY_TRAKT_FIELDS.get(sort_by)
+	if not field: return ''
+	direction = 'desc' if sort_how == 'desc' else 'asc'
+	return '%s:%s' % (field, direction)
+
+
+def migrate_legacy_sort_settings(old_settings):
+	"""Pure translation of the old settings dict into new defaults and overrides."""
+	defaults, overrides = {}, {}
+	watchlist_spec = LEGACY_SYNC_CODES.get(str(old_settings.get('sort.watchlist', '')))
+	if watchlist_spec:
+		defaults['sort.default.movies'] = watchlist_spec
+		defaults['sort.default.shows'] = watchlist_spec
+	baseline = watchlist_spec or LEGACY_SYNC_CODES['0']
+	collection_spec = LEGACY_SYNC_CODES.get(str(old_settings.get('sort.collection', '')))
+	if collection_spec and collection_spec != baseline:
+		for scope in ('trakt.collection:movies', 'trakt.collection:shows', 'mdblist.collection:movies', 'mdblist.collection:shows'):
+			overrides[scope] = collection_spec
+	simkl_spec = LEGACY_SYNC_CODES.get(str(old_settings.get('sort.simkl', '')))
+	if simkl_spec and simkl_spec != baseline:
+		overrides['simkl:movies'] = simkl_spec
+		overrides['simkl:shows'] = simkl_spec
+	for old_id, scope in (('tmdbsort.watchlist', 'tmdb:watchlist'), ('tmdbsort.favorites', 'tmdb:favorites')):
+		tmdb_spec = LEGACY_TMDB_CODES.get(str(old_settings.get(old_id, '')))
+		if tmdb_spec: overrides[scope] = tmdb_spec
+	return {'defaults': defaults, 'overrides': overrides}
+
+
+def run_sort_migration(old_settings, write_setting):
+	"""Apply the translation. write_setting(setting_id, value) persists a setting.
+
+	Returns True when anything was written.
+	"""
+	result = migrate_legacy_sort_settings(old_settings)
+	if not result['defaults'] and not result['overrides']: return False
+	from caches.list_sort_cache import set_override
+	for setting_id, spec_string in result['defaults'].items():
+		write_setting(setting_id, spec_string)
+		write_setting('%s_name' % setting_id, spec_label(parse_spec(spec_string)))
+	for scope, spec_string in result['overrides'].items():
+		set_override(scope, spec_string)
+	return True

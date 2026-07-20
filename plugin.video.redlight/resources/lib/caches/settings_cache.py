@@ -571,6 +571,7 @@ def sync_settings(params={}):
 	insert_list = []
 	insert_list_append = insert_list.append
 	currentsettings = settings_cache.get_all()
+	legacy_sort_settings = {k: v for k, v in currentsettings.items() if k.startswith('sort.') or k.startswith('tmdbsort.')}
 	had_existing_settings = bool(currentsettings)
 	d_settings = default_settings()
 	defaultsettings_ids = _defaultsettings_ids(d_settings)
@@ -647,6 +648,19 @@ def sync_settings(params={}):
 			settings_cache.write_db('migration.my_content_nav_mode_v136', 'true', defaults_map.get('migration.my_content_nav_mode_v136'))
 			currentsettings['migration.my_content_nav_mode_v136'] = 'true'
 			if load_properties: settings_cache.set_memory_cache('migration.my_content_nav_mode_v136', 'true')
+		if currentsettings.get('migration.unified_list_sort') != 'true':
+			try:
+				from modules.list_sort import run_sort_migration
+				def _write_sort_setting(setting_id, value):
+					settings_cache.write_db(setting_id, value, defaults_map.get(setting_id))
+					currentsettings[setting_id] = value
+					if load_properties: settings_cache.set_memory_cache(setting_id, value)
+				if run_sort_migration(legacy_sort_settings, _write_sort_setting): migrated = True
+			except Exception as e:
+				kodi_utils.logger('sync_settings', 'unified list sort migration: %s' % e)
+			settings_cache.write_db('migration.unified_list_sort', 'true', defaults_map.get('migration.unified_list_sort'))
+			currentsettings['migration.unified_list_sort'] = 'true'
+			if load_properties: settings_cache.set_memory_cache('migration.unified_list_sort', 'true')
 		for setting_id, value in list(currentsettings.items()):
 			if setting_id not in defaults_map: continue
 			sanitized = sanitize_setting_value(setting_id, value, defaults_map[setting_id], validate_paths=False)
@@ -1101,6 +1115,7 @@ def default_settings():
 {'setting_id': 'migration.cache_check_pm_oc_tb_v129e', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.ad_cache_check_removed_v173', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.my_content_nav_mode_v136', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'migration.unified_list_sort', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== Real Debrid
 {'setting_id': 'rd.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'rd.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
