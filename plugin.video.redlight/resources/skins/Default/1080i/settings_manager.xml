@@ -1572,7 +1572,7 @@
                           <property name="setting_label">Calendar Date Labels</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">$INFO[Window(10000).Property(redlight.trakt.calendar_date_labels_name)]</property>
-                          <property name="setting_description">Choose how Red Light labels the airdate of episodes in the Trakt Calendar. Words uses Today, Tomorrow and weekday names. The date formats always show the full date, keeping the list in plain chronological order.</property>
+                          <property name="setting_description">Choose how Red Light labels the airdate of episodes in the Trakt Calendar. Words / date uses Today, Tomorrow and weekday names for the near week, and the chosen date format outside that. Day + date always shows both. Date-only formats keep the list in plain chronological order (no pin-today). Each group is ordered YYYY-MM-DD, MM-DD-YYYY, DD-MM-YYYY</property>
                           <onclick>RunPlugin(plugin://plugin.video.redlight/?mode=settings_manager.set_from_list&amp;setting_id=trakt.calendar_date_labels)</onclick>
                       </item>
                       <item>

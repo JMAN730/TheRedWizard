@@ -1,3 +1,6 @@
+[COLOR red][B]Version 1.9.7[/B][/COLOR]
+- [B]Trakt Calendar[/B]: [B]Calendar Date Labels[/B] — three groups in matching order ([B]YYYY-MM-DD[/B], [B]MM-DD-YYYY[/B], [B]DD-MM-YYYY[/B]): [B]Words / …[/B] (Today/Tomorrow/weekday for the near week, that format outside it; default [B]Words / YYYY-MM-DD[/B]), date-only, and [B]Day + …[/B] (e.g. [B]TODAY 07-20-2026[/B]). Word and Day + date modes keep pin-today.
+
 [COLOR red][B]Version 1.9.6[/B][/COLOR]
 - [B]Special Open Actions[/B]: optional [B]Skip on In-Progress Movies[/B] — when enabled, selecting an in-progress movie resumes playback directly instead of opening Extras / Movie Set (thanks JMAN730 / #77).
 - [B]Special Open Actions[/B]: optional [B]Skip on In-Progress Shows[/B] — when enabled, selecting a show that has an in-progress episode opens seasons/episodes instead of Extras (partially watched shows without a resume point are unchanged; Extras stays in the context menu).

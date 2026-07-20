@@ -223,10 +223,10 @@ def build_single_episode(list_type, params={}):
 			elif list_type_compare == 'trakt_calendar':
 				if not episode_date:
 					display_premiered = 'UNKNOWN'
-				elif calendar_date_format:
-					display_premiered = make_day(current_date, episode_date, calendar_date_format, use_words=False)
 				else:
-					display_premiered = make_day(current_date, episode_date)
+					display_premiered = make_day(
+						current_date, episode_date, calendar_date_strftime,
+						use_words=calendar_use_words, include_date=calendar_include_date)
 				display = '[%s] %s%s%s' % (display_premiered, title_str, seas_ep, ep_name)
 			else: display = '%s%s%s' % (title_str, seas_ep, ep_name)
 			if no_spoilers and not playcount: thumb, plot = show_landscape or show_fanart, tvshow_plot or '* Hidden to Prevent Spoilers *'
@@ -312,9 +312,11 @@ def build_single_episode(list_type, params={}):
 	watched_indicators = settings.watched_indicators()
 	if list_type == 'episode.trakt':
 		display_format = settings.calendar_display_format(is_external)
-		calendar_date_format = settings.calendar_date_format()
+		calendar_date_strftime, calendar_use_words, calendar_include_date = settings.calendar_date_label_options()
+		calendar_date_format = None if calendar_use_words else calendar_date_strftime
 	else:
 		display_format = settings.single_ep_display_format(is_external)
+		calendar_date_strftime, calendar_use_words, calendar_include_date = '%Y-%m-%d', True, False
 		calendar_date_format = None
 	current_date, current_time, adjust_hours = get_datetime(), get_current_timestamp(), settings.date_offset()
 	unwatched_info = settings.single_ep_unwatched_episodes()

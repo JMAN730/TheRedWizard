@@ -970,12 +970,24 @@ def widget_hide_watched():
 def calendar_sort_order():
 	return int(get_setting('redlight.trakt.calendar_sort_order', '0'))
 
-def calendar_date_format():
-	# None means word labels (Today, Tomorrow, weekday names)
-	formats = {1: '%m/%d/%Y', 2: '%d/%m/%Y', 3: '%Y-%m-%d'}
+def calendar_date_label_options():
+	# (strftime format, use_words, include_date). Hyphen formats match picker labels.
+	# Words modes: Today/Tomorrow/weekday within ~1 week; format used outside that window.
+	# 0/7/8 Words / date | 1-3 date only | 4-6 Day + date (word and date together)
+	date_only = {3: '%Y-%m-%d', 1: '%m-%d-%Y', 2: '%d-%m-%Y'}
+	day_plus = {6: '%Y-%m-%d', 4: '%m-%d-%Y', 5: '%d-%m-%Y'}
+	words_far = {0: '%Y-%m-%d', 7: '%m-%d-%Y', 8: '%d-%m-%Y'}
 	try: choice = int(get_setting('redlight.trakt.calendar_date_labels', '0'))
-	except (TypeError, ValueError): return None
-	return formats.get(choice)
+	except (TypeError, ValueError): choice = 0
+	if choice in date_only: return date_only[choice], False, False
+	if choice in day_plus: return day_plus[choice], True, True
+	return words_far.get(choice, '%Y-%m-%d'), True, False
+
+def calendar_date_format():
+	# None when word labels are used (words-only or Day + date); strftime string for date-only.
+	fmt, use_words, _ = calendar_date_label_options()
+	if use_words: return None
+	return fmt
 
 def ignore_articles():
 	return get_setting('redlight.ignore_articles', 'false') == 'true'
