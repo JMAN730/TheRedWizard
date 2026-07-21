@@ -311,7 +311,12 @@ class CustomKeyWatchlistTests(unittest.TestCase):
 		name, args, kwargs = stubs['watchlist'].calls[0]
 		self.assertEqual('toggle_watchlist', name)
 		self.assertEqual('simkl', args[0]['provider'])
+		self.assertEqual('add', args[0]['action'])
+		self.assertEqual('movie', args[0]['media_type'])
 		self.assertEqual('5', args[0]['tmdb_id'])
+		self.assertEqual('tt5', args[0]['imdb_id'])
+		self.assertEqual('None', args[0]['tvdb_id'])
+		self.assertEqual({}, kwargs)
 
 	def test_custom_key_no_params_is_noop(self):
 		custom_keys, stubs = _load_custom_keys_module('')
