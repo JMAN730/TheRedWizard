@@ -549,8 +549,8 @@ def _mdbl_watchlist_raw():
 	string, url = 'mdblist_watchlist_live', 'watchlist/items'
 	return mdblist_cache.cache_mdblist_object(_get_mdbl_paginated_list, string, url) or {'movies': [], 'shows': [], 'items': []}
 
-def mdblist_watchlist(media_kind, page_no):
-	# Umbrella/POV: plain GET watchlist/items → flat movies[]/shows[] (id = TMDb, imdb_id on item).
+def _mdbl_resolve_watchlist_list(media_kind):
+	"""Select movies or shows list from watchlist raw data, falling back to items scan if empty."""
 	raw = _mdbl_watchlist_raw()
 	key = 'movies' if media_kind in ('movie', 'movies') else 'shows'
 	original_list = list(raw.get(key) or [])
@@ -559,7 +559,13 @@ def mdblist_watchlist(media_kind, page_no):
 			kind = _mdbl_item_media_kind(item)
 			if key == 'movies' and kind == 'movie': original_list.append(item)
 			elif key == 'shows' and kind == 'show': original_list.append(item)
+	return original_list
+
+def mdblist_watchlist(media_kind, page_no):
+	# Umbrella/POV: plain GET watchlist/items → flat movies[]/shows[] (id = TMDb, imdb_id on item).
+	original_list = _mdbl_resolve_watchlist_list(media_kind)
 	if not original_list:
+		raw = _mdbl_watchlist_raw()
 		kodi_utils.logger('MDBList Watchlist', 'No %s items (movies=%s shows=%s)' % (
 			media_kind, len(raw.get('movies') or []), len(raw.get('shows') or [])))
 	else:
@@ -578,6 +584,17 @@ def mdblist_watchlist(media_kind, page_no):
 	is_home = kodi_utils.external()
 	if settings.paginate(is_home): return paginate_list(original_list, page_no, settings.page_limit(is_home))
 	return original_list, 1
+
+def mdblist_watchlist_tmdb_ids(media_type):
+	try:
+		media_kind = 'movie' if media_type == 'movie' else 'show'
+		original_list = _mdbl_resolve_watchlist_list(media_kind)
+		ids = set()
+		for item in original_list:
+			entry = _mdbl_item_to_list_entry(item, media_kind)
+			if entry and entry.get('id'): ids.add(str(entry['id']))
+		return ids
+	except: return set()
 
 def mdblist_collection(media_kind, page_no):
 	string, url = 'mdblist_collection', 'sync/collection'

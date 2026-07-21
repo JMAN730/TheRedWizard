@@ -253,10 +253,10 @@ class TVShows:
 			tmdb_manager_params = self.build_url({'mode': 'tmdblists_manager_choice', 'media_type': 'tv', 'tmdb_id': tmdb_id, 'icon': poster})
 			favorites_manager_params = self.build_url({'mode': 'favorites_manager_choice', 'media_type': 'tvshow', 'tmdb_id': tmdb_id, 'title': title})
 			trakt_watchlist_params = ''
-			if self.trakt_user:
+			if self.watchlist_provider:
 				watchlist_action = 'remove' if str(tmdb_id) in self.watchlist_ids else 'add'
-				trakt_watchlist_params = self.build_url({'mode': 'trakt.toggle_watchlist', 'action': watchlist_action, 'tmdb_id': tmdb_id, 'imdb_id': imdb_id,
-														'tvdb_id': tvdb_id, 'media_type': 'tvshow'})
+				trakt_watchlist_params = self.build_url({'mode': 'watchlist.toggle_watchlist', 'provider': self.watchlist_provider, 'action': watchlist_action,
+														'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id, 'media_type': 'tvshow'})
 			if self.all_episodes:
 				if self.all_episodes == 1 and total_seasons > 1: url_params = self.build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
 				else: url_params = self.build_url({'mode': 'build_episode_list', 'tmdb_id': tmdb_id, 'season': 'all'})
@@ -350,10 +350,10 @@ class TVShows:
 			from apis.mdblist_api import mdblist_sync_activities
 			mdblist_sync_activities()
 		self.watched_info = watched_status.watched_info_tvshow(watched_status.get_database(self.watched_indicators))
-		self.trakt_user = settings.trakt_user_active()
-		if self.trakt_user:
-			from apis.trakt_api import trakt_watchlist_tmdb_ids
-			self.watchlist_ids = trakt_watchlist_tmdb_ids('tvshow')
+		self.watchlist_provider = settings.active_watchlist_provider()
+		if self.watchlist_provider:
+			from modules.watchlist import watchlist_tmdb_ids
+			self.watchlist_ids = watchlist_tmdb_ids(self.watchlist_provider, 'tvshow')
 		else: self.watchlist_ids = set()
 		self.window_command = 'ActivateWindow(Videos,%s,return)' if self.is_external else 'Container.Update(%s)'
 		if self.custom_order:
