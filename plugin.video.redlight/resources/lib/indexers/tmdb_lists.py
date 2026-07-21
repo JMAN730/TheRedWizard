@@ -387,7 +387,10 @@ def get_tmdb_list(params):
 	contents = [dict(i, **{'title': i.get('title') or i.get('name'), 'release_date': i.get('release_date') or i.get('first_air_date')}) for i in contents]
 	if list_id == 'recommendations': return contents
 	from modules import list_sort
-	return list_sort.sort_source(contents, 'tmdb:%s' % list_id, None, 'tmdb')
+	# No override means the list was never sorted client-side: the old getters fell back to code 4
+	# (original_order) for watchlist/favorites and to the stored 'None' for a user list. DEFAULT_SPEC
+	# would reorder every one of them to title on upgrade, with no legacy row left to migrate.
+	return list_sort.sort_source(contents, 'tmdb:%s' % list_id, None, 'tmdb', fallback='default:asc')
 
 def cache_delete_all_tmdb(params=None):
 	tmdb_lists_cache.clear_all()

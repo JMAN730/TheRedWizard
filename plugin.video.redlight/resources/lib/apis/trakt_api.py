@@ -601,8 +601,12 @@ def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, sort
 			if i['type'] == 'season': i['season']['title'] = '%s - %s' % (i['show']['title'], i['season']['title'])
 			elif i['type'] == 'episode': i['episode']['title'] = '%s - %s' % (i['show']['title'], i['episode']['title'])
 			else: pass
-		data = list_sort.sort_source(data, 'trakt.list:%s' % list_id, None, 'trakt_list') if list_id is not None \
-			else list_sort.apply(data, list_sort.parse_spec(list_sort.translate_trakt_custom_sort(sort_by, sort_how)), list_sort.TRAKT_LIST, settings.ignore_articles())
+		# The payload sort is the ordering this list already had, so it is what a list with no stored
+		# override must keep - resolving to DEFAULT_SPEC here would retitle-sort every user list
+		# belonging to anyone who never opened "Set Custom Sort", with no row left to migrate.
+		payload_spec = list_sort.trakt_list_fallback(sort_by, sort_how)
+		data = list_sort.sort_source(data, 'trakt.list:%s' % list_id, None, 'trakt_list', fallback=payload_spec) if list_id is not None \
+			else list_sort.apply(data, list_sort.parse_spec(payload_spec), list_sort.TRAKT_LIST, settings.ignore_articles())
 	results = []
 	results_append = results.append
 	for c, i in enumerate(data):

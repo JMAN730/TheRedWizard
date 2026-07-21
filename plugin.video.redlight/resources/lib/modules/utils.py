@@ -278,11 +278,6 @@ def sec2time(sec, n_msec=3):
 	if d == 0: return pattern % (h, m, s)
 	return ('%d days, ' + pattern) % (d, h, m, s)
 
-def released_key(item):
-	if 'released' in item: return item['released'] or '2050-01-01'
-	if 'first_aired' in item: return item['first_aired'] or '2050-01-01'
-	return '2050-01-01'
-
 def title_key(title, ignore_articles):
 	from modules.list_sort import strip_articles
 	return strip_articles(title, ignore_articles)

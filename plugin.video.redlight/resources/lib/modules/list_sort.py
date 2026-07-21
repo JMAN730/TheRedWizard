@@ -200,8 +200,14 @@ def field_choices(adapter_name):
 DEFAULT_SETTING_IDS = {'movies': 'redlight.sort.default.movies', 'shows': 'redlight.sort.default.shows'}
 
 
-def resolve(list_key, media_type=None):
-	"""Per-list override, else the mediatype default, else DEFAULT_SPEC."""
+def resolve(list_key, media_type=None, fallback=None):
+	"""Per-list override, else the mediatype default, else fallback, else DEFAULT_SPEC.
+
+	fallback is a spec string for callers whose source carries its own ordering - a Trakt user list
+	whose payload declares sort_by/sort_how, or a TMDb list that is served in provider order. Those
+	lists have no mediatype (they are mixed), and a user who never opened "Set Custom Sort" has no
+	override row, so without it they would land on DEFAULT_SPEC and silently reorder on upgrade.
+	"""
 	from caches.list_sort_cache import scope_key, normalize_media_type, get_override
 	scope = scope_key(list_key, media_type)
 	raw = get_override(scope)
@@ -209,14 +215,20 @@ def resolve(list_key, media_type=None):
 		spec = parse_spec(raw, fallback=None)
 		if format_spec(spec) == raw: return spec
 	normalized = normalize_media_type(media_type)
-	if not normalized: return dict(DEFAULT_SPEC)
+	if not normalized: return parse_spec(fallback)
 	from caches.settings_cache import get_setting
 	return parse_spec(get_setting(DEFAULT_SETTING_IDS[normalized], ''))
 
 
 LEGACY_SYNC_CODES = {'0': 'title:asc', '1': 'date_added:desc', '2': 'release_date:desc', '3': 'date_added:asc', '4': 'release_date:asc'}
 
-LEGACY_TMDB_CODES = {'0': 'title:asc', '1': 'release_date:asc', '2': 'release_date:desc', '3': 'random:asc', '4': 'default:asc'}
+# 'None' is the literal string sort_order_tmdb_list() stores for the "Default From TMDb (None)"
+# choice, and '' is what an empty row reads as; the old get_tmdb_list treated both as code 4
+# (original_order). Without them an explicit provider-order choice would be dropped in migration
+# and the list would come back as title:asc. migrate_legacy_sort_settings never reaches these keys:
+# _legacy_code() coerces a missing or blank setting to the '4' fallback before the lookup.
+LEGACY_TMDB_CODES = {'0': 'title:asc', '1': 'release_date:asc', '2': 'release_date:desc', '3': 'random:asc',
+	'4': 'default:asc', 'None': 'default:asc', '': 'default:asc'}
 
 # MDBList only ever honoured three of the five legacy codes (apis/mdblist_api.py:574-577, :585-588):
 # 2 -> release date / year descending, 1 -> watchlist_at / collected_at descending, and everything
@@ -238,6 +250,16 @@ def translate_trakt_custom_sort(sort_by, sort_how):
 	if not field: return ''
 	direction = 'desc' if sort_how == 'desc' else 'asc'
 	return '%s:%s' % (field, direction)
+
+
+def trakt_list_fallback(sort_by, sort_how):
+	"""The ordering a Trakt user list has when nobody stored an override for it.
+
+	The list folder URL carries the sort_by/sort_how the Trakt API declared for the list - usually
+	'rank' - and the old code sorted by it. An unmappable value ('my_rating', 'watched', 'collected')
+	used to leave the payload untouched, so it maps to the provider order rather than to title.
+	"""
+	return translate_trakt_custom_sort(sort_by, sort_how) or 'default:asc'
 
 
 class SortMigrationError(Exception):
@@ -339,15 +361,19 @@ def migrate_legacy_stores(trakt_rows, personal_rows, tmdb_rows):
 	return result
 
 
-def sort_source(data, list_key, media_type, adapter_name):
-	"""Resolve the spec for this list and media type, then sort. Never raises."""
+def sort_source(data, list_key, media_type, adapter_name, fallback=None):
+	"""Resolve the spec for this list and media type, then sort. Never raises.
+
+	fallback is the spec string to use when the list has no override and no mediatype default;
+	see resolve(). Pass it wherever the source's own ordering must survive an upgrade.
+	"""
 	if not data: return data
 	adapter = ADAPTERS.get(adapter_name)
 	if not adapter: return data
 	try:
-		spec = resolve(list_key, media_type)
+		spec = resolve(list_key, media_type, fallback)
 	except Exception:
-		spec = dict(DEFAULT_SPEC)
+		spec = parse_spec(fallback)
 	try:
 		from modules.settings import ignore_articles
 		articles = ignore_articles()

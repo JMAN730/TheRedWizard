@@ -299,7 +299,8 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 	belt-and-braces for the day the deferral is removed, not because anything covers it.
 	"""
 	_KEYS = ('modules', 'modules.kodi_utils', 'modules.settings', 'modules.list_sort',
-		'caches', 'caches.base_cache', 'caches.settings_cache', 'caches.list_sort_cache')
+		'caches', 'caches.base_cache', 'caches.settings_cache', 'caches.list_sort_cache',
+		'caches.trakt_cache', 'caches.tmdb_lists', 'caches.personal_lists_cache')
 
 	def setUp(self):
 		self._original_sys_modules = {}
@@ -312,10 +313,29 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		# lazy imports inside the migration resolve at call time afterwards, not before.
 		self.overrides = {}
 		self.override_result = True
+		self.failing_scopes = ()
+		self.trakt_rows, self.personal_rows, self.tmdb_rows = {}, {}, {}
+		self.stores_raise = False
 		list_sort_cache = types.ModuleType('caches.list_sort_cache')
 		list_sort_cache.set_override = self._set_override
 		sys.modules['caches.list_sort_cache'] = list_sort_cache
 		sys.modules['modules.list_sort'] = list_sort
+		# The three legacy per-list stores. Without them the store migration would fail on an
+		# ImportError on every run here, which is exactly the condition these tests pin.
+		trakt_cache = types.ModuleType('caches.trakt_cache')
+		trakt_cache.get_all_lists_custom_sort = lambda: self._store_rows(self.trakt_rows)
+		sys.modules['caches.trakt_cache'] = trakt_cache
+		tmdb_lists = types.ModuleType('caches.tmdb_lists')
+		tmdb_lists.tmdb_lists_cache = types.SimpleNamespace(get_sort_orders=lambda: self._store_rows(self.tmdb_rows))
+		sys.modules['caches.tmdb_lists'] = tmdb_lists
+		personal_lists_cache = types.ModuleType('caches.personal_lists_cache')
+		personal_lists_cache.personal_lists_cache = types.SimpleNamespace(
+			get_all_sort_orders=lambda: self._store_rows(self.personal_rows))
+		sys.modules['caches.personal_lists_cache'] = personal_lists_cache
+
+	def _store_rows(self, rows):
+		if self.stores_raise: raise RuntimeError('legacy store unavailable')
+		return dict(rows)
 
 	def tearDown(self):
 		for key in self._KEYS:
@@ -325,7 +345,7 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 				sys.modules.pop(key, None)
 
 	def _set_override(self, scope, spec_string):
-		if not self.override_result: return False
+		if not self.override_result or scope in self.failing_scopes: return False
 		self.overrides[scope] = spec_string
 		return True
 
@@ -430,6 +450,51 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.assertEqual('synced', self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'}))
 		self.assertEqual('true', cache.data['migration.unified_list_sort'])
 		self.assertEqual({}, self.overrides)
+
+	def test_legacy_store_rows_migrate_alongside_the_settings(self):
+		self.trakt_rows = {'12345': {'sort_by': 'rank', 'sort_how': 'asc'}}
+		self.personal_rows = {('Faves', 'jo'): '2'}
+		self.tmdb_rows = {8675309: 'None'}
+		cache = self._sync({'sort.watchlist': '1'})
+
+		self.assertEqual('rank:asc', self.overrides['trakt.list:12345'])
+		self.assertEqual('date_added:desc', self.overrides['personal:Faves|jo'])
+		self.assertEqual('default:asc', self.overrides['tmdb:8675309'])
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
+
+	def test_unreadable_legacy_store_leaves_the_sentinel_unset(self):
+		# The sentinel is the one-way door: writing it on a run that saved nothing discards every
+		# per-list Trakt, personal and TMDb preference, because the legacy ids are purged next sync.
+		self.stores_raise = True
+		cache = self._sync({'sort.watchlist': '1'})
+
+		self.assertEqual('false', cache.data['migration.unified_list_sort'])
+
+	def test_unpersisted_store_override_leaves_the_sentinel_unset(self):
+		# set_override() swallows its own exceptions and reports False, so an ignored return value
+		# looks exactly like a clean success.
+		self.trakt_rows = {'12345': {'sort_by': 'rank', 'sort_how': 'asc'}}
+		self.failing_scopes = ('trakt.list:12345',)
+		cache = self._sync({'sort.watchlist': '1'})
+
+		self.assertEqual('false', cache.data['migration.unified_list_sort'])
+		self.assertNotIn('trakt.list:12345', self.overrides)
+
+	def test_failed_store_migration_is_retried_for_real_on_the_next_sync(self):
+		self.stores_raise = True
+		self.trakt_rows = {'12345': {'sort_by': 'rank', 'sort_how': 'asc'}}
+		cache = self._sync({'sort.watchlist': '1', 'sort.collection': '2'})
+		self.assertEqual('false', cache.data['migration.unified_list_sort'])
+		self.assertNotIn('trakt.list:12345', self.overrides)
+		self.assertIn('sort.collection', cache.data)
+
+		self.stores_raise = False
+		self.module.settings_cache = cache
+		self.assertEqual('synced', self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'}))
+
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
+		self.assertEqual('rank:asc', self.overrides['trakt.list:12345'])
+		self.assertEqual('release_date:desc', self.overrides['trakt.collection:movies'])
 
 	def test_migration_does_not_rerun_once_the_sentinel_is_set(self):
 		cache = self._sync({'sort.watchlist': '1', 'migration.unified_list_sort': 'true'})

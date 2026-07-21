@@ -688,9 +688,16 @@ def sync_settings(params={}):
 					from caches.personal_lists_cache import personal_lists_cache
 					personal_rows = personal_lists_cache.get_all_sort_orders()
 					store_overrides = migrate_legacy_stores(get_all_lists_custom_sort(), personal_rows, tmdb_lists_cache.get_sort_orders())
-					for scope, spec_string in store_overrides.items(): set_override(scope, spec_string)
+					failed = [scope for scope, spec_string in store_overrides.items() if not set_override(scope, spec_string)]
 					if store_overrides: migrated = True
+					if failed:
+						sort_migration_ok = False
+						kodi_utils.logger('sync_settings', 'legacy sort store migration: could not persist %s' % ', '.join(sorted(failed)))
 				except Exception as e:
+					# Swallowing this would write the sentinel on a run that saved nothing, and the per-list
+					# Trakt, personal and TMDb preferences are deleted with the legacy ids on the next sync.
+					# Fold it into the outer flag instead so the sentinel stays unset and the next sync retries.
+					sort_migration_ok = False
 					kodi_utils.logger('sync_settings', 'legacy sort store migration: %s' % e)
 			except Exception as e:
 				# Deliberately catches an ImportError on modules.list_sort too: the sentinel stays false, so a
