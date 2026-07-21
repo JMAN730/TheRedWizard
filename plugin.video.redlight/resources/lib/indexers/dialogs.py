@@ -1277,7 +1277,9 @@ def sort_default_choice(params):
 	setting_id = 'sort.default.%s' % media_type
 	current = list_sort.parse_spec(get_setting('redlight.%s' % setting_id, ''))
 	heading = 'Default Sort For %s' % ('Movies' if media_type == 'movies' else 'TV Shows')
-	spec = _pick_sort_spec(heading, 'trakt_list', current=current)
+	# Not any single adapter's field list: this setting is read by every mediatype-split list at once,
+	# and a field one of those adapters cannot extract would leave that list in raw cache order.
+	spec = _pick_sort_spec(heading, None, current=current, fields=list_sort.default_field_choices())
 	if spec == None: return
 	set_setting(setting_id, list_sort.format_spec(spec))
 	set_setting('%s_name' % setting_id, list_sort.spec_label(spec))
@@ -1299,16 +1301,18 @@ def list_sort_override_choice(params):
 	if success: kodi_utils.kodi_refresh()
 	else: kodi_utils.ok_dialog('Custom Sort', 'An Error Occured')
 
-def _pick_sort_spec(heading, adapter_name, allow_default=False, current=None):
+def _pick_sort_spec(heading, adapter_name, allow_default=False, current=None, fields=None):
 	"""Two stage picker: field, then direction. Returns a spec dict, 'use_default', or None.
 
 	'current' is the spec the list is sorted by right now; the matching entries are marked.
+	'fields' overrides the adapter's own capabilities, for a setting read by several adapters at once.
 	"""
 	from modules import list_sort
 	current = current or {}
+	if fields is None: fields = list_sort.field_choices(adapter_name)
 	choices = []
 	if allow_default: choices.append(('use_default', 'Use Default'))
-	choices.extend([(i, list_sort.FIELD_LABELS.get(i, i)) for i in list_sort.field_choices(adapter_name)])
+	choices.extend([(i, list_sort.FIELD_LABELS.get(i, i)) for i in fields])
 	if not choices: return None
 	field = _sort_select_dialog(choices, '%s: Field' % heading, current.get('field'))
 	if field == None: return None

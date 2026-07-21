@@ -217,6 +217,26 @@ def field_choices(adapter_name):
 
 DEFAULT_SETTING_IDS = {'movies': 'redlight.sort.default.movies', 'shows': 'redlight.sort.default.shows'}
 
+# The adapters the mediatype default actually governs: exactly those whose sort_source() call site
+# can pass a media type. resolve() consults DEFAULT_SETTING_IDS only when normalize_media_type()
+# returns non-empty, so a mixed list - a Trakt user list, a TMDb list, a personal list - never sees
+# the global default no matter what the picker offers.
+DEFAULT_GOVERNED_ADAPTERS = ('trakt_sync', 'simkl', 'mdblist_watchlist', 'mdblist_collection')
+
+
+def default_field_choices():
+	"""Fields every adapter the mediatype default governs can sort by, in VALID_FIELDS order.
+
+	Offering a wider set is silently broken: resolve() hands the spec to an adapter with no extractor
+	for that field, apply() returns the payload untouched and the list comes back in raw cache order
+	with no error anywhere. Derived from the adapters rather than hardcoded so a future adapter added
+	to DEFAULT_GOVERNED_ADAPTERS can only narrow the picker, never widen it.
+	"""
+	choice_sets = [set(field_choices(name)) for name in DEFAULT_GOVERNED_ADAPTERS]
+	if not choice_sets: return ()
+	common = set.intersection(*choice_sets)
+	return tuple(i for i in VALID_FIELDS if i in common)
+
 
 def resolve(list_key, media_type=None, fallback=None):
 	"""Per-list override, else the mediatype default, else fallback, else DEFAULT_SPEC.

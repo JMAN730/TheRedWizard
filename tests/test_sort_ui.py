@@ -280,6 +280,32 @@ class SortDefaultChoiceTests(_DialogTestCase):
 		self.assertEqual({}, self.state.settings)
 		self.assertEqual(0, self.state.refreshed)
 
+	def test_the_picker_offers_exactly_the_governed_adapters_intersection(self):
+		self.state.selections = ['title', 'asc']
+		self.dialogs.sort_default_choice({'media_type': 'movies'})
+		offered = self.state.dialog_calls[0]['choices']
+		expected = [i for i in list_sort.VALID_FIELDS
+			if all(i in list_sort.field_choices(a) for a in list_sort.DEFAULT_GOVERNED_ADAPTERS)]
+		self.assertEqual(expected, offered)
+		# Spelled out so a change to the adapters has to be looked at rather than absorbed.
+		self.assertEqual(['title', 'date_added', 'release_date', 'random'], offered)
+
+	def test_every_offered_field_can_be_extracted_by_every_governed_adapter(self):
+		"""The defect this replaces: the picker was built from field_choices('trakt_list') and offered
+		rank/rating/votes/runtime. resolve() hands the stored spec to whichever adapter is building the
+		list; with no extractor for the field apply() returns the payload untouched, so picking one of
+		those four silently left every mediatype-split list in raw cache order."""
+		self.state.selections = ['title', 'asc']
+		self.dialogs.sort_default_choice({'media_type': 'movies'})
+		offered = self.state.dialog_calls[0]['choices']
+		self.assertTrue(offered)
+		for field in offered:
+			for name in list_sort.DEFAULT_GOVERNED_ADAPTERS:
+				adapter = list_sort.ADAPTERS[name]
+				self.assertIn(field, adapter['capabilities'], '%s cannot sort by %s' % (name, field))
+				if field in list_sort.DIRECTIONLESS_FIELDS: continue
+				self.assertIn(field, adapter['fields'], '%s has no %s extractor' % (name, field))
+
 	def test_the_stored_default_is_marked_as_current(self):
 		self.state.settings['redlight.sort.default.movies'] = 'date_added:desc'
 		self.state.selections = ['title', 'asc']
@@ -463,6 +489,44 @@ def _sort_cm_calls():
 		media_type = node.args[0].value if node.args and isinstance(node.args[0], ast.Constant) else None
 		calls.append((list_key, media_type, adapter))
 	return calls
+
+
+def _media_typed_sort_source_adapters():
+	"""Adapter names of every sort_source() call site that can pass a media type.
+
+	The third argument is unparsed rather than read as a literal: the literal None marks a mixed list,
+	which resolve() can never hand the mediatype default to, while a variable can normalize to
+	movies/shows and therefore can. Those are exactly the adapters the global default governs."""
+	adapters = set()
+	for path in (TRAKT_API, SIMKL_API, MDBLIST_API, PERSONAL_LISTS, TMDB_LISTS):
+		for node in ast.walk(_tree(path)):
+			if not isinstance(node, ast.Call): continue
+			func = node.func
+			if not isinstance(func, ast.Attribute) or func.attr != 'sort_source': continue
+			if len(node.args) < 4: continue
+			if ast.unparse(node.args[2]) == 'None': continue
+			adapters.add(ast.literal_eval(node.args[3]))
+	return adapters
+
+
+class DefaultGovernedAdapterTests(unittest.TestCase):
+	def test_the_governed_adapter_list_matches_the_call_sites(self):
+		"""DEFAULT_GOVERNED_ADAPTERS is a hand-maintained mirror of which call sites pass a media type.
+		Drift either way is silent: too wide and the picker offers a field some list cannot sort by,
+		too narrow and a field that would have worked everywhere is withheld."""
+		self.assertEqual(_media_typed_sort_source_adapters(), set(list_sort.DEFAULT_GOVERNED_ADAPTERS))
+		self.assertEqual(len(list_sort.DEFAULT_GOVERNED_ADAPTERS), len(set(list_sort.DEFAULT_GOVERNED_ADAPTERS)))
+
+	def test_the_mixed_list_adapters_are_excluded(self):
+		for name in ('trakt_list', 'tmdb', 'personal'):
+			self.assertNotIn(name, list_sort.DEFAULT_GOVERNED_ADAPTERS)
+
+	def test_default_field_choices_is_the_intersection(self):
+		expected = set(list_sort.field_choices(list_sort.DEFAULT_GOVERNED_ADAPTERS[0]))
+		for name in list_sort.DEFAULT_GOVERNED_ADAPTERS[1:]:
+			expected &= set(list_sort.field_choices(name))
+		self.assertEqual(expected, set(list_sort.default_field_choices()))
+		self.assertEqual(('title', 'date_added', 'release_date', 'random'), list_sort.default_field_choices())
 
 
 class ContextMenuTests(unittest.TestCase):
