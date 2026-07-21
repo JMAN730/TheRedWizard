@@ -64,7 +64,12 @@ def _safe_int(value, default):
 
 
 def strip_articles(title, ignore_articles):
-	"""Lower-cased sort key for a title. Strips a leading 'the '/'a '/'an ' when enabled."""
+	"""Lower-cased sort key for a title. Strips a leading 'the '/'a '/'an ' when enabled.
+
+	The lower-casing is deliberate and is the one place this module does not reproduce the
+	pre-unification ordering: the old helpers compared raw titles in three of their four paths,
+	so 'iZombie' sorted after 'Zoo'. Ruled on and kept. Do not restore case sensitivity.
+	"""
 	try:
 		if title is None: return ''
 		title = str(title).lower()
