@@ -143,8 +143,11 @@ def get_trakt_lists(params):
 				if custom_fanart: background = custom_fanart
 				else: background = fanart
 				# Parent shuffle (list-of-lists order) is separate from content randomisation.
-				# Content URLs must use random.build_trakt_lists_contents + random=true (sort_by=random),
-				# matching working shortcut-folder entries — not trakt.list.build_trakt_list + shuffle.
+				# When the contents are to be randomised the URL must name the random builder itself -
+				# random.build_trakt_lists_contents with random=true - and not trakt.list.build_trakt_list,
+				# which has no shuffle of its own. The URL carries no sort_by/sort_how: folder URLs no
+				# longer encode an ordering (build_trakt_list resolves it from the stored override and the
+				# payload headers), and the random builder shuffles regardless.
 				random_contents = random or shuffle_lists
 				mode = 'random.build_trakt_lists_contents' if random_contents else 'trakt.list.build_trakt_list'
 				url_params = {'mode': mode, 'user': user, 'slug': slug, 'list_type': list_type, 'list_id': list_id, 'list_name': list_name, 'iconImage': 'trakt',
