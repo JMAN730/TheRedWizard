@@ -318,6 +318,27 @@ def run_sort_migration(old_settings, write_setting):
 	return True
 
 
+def migrate_legacy_stores(trakt_rows, personal_rows, tmdb_rows):
+	"""Translate the three legacy per-list stores into {scope: spec_string}.
+
+	trakt_rows:    {list_id: {'sort_by':..., 'sort_how':...}}  (caches.trakt_cache.get_all_lists_custom_sort)
+	personal_rows: {(name, author): sort_order}
+	tmdb_rows:     {list_id: sort_order}
+	Unmappable rows are skipped rather than guessed.
+	"""
+	result = {}
+	for list_id, row in (trakt_rows or {}).items():
+		spec_string = translate_trakt_custom_sort(row.get('sort_by'), row.get('sort_how'))
+		if spec_string: result['trakt.list:%s' % list_id] = spec_string
+	for (name, author), sort_order in (personal_rows or {}).items():
+		spec_string = LEGACY_PERSONAL_CODES.get(str(sort_order))
+		if spec_string: result['personal:%s|%s' % (name, author)] = spec_string
+	for list_id, sort_order in (tmdb_rows or {}).items():
+		spec_string = LEGACY_TMDB_CODES.get(str(sort_order))
+		if spec_string: result['tmdb:%s' % list_id] = spec_string
+	return result
+
+
 def sort_source(data, list_key, media_type, adapter_name):
 	"""Resolve the spec for this list and media type, then sort. Never raises."""
 	if not data: return data

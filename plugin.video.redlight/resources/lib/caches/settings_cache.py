@@ -680,6 +680,18 @@ def sync_settings(params={}):
 					currentsettings[setting_id] = value
 					if load_properties: settings_cache.set_memory_cache(setting_id, value)
 				if run_sort_migration(legacy_sort_settings, _write_sort_setting): migrated = True
+				try:
+					from caches.trakt_cache import get_all_lists_custom_sort
+					from caches.tmdb_lists import tmdb_lists_cache
+					from caches.list_sort_cache import set_override
+					from modules.list_sort import migrate_legacy_stores
+					from caches.personal_lists_cache import personal_lists_cache
+					personal_rows = personal_lists_cache.get_all_sort_orders()
+					store_overrides = migrate_legacy_stores(get_all_lists_custom_sort(), personal_rows, tmdb_lists_cache.get_sort_orders())
+					for scope, spec_string in store_overrides.items(): set_override(scope, spec_string)
+					if store_overrides: migrated = True
+				except Exception as e:
+					kodi_utils.logger('sync_settings', 'legacy sort store migration: %s' % e)
 			except Exception as e:
 				# Deliberately catches an ImportError on modules.list_sort too: the sentinel stays false, so a
 				# genuinely broken install retries and logs on every sync rather than once. Do not narrow this.

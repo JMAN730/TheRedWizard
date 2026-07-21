@@ -14,7 +14,7 @@ from caches.main_cache import cache_object
 from caches.lists_cache import lists_cache_object
 from modules import kodi_utils, settings, list_sort
 from modules.metadata import movie_meta_external_id, tvshow_meta_external_id
-from modules.utils import sort_list, sort_for_article, get_datetime, timedelta, replace_html_codes, copy2clip, make_qrcode, make_tinyurl, \
+from modules.utils import sort_for_article, get_datetime, timedelta, replace_html_codes, copy2clip, make_qrcode, make_tinyurl, \
 							TaskPool, jsondate_to_datetime as js2date
 # logger = kodi_utils.logger
 
@@ -601,7 +601,8 @@ def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, sort
 			if i['type'] == 'season': i['season']['title'] = '%s - %s' % (i['show']['title'], i['season']['title'])
 			elif i['type'] == 'episode': i['episode']['title'] = '%s - %s' % (i['show']['title'], i['episode']['title'])
 			else: pass
-		data = sort_list(sort_by, sort_how, data, settings.ignore_articles())
+		data = list_sort.sort_source(data, 'trakt.list:%s' % list_id, None, 'trakt_list') if list_id is not None \
+			else list_sort.apply(data, list_sort.parse_spec(list_sort.translate_trakt_custom_sort(sort_by, sort_how)), list_sort.TRAKT_LIST, settings.ignore_articles())
 	results = []
 	results_append = results.append
 	for c, i in enumerate(data):

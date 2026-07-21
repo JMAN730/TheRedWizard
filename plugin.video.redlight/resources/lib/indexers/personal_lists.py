@@ -182,16 +182,10 @@ def delete_personal_list_contents(params):
 	kodi_utils.notification('Error Deleting List Contents', 3000)
 
 def get_personal_list(params):
-	list_name, author, sort_order, seen, update_seen = params['list_name'], params['author'], params['sort_order'], params.get('seen', True), params.get('update_seen', True)
+	list_name, author, seen, update_seen = params['list_name'], params['author'], params.get('seen', True), params.get('update_seen', True)
 	contents = personal_lists_cache.get_list(list_name, author, update_seen=update_seen, seen=seen)
-	try:
-		if sort_order == 'None': pass
-		elif sort_order in ('5', 'shuffle'): shuffle(contents)
-		elif sort_order in ('', '0'): contents = sort_for_article(contents, 'title', settings.ignore_articles())
-		elif sort_order in ('1', '2'): contents.sort(key=lambda k: int(k['date_added']), reverse=sort_order != '1')
-		else: contents.sort(key=lambda k: (k['release_date'] is None, k['release_date']), reverse=sort_order != '3')
-	except: pass
-	return contents
+	from modules import list_sort
+	return list_sort.sort_source(contents, 'personal:%s|%s' % (list_name, author), None, 'personal')
 
 def make_new_personal_list(params):
 	is_retry, external_creation = params.get('is_retry', False), params.get('external_creation', 'false') == 'true'

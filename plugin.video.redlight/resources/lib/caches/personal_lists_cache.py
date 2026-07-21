@@ -83,6 +83,13 @@ class PersonalListsCache:
 			return 'Success'
 		except: return 'Error'
 
+	def get_all_sort_orders(self):
+		try:
+			dbcon = connect_database('personal_lists_db')
+			rows = dbcon.execute('SELECT name, author, sort_order FROM personal_lists').fetchall()
+			return dict(((i[0], i[1]), i[2]) for i in rows)
+		except: return {}
+
 	def get_list_names_and_authors(self):
 		data = self.get_lists()
 		return [(i['name'], i['author']) for i in data]

@@ -435,10 +435,6 @@ def trakt_sync_interval():
 def lists_sort_order(setting):
 	return int(get_setting('redlight.sort.%s' % setting, '0'))
 
-def tmdblists_sort_order(setting):
-	if setting == 'recommendations': return None
-	return str(get_setting('redlight.tmdbsort.%s' % setting, '4'))
-
 def personal_lists_sort_unseen_to_top():
 	return get_setting('redlight.personal_list.sort_unseen_to_top') == 'true'
 

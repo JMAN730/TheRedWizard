@@ -11,7 +11,7 @@ from caches.tmdb_lists import tmdb_lists_cache
 from indexers.movies import Movies
 from indexers.tvshows import TVShows
 from modules.utils import paginate_list, sort_for_article, gen_md5, jsondate_to_datetime as js2date
-from modules.settings import paginate, page_limit, lists_sort_order, widget_hide_next_page, ignore_articles, jump_to_enabled, tmdblists_sort_order
+from modules.settings import paginate, page_limit, lists_sort_order, widget_hide_next_page, ignore_articles, jump_to_enabled
 from modules import kodi_utils
 # logger = kodi_utils.logger
 
@@ -379,22 +379,15 @@ def get_all_tmdb_lists(sort_order=None):
 	return contents
 
 def get_tmdb_list(params):
-	list_id, media_type, sort_order = params['list_id'], params.get('media_type'), params.get('sort_order', None)
+	list_id, media_type = params['list_id'], params.get('media_type')
 	if list_id in ('watchlist', 'favorites', 'recommendations'):
 		contents = [dict(i, **{'media_type': media_type}) for i in tmdb_list_api.get_watchfavrecs_list_details(list_id, media_type)]
-		sort_order = tmdblists_sort_order(list_id)
 	else:
 		contents = tmdb_list_api.get_list_details(list_id)
 	contents = [dict(i, **{'title': i.get('title') or i.get('name'), 'release_date': i.get('release_date') or i.get('first_air_date')}) for i in contents]
-	if sort_order:
-		try:
-			if sort_order in ('4', 'None', '', 'original_order'): contents.sort(key=lambda k: (k['original_order'] is None, k['original_order']))
-			elif sort_order in ('3', 'shuffle'): shuffle(contents)
-			elif sort_order in ('1', '2'): contents.sort(key=lambda k: (k['release_date'] is None, k['release_date']), reverse=sort_order != '1')
-			elif sort_order in ('', '0', 'None'): contents = sort_for_article(contents, 'title', ignore_articles())
-			else: pass
-		except: pass
-	return contents
+	if list_id == 'recommendations': return contents
+	from modules import list_sort
+	return list_sort.sort_source(contents, 'tmdb:%s' % list_id, None, 'tmdb')
 
 def cache_delete_all_tmdb(params=None):
 	tmdb_lists_cache.clear_all()

@@ -293,21 +293,6 @@ def sort_for_article(_list, _key, ignore_articles):
 	except: pass
 	return _list
 	
-def sort_list(sort_key, sort_direction, list_data, ignore_articles):
-	try:
-		reverse = sort_direction != 'asc'
-		if sort_key == 'rank': return sorted(list_data, key=lambda x: x['rank'], reverse=reverse)
-		if sort_key == 'added': return sorted(list_data, key=lambda x: x['listed_at'], reverse=reverse)
-		if sort_key == 'title': return sorted(list_data, key=lambda x: title_key(x[x['type']].get('title'), ignore_articles), reverse=reverse)
-		if sort_key == 'released': return sorted(list_data, key=lambda x: released_key(x[x['type']]), reverse=reverse)
-		if sort_key == 'runtime': return sorted(list_data, key=lambda x: x[x['type']].get('runtime', 0), reverse=reverse)
-		if sort_key == 'popularity': return sorted(list_data, key=lambda x: x[x['type']].get('votes', 0), reverse=reverse)
-		if sort_key == 'percentage': return sorted(list_data, key=lambda x: x[x['type']].get('rating', 0), reverse=reverse)
-		if sort_key == 'votes': return sorted(list_data, key=lambda x: x[x['type']].get('votes', 0), reverse=reverse)
-		if sort_key == 'random': return sorted(list_data, key=lambda k: random.random())
-		return list_data
-	except: return list_data
-
 def paginate_list(item_list, page, limit=20, paginate_start=0):
 	if paginate_start:
 		item_list = item_list[paginate_start:]
