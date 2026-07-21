@@ -222,7 +222,7 @@ def resolve(list_key, media_type=None, fallback=None):
 
 LEGACY_SYNC_CODES = {'0': 'title:asc', '1': 'date_added:desc', '2': 'release_date:desc', '3': 'date_added:asc', '4': 'release_date:asc'}
 
-# 'None' is the literal string sort_order_tmdb_list() stores for the "Default From TMDb (None)"
+# 'None' is the literal string the old TMDb sort picker stored for its "Default From TMDb (None)"
 # choice, and '' is what an empty row reads as; the old get_tmdb_list treated both as code 4
 # (original_order). Without them an explicit provider-order choice would be dropped in migration
 # and the list would come back as title:asc. migrate_legacy_sort_settings never reaches these keys:

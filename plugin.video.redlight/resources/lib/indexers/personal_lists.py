@@ -210,12 +210,16 @@ def make_new_personal_list(params):
 		params['is_retry'] = True
 		return make_new_personal_list(params)
 	description = personal_list_description()
-	sort_order = personal_sort_order()
-	if sort_order == None: return None, None
-	success = personal_lists_cache.make_list(list_name, author, sort_order, description)
+	spec = personal_sort_order()
+	if spec == None: return None, None
+	# The sort_order column is kept in step for anything that still displays it, but the list is
+	# sorted from the override store - writing only the column, as this did before, meant every list
+	# created after the upgrade ignored the sort order chosen right here and came back title first.
+	success = personal_lists_cache.make_list(list_name, author, _legacy_sort_code(spec), description)
 	if not success:
 		kodi_utils.notification('Error Creating List', 3000)
 		return None, None
+	_set_sort_override(list_name, author, spec)
 	if chosen_list:
 		new_contents = process_trakt_list(chosen_list)
 		result = personal_lists_cache.add_many_list_items(list_name, author, new_contents)
@@ -223,13 +227,13 @@ def make_new_personal_list(params):
 	return list_name, author
 
 def adjust_personal_list_properties(params):
-	sort_order_dict = {'0': 'Title', '1': 'Date Added (asc)', '2': 'Date Added (desc)', '3': 'Release Date (asc)', '4': 'Release Date (desc)', '5': 'Shuffle'}
+	from modules import list_sort
 	list_name, sort_order, author = params.get('list_name', ''), params.get('sort_order', ''), params.get('author', '')
 	seen, description = params.get('seen', ''), params.get('description', '')
 	poster, fanart = params.get('poster', ''), params.get('fanart', '')
 	choices = [('Change Name', 'Currently [B]%s[/B]' % (list_name), 'list_name'),
 				('Change Author', 'Currently [B]%s[/B]' % (author), 'author'),
-				('Change Sort Order', 'Currently [B]%s[/B]' % sort_order_dict.get(sort_order, 'None'), 'sort_order'),
+				('Change Sort Order', 'Currently [B]%s[/B]' % list_sort.spec_label(_current_sort_spec(list_name, author)), 'sort_order'),
 				('Change List Description', 'Currently [B]%s[/B]' % (description), 'description'),
 				('Make Custom Poster', '', 'make_poster'),
 				('Make Custom Fanart', '', 'make_fanart')]
@@ -251,16 +255,20 @@ def adjust_personal_list_properties(params):
 		new_name = personal_list_name(list_name)
 		if new_name == None: return adjust_personal_list_properties(params)
 		personal_lists_cache.update_single_detail('name', new_name, list_name, author)
+		_move_sort_override(list_name, author, new_name, author)
 		params.update({'list_name': new_name, 'refresh': 'true'})
 	if action == 'author':
 		new_author = personal_list_author(author)
 		personal_lists_cache.update_single_detail('author', new_author, list_name, author)
+		_move_sort_override(list_name, author, list_name, new_author)
 		params.update({'author': new_author, 'refresh': 'true'})
 	elif action == 'sort_order':
-		new_sort_order = personal_sort_order()
-		if new_sort_order == None: return adjust_personal_list_properties(params)
-		personal_lists_cache.update_single_detail('sort_order', new_sort_order, list_name, author)
-		params.update({'sort_order': new_sort_order, 'refresh': 'true'})
+		spec = personal_sort_order(current=_current_sort_spec(list_name, author))
+		if spec == None: return adjust_personal_list_properties(params)
+		if _set_sort_override(list_name, author, spec):
+			new_sort_order = _legacy_sort_code(spec)
+			personal_lists_cache.update_single_detail('sort_order', new_sort_order, list_name, author)
+			params.update({'sort_order': new_sort_order, 'refresh': 'true'})
 	elif action == 'description':
 		new_description = personal_list_description()
 		personal_lists_cache.update_single_detail('description', new_description, list_name, author)
@@ -338,13 +346,52 @@ def personal_list_author(author=''):
 	new_author = unquote(new_author)
 	return new_author
 
-def personal_sort_order():
-	choices = [('Title (asc)', '0'), ('Date Added (asc)', '1'), ('Date Added (desc)', '2'), ('Release Date (asc)', '3'), ('Release Date (desc)', '4'), ('Shuffle', '5')]
-	list_items = [{'line1': item[0]} for item in choices]
-	kwargs = {'items': json.dumps(list_items), 'heading': 'List Sort Order', 'narrow_window': 'true'}
-	sort_order = kodi_utils.select_dialog([i[1] for i in choices], **kwargs)
-	if sort_order == None: return None
-	return sort_order
+def personal_sort_order(current=None):
+	"""The shared two stage sort picker. Returns a spec dict or None.
+
+	No "Use Default" entry: a personal list is mixed media, so it has no mediatype default to fall
+	back to. The adapter's own 'default' field (Provider Default) is the equivalent choice.
+	"""
+	from indexers.dialogs import _pick_sort_spec
+	return _pick_sort_spec('List Sort Order', 'personal', current=current)
+
+def _sort_scope(list_name, author):
+	from caches.list_sort_cache import scope_key
+	return scope_key('personal:%s|%s' % (list_name, author))
+
+def _current_sort_spec(list_name, author):
+	"""What get_personal_list will actually sort by. It passes no fallback, so an absent override
+	means the engine's own default rather than the list's stored order."""
+	from modules import list_sort
+	return list_sort.resolve('personal:%s|%s' % (list_name, author))
+
+def _legacy_sort_code(spec):
+	"""The legacy sort_order column value for a spec, '0' (title) when the spec has no equivalent.
+
+	Nothing reads the column for ordering any more; it is written only so exports and the row in
+	personal_lists.db keep describing the same list the override store describes.
+	"""
+	from modules import list_sort
+	spec_string = list_sort.format_spec(spec)
+	for code, legacy_spec in list_sort.LEGACY_PERSONAL_CODES.items():
+		if legacy_spec == spec_string and code != '': return code
+	return '0'
+
+def _set_sort_override(list_name, author, spec):
+	from caches.list_sort_cache import set_override
+	from modules import list_sort
+	if set_override(_sort_scope(list_name, author), list_sort.format_spec(spec)): return True
+	kodi_utils.notification('Error Setting Sort Order', 3000)
+	return False
+
+def _move_sort_override(old_name, old_author, new_name, new_author):
+	"""A personal list's override scope is keyed by name and author, so a rename has to carry it."""
+	from caches.list_sort_cache import get_override, set_override, delete_override
+	old_scope, new_scope = _sort_scope(old_name, old_author), _sort_scope(new_name, new_author)
+	if old_scope == new_scope: return
+	spec_string = get_override(old_scope)
+	if not spec_string: return
+	if set_override(new_scope, spec_string): delete_override(old_scope)
 
 def personal_list_description():
 	description = kodi_utils.kodi_dialog().input('Optional Description for the New List') or ' '
@@ -366,6 +413,7 @@ def import_trakt_list(params):
 	if result == 'Success':
 		if kodi_utils.confirm_dialog(heading='Personal Lists', text='Rename List to Match Trakt List Name?', ok_label='Yes', cancel_label='No'):
 			personal_lists_cache.update_single_detail('name', trakt_list_name, list_name, author)
+			_move_sort_override(list_name, author, trakt_list_name, author)
 	kodi_utils.notification(result, 3000)
 
 def process_trakt_list(chosen_list):
@@ -463,6 +511,10 @@ class ExternalImport:
 		self.results.sort(key=lambda k: k['order'])
 		success = personal_lists_cache.make_list(self.list_name, self.author, '1', self.description, seen='true' if self.action == 'import_view' else 'false')
 		if not success: return kodi_utils.notification('Error Creating [B]%s[/B]' % self.list_name, 3000)
+		# Legacy code '1' is date added ascending, which for an import is the order of the imported
+		# file. The column no longer orders anything, so the same choice has to be stored as an
+		# override or the imported list comes back alphabetised.
+		_set_sort_override(self.list_name, self.author, {'field': 'date_added', 'direction': 'asc'})
 		items_added = personal_lists_cache.add_many_list_items(self.list_name, self.author, self.results)
 		if items_added == 'Success':
 			if self.poster: self.poster = personal_image_maker(self.list_name, self.author, 'poster', '1', 'false', '', True if self.poster == 'random' else False, show_busy=False)

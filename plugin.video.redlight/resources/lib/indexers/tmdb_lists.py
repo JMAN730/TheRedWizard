@@ -11,7 +11,7 @@ from caches.tmdb_lists import tmdb_lists_cache
 from indexers.movies import Movies
 from indexers.tvshows import TVShows
 from modules.utils import paginate_list, sort_for_article, gen_md5, jsondate_to_datetime as js2date
-from modules.settings import paginate, page_limit, lists_sort_order, widget_hide_next_page, ignore_articles, jump_to_enabled
+from modules.settings import paginate, page_limit, widget_hide_next_page, ignore_articles, jump_to_enabled
 from modules import kodi_utils
 # logger = kodi_utils.logger
 
@@ -154,13 +154,17 @@ def build_tmdb_list(params):
 		kodi_utils.set_view_mode('view.%s' % content, content, is_external)
 
 def adjust_tmdb_list_properties(params):
-	sort_order_dict = {'0': 'Title', '1': 'Release Date (asc)', '2': 'Release Date (desc)', '3': 'Shuffle'}
-	list_id, sort_order = params.get('list_id'), params.get('sort_order', '')
-	original_list_name, original_sort_order = params.get('original_list_name', ''), params.get('original_sort_order', '')
+	from modules import list_sort
+	list_id = params.get('list_id')
+	original_list_name = params.get('original_list_name', '')
 	custom_poster, custom_fanart = params.get('custom_poster', ''), params.get('custom_fanart', '')
-	current_name, current_sort_order = params.get('list_name', '') or original_list_name, sort_order or original_sort_order
+	current_name = params.get('list_name', '') or original_list_name
+	# The sort_order carried in the URL is the legacy column, which nothing reads any more. The label
+	# and the picker both go through the override store so the row states what the list actually does.
+	# 'default:asc' is get_tmdb_list's fallback: no override means the list is served in TMDb order.
+	current_sort = list_sort.resolve('tmdb:%s' % list_id, None, 'default:asc')
 	choices = [('Change Name', 'Currently [B]%s[/B]' % (current_name), 'list_name'),
-				('Change Sort Order', 'Currently [B]%s[/B]' % sort_order_dict.get(current_sort_order, 'None'), 'sort_order'),
+				('Change Sort Order', 'Currently [B]%s[/B]' % list_sort.spec_label(current_sort), 'sort_order'),
 				('Make Custom Poster', '', 'make_poster'),
 				('Make Custom Fanart', '', 'make_fanart')]
 	if custom_poster: choices.append(('Delete Custom Poster', '', 'delete_poster'))
@@ -185,11 +189,15 @@ def adjust_tmdb_list_properties(params):
 		current_name = list_name
 		params.update({'list_name': current_name, 'refresh_cache': 'true'})
 	elif action == 'sort_order':
-		sort_order = sort_order_tmdb_list()
-		if sort_order == None: return adjust_tmdb_list_properties(params)
-		if set_sort_order(list_id, sort_order):
-			current_sort_order = sort_order
-			params.update({'sort_order': current_sort_order, 'refresh': 'true'})
+		from caches.list_sort_cache import set_override
+		from indexers.dialogs import _pick_sort_spec
+		# No "Use Default" entry: a TMDb list is mixed media, so it has no mediatype default to fall
+		# back to. The equivalent choice is the adapter's own 'default' field (Provider Default),
+		# which stores 'default:asc' and hands back TMDb's ordering untouched.
+		spec = _pick_sort_spec('List Sort Order', 'tmdb', current=current_sort)
+		if spec == None: return adjust_tmdb_list_properties(params)
+		if set_override('tmdb:%s' % list_id, list_sort.format_spec(spec)): params.update({'refresh': 'true'})
+		else: kodi_utils.notification('Error Setting Sort Order', 3000)
 	elif action == 'make_poster':
 		new_poster = tmdb_image_maker(current_name, list_id, 'poster', custom_poster, shuffle_sort_order)
 		if new_poster is None: return adjust_tmdb_list_properties(params)
@@ -285,14 +293,6 @@ def rename_tmdb_list(current_name, list_id):
 	if list_name == None: return None
 	tmdb_list_api.rename_list(list_id, list_name)
 	return list_name
-
-def sort_order_tmdb_list():
-	choices = [('Title (asc)', '0'), ('Release Date (asc)', '1'), ('Release Date (desc)', '2'), ('Shuffle', '3'), ('Default From TMDb (None)', 'None')]
-	list_items = [{'line1': item[0]} for item in choices]
-	kwargs = {'items': json.dumps(list_items), 'heading': 'List Sort Order', 'narrow_window': 'true'}
-	sort_order = kodi_utils.select_dialog([i[1] for i in choices], **kwargs)
-	if sort_order == None: return None
-	return sort_order
 
 def check_item_status(list_id, media_type, media_id):
 	try:
@@ -459,11 +459,6 @@ def process_add_to_list(list_id, new_contents):
 	except: pass
 	kodi_utils.hide_busy_dialog()
 	return success
-
-def set_sort_order(list_id, sort_order):
-	if tmdb_lists_cache.set_sort_order(list_id, sort_order): return True
-	kodi_utils.notification('Error Setting Sort Order', 3000)
-	return False
 
 def get_sort_orders():
 	return tmdb_lists_cache.get_sort_orders()
