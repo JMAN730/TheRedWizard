@@ -75,13 +75,18 @@ def _new_settings_affect_widgets(insert_list):
 		return True
 	return False
 
-def _new_setting_value(setting_id, setting_default, currentsettings, had_existing_settings) -> str:
+def _new_setting_value(setting_id, setting_default, currentsettings, had_existing_settings, fresh_install=False) -> str:
 	if not had_existing_settings:
 		# A genuine fresh install has nothing to migrate, but migrate_legacy_sort_settings() reads each
 		# absent legacy id as its own old getter fallback, so it would write six override rows for a user
 		# who has never touched a sort setting - breaking list_sort_cache's "a row means the user
 		# overrode this list" invariant. Seed the sentinel as already done so it never runs here.
-		if setting_id == 'migration.unified_list_sort': return 'true'
+		#
+		# fresh_install, not had_existing_settings: the caller's dict comes from get_all(), which
+		# answers {} for a locked or corrupt database too. Seeding 'true' on that mistake would skip the
+		# migration forever - the next healthy sync reads the sentinel, never runs it, and the obsolete
+		# purge then deletes the five legacy ids and with them the only copy of the user's orderings.
+		if setting_id == 'migration.unified_list_sort': return 'true' if fresh_install else setting_default
 		return setting_default
 	old_setting_id = _NEW_SETTING_VALUE_MIGRATIONS.get(setting_id)
 	if not old_setting_id:
@@ -242,6 +247,23 @@ class SettingsCache:
 		try: all_settings = dict(dbcon.execute('SELECT setting_id, setting_value FROM settings').fetchall())
 		except: all_settings = {}
 		return all_settings
+
+	def is_empty_strict(self):
+		"""True only when this profile genuinely holds no settings. Raises rather than guessing.
+
+		get_all() swallows every sqlite error and answers {}, so its empty dict cannot tell a fresh
+		install from a database that is locked, corrupt or unreadable. Anything deciding "this profile
+		has never been written to" has to ask a question that is allowed to fail. An absent file and an
+		absent table are both genuinely empty - the service creates them on first run.
+		"""
+		from caches.base_cache import database_locations
+		if not kodi_utils.path_exists(database_locations('settings_db')): return True
+		dbcon = connect_database('settings_db')
+		try: row = dbcon.execute('SELECT setting_id FROM settings LIMIT 1').fetchone()
+		except Exception as error:
+			if 'no such table' in str(error).lower(): return True
+			raise
+		return row is None
 
 	def set(self, setting_id, setting_value=None):
 		setting_id = setting_id.replace('redlight.', '')
@@ -588,6 +610,14 @@ def sync_settings(params={}):
 	# snapshot is the second line of defence if that deferral is ever removed - keep both.
 	legacy_sort_settings = {k: v for k, v in currentsettings.items() if k.startswith('sort.') or k.startswith('tmdbsort.')}
 	had_existing_settings = bool(currentsettings)
+	# Only a database that answers "no rows" without erroring is a fresh install. A failure here is
+	# treated as "not fresh", which defers the sort migration to the next sync instead of cancelling
+	# it: the sentinel stays 'false' and the obsolete purge keeps holding the legacy ids back.
+	fresh_install = False
+	if not had_existing_settings:
+		try: fresh_install = settings_cache.is_empty_strict()
+		except Exception as error:
+			kodi_utils.logger('sync_settings', 'settings db not readable, deferring sort migration: %s' % error)
 	d_settings = default_settings()
 	defaultsettings_ids = _defaultsettings_ids(d_settings)
 	defaults_map = {i['setting_id']: i for i in d_settings}
@@ -728,7 +758,7 @@ def sync_settings(params={}):
 			continue
 		setting_type = item['setting_type']
 		setting_default = item['setting_default']
-		setting_value = _new_setting_value(setting_id, setting_default, currentsettings, had_existing_settings)
+		setting_value = _new_setting_value(setting_id, setting_default, currentsettings, had_existing_settings, fresh_install)
 		if setting_type == 'action' and 'settings_options' in item:
 			if setting_id == 'aiostreams.instance':
 				try:

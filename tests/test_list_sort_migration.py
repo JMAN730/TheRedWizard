@@ -288,6 +288,66 @@ class SentinelTests(unittest.TestCase):
 		self.assertIn('sort.watched', ids)
 
 
+class SettingsDbEmptinessTests(unittest.TestCase):
+	"""is_empty_strict() is the only thing separating "fresh install" from "database unavailable".
+
+	Run against real sqlite, because the distinction that matters is which sqlite outcomes count as
+	empty: a missing file and a missing table are genuinely empty, a locked database is not, and
+	get_all() renders all three as {}.
+	"""
+	_KEYS = ('modules', 'modules.kodi_utils', 'modules.settings', 'caches', 'caches.base_cache')
+
+	def setUp(self):
+		self._original_sys_modules = dict((k, sys.modules[k]) for k in self._KEYS if k in sys.modules)
+		from test_settings_cache_calendar_migration import _load_settings_cache_module
+		self.module = _load_settings_cache_module()
+
+	def tearDown(self):
+		for key in self._KEYS:
+			if key in self._original_sys_modules: sys.modules[key] = self._original_sys_modules[key]
+			else: sys.modules.pop(key, None)
+
+	def _store(self, exists, connection):
+		self.module.kodi_utils.path_exists = lambda path: exists
+		self.module.connect_database = lambda name: connection
+		return self.module.settings_cache
+
+	def test_a_missing_database_file_is_empty(self):
+		self.assertTrue(self._store(False, None).is_empty_strict())
+
+	def test_a_missing_table_is_empty(self):
+		connection = sqlite3.connect(':memory:')
+		self.assertTrue(self._store(True, connection).is_empty_strict())
+
+	def test_an_empty_table_is_empty(self):
+		connection = sqlite3.connect(':memory:')
+		connection.execute('CREATE TABLE settings (setting_id text, setting_type text, setting_default text, setting_value text)')
+		self.assertTrue(self._store(True, connection).is_empty_strict())
+
+	def test_a_populated_table_is_not_empty(self):
+		connection = sqlite3.connect(':memory:')
+		connection.execute('CREATE TABLE settings (setting_id text, setting_type text, setting_default text, setting_value text)')
+		connection.execute("INSERT INTO settings VALUES ('sort.watchlist', 'action', '0', '3')")
+		self.assertFalse(self._store(True, connection).is_empty_strict())
+
+	def test_an_unreadable_database_raises_instead_of_reporting_empty(self):
+		"""The whole point. get_all() answers {} here and cannot be told apart from a fresh install."""
+		class _Locked:
+			@staticmethod
+			def execute(*args):
+				raise sqlite3.OperationalError('database is locked')
+		with self.assertRaises(sqlite3.OperationalError):
+			self._store(True, _Locked).is_empty_strict()
+
+	def test_a_corrupt_database_raises_instead_of_reporting_empty(self):
+		class _Corrupt:
+			@staticmethod
+			def execute(*args):
+				raise sqlite3.DatabaseError('database disk image is malformed')
+		with self.assertRaises(sqlite3.DatabaseError):
+			self._store(True, _Corrupt).is_empty_strict()
+
+
 class SyncSettingsMigrationTests(unittest.TestCase):
 	"""End-to-end: run the real sync_settings() over a fake profile holding legacy sort settings.
 
@@ -368,13 +428,46 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.overrides[scope] = spec_string
 		return True
 
-	def _sync(self, initial):
+	def _sync(self, initial, db_readable=True):
 		from test_settings_cache_calendar_migration import FakeSettingsCache
-		cache = FakeSettingsCache(initial)
+		cache = FakeSettingsCache(initial, db_readable=db_readable)
+		self.module.settings_cache = cache
+		return self._resync(cache)
+
+	def _resync(self, cache):
 		self.module.settings_cache = cache
 		result = self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'})
 		self.assertEqual('synced', result)
 		return cache
+
+	def test_an_unreadable_settings_db_does_not_seed_the_sentinel(self):
+		"""get_all() swallows a locked database and answers {}, which reads as a fresh install. Seeding
+		the sentinel there is permanent: the next healthy sync sees 'true', never runs the migration,
+		and the obsolete purge then deletes the five legacy ids and the user's only stored orderings
+		with them. The three legacy per-list stores would never be read by anything again."""
+		cache = self._sync({'sort.watchlist': '3', 'tmdbsort.watchlist': '2'}, db_readable=False)
+		self.assertNotEqual('true', cache.data.get('migration.unified_list_sort'))
+		self.assertEqual({}, self.overrides)
+
+		# The very next healthy sync must still migrate, with the legacy ids intact.
+		cache.db_readable = True
+		self._resync(cache)
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
+		self.assertEqual('date_added:asc', cache.data['sort.default.movies'])
+		self.assertEqual('release_date:desc', self.overrides['tmdb:watchlist'])
+
+	def test_an_unreadable_settings_db_on_an_empty_profile_still_defers(self):
+		"""Nothing distinguishes this from the case above at the moment sync_settings runs - which is
+		the whole point. Deferring costs one extra sync; seeding costs the user's preferences."""
+		cache = self._sync({}, db_readable=False)
+		self.assertNotEqual('true', cache.data.get('migration.unified_list_sort'))
+
+	def test_a_genuinely_empty_settings_db_seeds_the_sentinel(self):
+		"""The other half: is_empty_strict() answering True without raising is a real fresh install,
+		and the sentinel has to be seeded or the migration writes six overrides nobody asked for."""
+		cache = self._sync({})
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
+		self.assertEqual({}, self.overrides)
 
 	def test_legacy_values_migrate_then_purge_on_the_following_sync(self):
 		cache = self._sync({

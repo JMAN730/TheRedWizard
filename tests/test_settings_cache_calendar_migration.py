@@ -48,6 +48,7 @@ def _load_settings_cache_module():
 	caches.__path__ = []
 	base_cache = types.ModuleType('caches.base_cache')
 	base_cache.connect_database = lambda name: None
+	base_cache.database_locations = lambda name: '%s.db' % name
 
 	sys.modules['modules'] = modules
 	sys.modules['modules.kodi_utils'] = kodi_utils
@@ -63,9 +64,17 @@ def _load_settings_cache_module():
 
 
 class FakeSettingsCache:
-	def __init__(self, initial=None):
+	"""The production settings store, minus sqlite.
+
+	`db_readable = False` models the one failure the real store cannot report through get_all():
+	a locked or corrupt settings.db, where get_all() swallows the error and answers {} exactly as a
+	fresh install would. is_empty_strict() is the question that is allowed to fail, so it raises.
+	"""
+
+	def __init__(self, initial=None, db_readable=True):
 		self.data = dict(initial or {})
 		self.rows = {}
+		self.db_readable = db_readable
 
 	def clean_database(self):
 		return True
@@ -74,7 +83,12 @@ class FakeSettingsCache:
 		pass
 
 	def get_all(self):
+		if not self.db_readable: return {}
 		return dict(self.data)
+
+	def is_empty_strict(self):
+		if not self.db_readable: raise RuntimeError('database is locked')
+		return not self.data
 
 	def remove_setting(self, setting_id):
 		self.data.pop(setting_id, None)
