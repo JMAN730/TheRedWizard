@@ -14,7 +14,7 @@ from caches.main_cache import cache_object
 from caches.lists_cache import lists_cache_object
 from modules import kodi_utils, settings, list_sort
 from modules.metadata import movie_meta_external_id, tvshow_meta_external_id
-from modules.utils import sort_for_article, get_datetime, timedelta, replace_html_codes, copy2clip, make_qrcode, make_tinyurl, \
+from modules.utils import get_datetime, timedelta, replace_html_codes, copy2clip, make_qrcode, make_tinyurl, \
 							TaskPool, jsondate_to_datetime as js2date
 # logger = kodi_utils.logger
 
@@ -575,11 +575,13 @@ def trakt_lists_with_media(media_type, imdb_id):
 	return cache_object(_process, string, 'foo', False, 168)
 
 def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, sort_by='default', sort_how='default'):
-	if sort_by == 'skip': skip_sort, custom_sort, method = True, False, None
-	else:
-		skip_sort = False
-		custom_sort = sort_by != 'default'
-		method = None if custom_sort else 'sort_by_headers'
+	# 'skip' is the random builders' sentinel: they reshuffle the payload themselves, so resolving
+	# and applying a sort first is wasted work. Everything else takes the list's own ordering.
+	skip_sort = sort_by == 'skip'
+	# Always ask for the sort headers. The disk cache key below does not encode `method`, so a row
+	# written by one caller is read back by all of them; letting callers pick different methods is
+	# how trakt_image_maker and the list builder ended up disagreeing on the shape of one row.
+	method = 'sort_by_headers'
 	if list_type == 'my_lists':
 		string = 'trakt_list_contents_%s_%s_%s' % (list_type, user, slug)
 		params = {'path': 'users/%s/lists/%s/items', 'path_insert': (user, slug), 'params': {'extended': 'full'}, 'method': method, 'with_auth': with_auth, 'fetch_all': True}
@@ -591,12 +593,13 @@ def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, sort
 		if user == 'Trakt Official': params = {'path': 'lists/%s/items', 'path_insert': slug, 'params': {'extended': 'full'}, 'method': method, 'fetch_all': True}
 		else: params = {'path': 'users/%s/lists/%s/items', 'path_insert': (user, slug), 'params': {'extended': 'full'}, 'method': method, 'with_auth': with_auth, 'fetch_all': True}
 	data = trakt_cache.cache_trakt_object(get_trakt, string, params) or []
+	# Unwrapped unconditionally, including for 'skip': a cache row left behind by an older build,
+	# or by any caller at all, must never reach the enumerate() below as a dict of three keys.
+	if isinstance(data, dict):
+		sort_by, sort_how = data.get('sort_by', sort_by), data.get('sort_how', sort_how)
+		data = data.get('data') or []
+	elif not isinstance(data, list): data = []
 	if not skip_sort:
-		if not custom_sort:
-			if isinstance(data, dict) and 'data' in data:
-				sort_by, sort_how = data['sort_by'], data['sort_how']
-				data = data['data'] or []
-			elif not isinstance(data, list): data = []
 		for i in data:
 			if i['type'] == 'season': i['season']['title'] = '%s - %s' % (i['show']['title'], i['season']['title'])
 			elif i['type'] == 'episode': i['episode']['title'] = '%s - %s' % (i['show']['title'], i['episode']['title'])
