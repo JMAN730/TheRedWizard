@@ -5,7 +5,7 @@ import json
 from random import shuffle
 from threading import Thread
 from apis.trakt_api import trakt_get_lists, trakt_search_lists, get_trakt_list_contents, trakt_lists_with_media
-from caches.trakt_cache import get_all_lists_custom_sort, set_list_custom_sort, delete_list_custom_sort
+from caches.trakt_cache import get_all_lists_custom_sort
 from indexers.movies import Movies
 from indexers.tvshows import TVShows
 from indexers.seasons import single_seasons
@@ -410,13 +410,14 @@ def make_custom_artwork(params):
 	kodi_utils.kodi_refresh()
 
 def trakt_image_maker(list_name, list_type, list_id, image_type, user, slug, custom_image, shuffle_sort_order):
-	from caches.trakt_cache import get_list_custom_sort
 	from modules import metadata
 	from modules.utils import make_image
 	kodi_utils.show_busy_dialog()
-	sort_info = get_list_custom_sort(list_id)
-	sort_by, sort_how = sort_info['sort_by'], sort_info['sort_how']
-	content = get_trakt_list_contents(list_type, user, slug, True, list_id, sort_by, sort_how)
+	# The artwork must be built from the first four items the user sees. get_trakt_list_contents
+	# resolves the list's sort override itself and falls back to the ordering Trakt declares for the
+	# list, so the legacy per-list sort store - which nothing reads any more, and which raised a
+	# KeyError here for any list that had no row - is no longer consulted.
+	content = get_trakt_list_contents(list_type, user, slug, True, list_id)
 	if shuffle_sort_order: shuffle(content)
 	images = []
 	api_key, mpaa, current_time, current_timestamp = tmdb_api_key(), mpaa_region(), get_datetime(), get_current_timestamp()
@@ -444,32 +445,13 @@ def delete_current_image(params):
 	else: kodi_utils.notification('Error Deleting Image')
 
 def set_list_custom_sort(params):
-	list_id, current_by, current_how = params['list_id'], params['sort_by'], params['sort_how']
-	choices = [('default', 'Default From Trakt%s'), ('rank', 'Rank%s'), ('added', 'Date Added%s'), ('title', 'Title%s'), ('released', 'Date Released%s'), ('runtime', 'Runtime%s'),
-	('popularity', 'Popularity%s'), ('percentage', 'Percentage%s'), ('votes', 'Votes%s'), ('random', 'Random%s')]
-	choices = [(i[0], i[1] % ('   [B][COLOR green][CURRENT][/COLOR][/B]' if i[0] == current_by else '')) for i in choices]
-	list_items = [{'line1': item[1], 'line2': ''} for item in choices]
-	kwargs = {'items': json.dumps(list_items), 'heading': 'Trakt List Custom Sort By', 'narrow_window': 'true'}
-	sort_by = kodi_utils.select_dialog([i[0] for i in choices], **kwargs)
-	if sort_by == None: return
-	if sort_by == 'default':
-		from caches.trakt_cache import delete_list_custom_sort
-		success = delete_list_custom_sort(list_id)
-		if success:
-			kodi_utils.ok_dialog('Trakt List Custom Sort', 'Success')
-			kodi_utils.kodi_refresh()
-		else: kodi_utils.ok_dialog('Trakt List Custom Sort', 'An Error Occured')
-		return
-	else:
-		choices = [('asc', 'Ascending%s'), ('desc', 'Descending%s')]
-		choices = [(i[0], i[1] % ('   [B][COLOR green][CURRENT][/COLOR][/B]' if i[0] == current_how else '')) for i in choices]
-		list_items = [{'line1': item[1], 'line2': ''} for item in choices]
-		kwargs = {'items': json.dumps(list_items), 'heading': 'Trakt List Custom Sort How', 'narrow_window': 'true'}
-		sort_how = kodi_utils.select_dialog([i[0] for i in choices], **kwargs)
-		if sort_how == None: return
-	from caches.trakt_cache import set_list_custom_sort
-	success = set_list_custom_sort(list_id, {'list_id': list_id, 'sort_by': sort_by, 'sort_how': sort_how})
-	if success:
-		kodi_utils.ok_dialog('Trakt List Custom Sort', 'Success')
-		kodi_utils.kodi_refresh()
-	else: kodi_utils.ok_dialog('Trakt List Custom Sort', 'An Error Occured')
+	"""Context menu entry for a Trakt user list. The dialog and the store both live elsewhere now.
+
+	sort_by/sort_how still ride in on the context menu URL. They are the ordering Trakt itself
+	declares for the list, which is what the list falls back to when no override is stored, so they
+	are passed on as the fallback for the "current" marker rather than being written anywhere.
+	"""
+	from indexers.dialogs import list_sort_override_choice
+	from modules import list_sort
+	fallback = list_sort.trakt_list_fallback(params.get('sort_by'), params.get('sort_how'))
+	list_sort_override_choice({'list_key': 'trakt.list:%s' % params['list_id'], 'adapter': 'trakt_list', 'fallback': fallback})
