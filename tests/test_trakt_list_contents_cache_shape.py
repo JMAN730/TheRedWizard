@@ -14,9 +14,12 @@ imported: the module pulls in the whole Kodi runtime, but this one function only
 trakt_cache, get_trakt, list_sort and settings.
 """
 import ast
+import sys
 import unittest
 
-from test_trakt_sync_list_sort import ROOT, list_sort
+from test_trakt_sync_list_sort import ROOT, list_sort, _install_stubs, OVERRIDES, SETTINGS
+
+_STUBBED_MODULES = ('caches', 'caches.list_sort_cache', 'caches.settings_cache', 'modules', 'modules.settings')
 
 TRAKT_API = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'apis' / 'trakt_api.py'
 TRAKT_LISTS = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'indexers' / 'trakt_lists.py'
@@ -81,6 +84,22 @@ def _dict_row(sort_by='rank', sort_how='asc'):
 
 
 class CacheShapeTests(unittest.TestCase):
+	# Several modules in this suite install their own 'caches'/'modules' stubs at import time, and
+	# sort_source() re-reads sys.modules on every call, so collection order would otherwise decide
+	# whose override store these tests see. Same idiom as tests/test_mixed_list_sort.py.
+	def setUp(self):
+		self._original_sys_modules = dict((k, sys.modules[k]) for k in _STUBBED_MODULES if k in sys.modules)
+		_install_stubs()
+		OVERRIDES.clear()
+		SETTINGS.clear()
+
+	def tearDown(self):
+		for key in _STUBBED_MODULES:
+			if key in self._original_sys_modules: sys.modules[key] = self._original_sys_modules[key]
+			else: sys.modules.pop(key, None)
+		OVERRIDES.clear()
+		SETTINGS.clear()
+
 	def test_every_caller_requests_the_same_method(self):
 		"""The builder, the artwork maker and the random builders all share one cache key, so they
 		must all write the same shape into it."""
