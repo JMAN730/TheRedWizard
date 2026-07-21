@@ -161,6 +161,31 @@ class CacheShapeTests(unittest.TestCase):
 		self.assertEqual(builder, artwork)
 		self.assertEqual(RANK_ASC, artwork)
 
+	def test_one_malformed_row_does_not_abort_the_whole_list(self):
+		"""The retitling loop used to dereference i['show'] unguarded, outside any try. A season row
+		with no 'show' - which the extraction loop below it already tolerates by dropping the row -
+		raised KeyError there instead and took every other item on the list down with it."""
+		rows = [dict(ROWS[0]),
+			{'type': 'season', 'rank': 4, 'season': {'number': 1, 'title': 'Season 1'}},  # no 'show'
+			dict(ROWS[1]), dict(ROWS[2])]
+		harness = _Harness({'sort_by': 'rank', 'sort_how': 'asc', 'data': rows})
+		self.assertEqual(RANK_ASC, harness.titles('my_lists', 'jo', 'faves', True, '42'))
+
+	def test_a_malformed_row_does_not_abort_the_skip_sort_path_either(self):
+		rows = [dict(ROWS[0]),
+			{'type': 'episode', 'rank': 4, 'episode': {'season': 1, 'number': 1, 'title': 'Pilot'}},  # no 'show'
+			dict(ROWS[1]), dict(ROWS[2])]
+		harness = _Harness({'sort_by': 'rank', 'sort_how': 'asc', 'data': rows})
+		self.assertEqual(PAYLOAD_ORDER, harness.titles('my_lists', 'jo', 'faves', True, '42', skip_sort=True))
+
+	def test_a_well_formed_season_row_is_still_retitled(self):
+		"""Wrapping the loop in a try must not stop it doing its job."""
+		row = {'type': 'season', 'rank': 4, 'show': {'ids': {'tmdb': 9}, 'title': 'Delta'},
+			'season': {'number': 1, 'title': 'Season 1'}}
+		harness = _Harness({'sort_by': 'rank', 'sort_how': 'asc', 'data': [row]})
+		harness.call('my_lists', 'jo', 'faves', True, '42')
+		self.assertEqual('Delta - Season 1', row['season']['title'])
+
 	def test_headerless_rows_fall_back_to_the_provider_order(self):
 		harness = _Harness({'sort_by': None, 'sort_how': None, 'data': [dict(i) for i in ROWS]})
 		self.assertEqual(PAYLOAD_ORDER, harness.titles('my_lists', 'jo', 'faves', True, '42'))

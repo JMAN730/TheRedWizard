@@ -604,10 +604,14 @@ def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, skip
 		data = data.get('data') or []
 	elif not isinstance(data, list): data = []
 	if not skip_sort:
+		# Guarded per item, like the extraction loop below: a season or episode row that is missing
+		# 'show' is one bad row, and it must cost that row its retitling, not the whole list render.
 		for i in data:
-			if i['type'] == 'season': i['season']['title'] = '%s - %s' % (i['show']['title'], i['season']['title'])
-			elif i['type'] == 'episode': i['episode']['title'] = '%s - %s' % (i['show']['title'], i['episode']['title'])
-			else: pass
+			try:
+				if i['type'] == 'season': i['season']['title'] = '%s - %s' % (i['show']['title'], i['season']['title'])
+				elif i['type'] == 'episode': i['episode']['title'] = '%s - %s' % (i['show']['title'], i['episode']['title'])
+				else: pass
+			except: pass
 		# The payload sort is the ordering this list already had, so it is what a list with no stored
 		# override must keep - resolving to DEFAULT_SPEC here would retitle-sort every user list
 		# belonging to anyone who never opened "Set Custom Sort", with no row left to migrate.
