@@ -554,6 +554,55 @@ class ContextMenuTests(unittest.TestCase):
 		self.assertIn("'mode': 'list_sort_override_choice'", _source(NAVIGATOR))
 
 
+class ContextMenuLabelTests(unittest.TestCase):
+	"""Simkl's five status lists share one scope per media type, so setting the sort from any one of
+	them reorders the other four. The label has to say so; a plain 'Set Custom Sort' reads as
+	list-specific and the reordering looks like a bug."""
+
+	def _sort_cm_def(self):
+		for node in ast.walk(_tree(NAVIGATOR)):
+			if isinstance(node, ast.FunctionDef) and node.name == '_sort_cm': return node
+		self.fail('_sort_cm not found in navigator.py')
+
+	def _label_kwarg(self, wrapper_name):
+		for node in ast.walk(_tree(NAVIGATOR)):
+			if not isinstance(node, ast.FunctionDef) or node.name != wrapper_name: continue
+			for child in ast.walk(node):
+				if not isinstance(child, ast.Call): continue
+				if not isinstance(child.func, ast.Attribute) or child.func.attr != '_sort_cm': continue
+				for kw in child.keywords:
+					if kw.arg == 'label': return ast.unparse(kw.value)
+		return None
+
+	def test_the_default_label_is_the_plain_one(self):
+		defaults = self._sort_cm_def().args
+		names = [a.arg for a in defaults.args]
+		self.assertIn('label', names, '_sort_cm takes no label, so a shared scope cannot say so')
+		offset = len(names) - len(defaults.defaults)
+		default = defaults.defaults[names.index('label') - offset]
+		self.assertEqual('Set Custom Sort', ast.literal_eval(default))
+
+	def test_the_label_reaches_the_menu_entry(self):
+		"""Guards the guard: a label parameter nothing interpolates would pass every other test here."""
+		body = ast.unparse(self._sort_cm_def())
+		self.assertIn('label', body.split('return', 1)[1])
+
+	def test_simkl_says_the_entry_covers_every_simkl_list_of_that_media_type(self):
+		label = self._label_kwarg('_simkl_sort_cm')
+		self.assertIsNotNone(label, 'Simkl uses the plain label, so it claims to sort one list')
+		self.assertIn('All Simkl', label)
+
+	def test_the_per_list_scopes_keep_the_plain_label(self):
+		"""Only a scope backing several visible lists should widen its label."""
+		for node in ast.walk(_tree(NAVIGATOR)):
+			if not isinstance(node, ast.Call): continue
+			if not isinstance(node.func, ast.Attribute) or node.func.attr != '_sort_cm': continue
+			if not node.args or not isinstance(node.args[0], ast.Constant): continue
+			if node.args[0].value == 'simkl': continue
+			self.assertEqual([], [kw for kw in node.keywords if kw.arg == 'label'],
+				'%s backs one visible list, so it should not widen its label' % node.args[0].value)
+
+
 class CallSiteRewiringTests(unittest.TestCase):
 	"""The three UIs that used to write stores nothing reads."""
 

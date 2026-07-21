@@ -224,8 +224,12 @@ class Navigator:
 
 	def _simkl_sort_cm(self, media_type):
 		"""Simkl's every status list shares one scope per media type (apis/simkl_api.py sorts them all
-		under the 'simkl' list key), so this entry sets the order for all Simkl movie or TV lists."""
-		return self._sort_cm('simkl', media_type, 'simkl')
+		under the 'simkl' list key), so this entry sets the order for all Simkl movie or TV lists.
+
+		The label says so. Plain 'Set Custom Sort' here would read as list-specific and silently
+		reorder the other four statuses."""
+		kind = 'Movie' if media_type == 'movies' else 'TV'
+		return self._sort_cm('simkl', media_type, 'simkl', label='Set Custom Sort (All Simkl %s Lists)' % kind)
 
 	def simkl_lists(self):
 		"""Flat status lists (v1.3.4 layout) — direct links to each Movies/TV list."""
@@ -764,13 +768,16 @@ class Navigator:
 		for item in func: self.add(item, item['name'], item['iconImage'])
 		self.end_directory()
 
-	def _sort_cm(self, list_key, media_type, adapter):
+	def _sort_cm(self, list_key, media_type, adapter, label='Set Custom Sort'):
 		"""Context menu entry that overrides the sort order of one mediatype split list.
 
 		list_key/adapter must match the list_sort.sort_source() call that builds the list, and a new
 		list is returned on every call because add() appends to whatever it is given.
+
+		Pass label where one scope backs several visible lists, so the entry does not imply it only
+		affects the list it was opened from - see _simkl_sort_cm.
 		"""
-		return [('[B]Set Custom Sort[/B]', self.run_plugin % self.build_url(
+		return [('[B]%s[/B]' % label, self.run_plugin % self.build_url(
 			{'mode': 'list_sort_override_choice', 'list_key': list_key, 'media_type': media_type, 'adapter': adapter}))]
 
 	def _safe_add(self, url_params, list_name, iconImage='folder', original_image=False, cm_items=[]):
