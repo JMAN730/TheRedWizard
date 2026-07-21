@@ -38,12 +38,20 @@ PERSONAL_ROWS = [
 
 # Damson has no release date, so release_date sorts pin the MISSING_DATE sentinel: without it the
 # comparison of None against a string raises and apply() hands back the payload order unsorted.
+#
+# The rows are deliberately NOT in original_order. tmdblist_api fetches pages 2..N through a thread
+# pool and extends the result list as each thread finishes, so the payload a TMDb list arrives in is
+# page-interleaved; original_order is the only record of what TMDb actually served. A fixture already
+# in provider order cannot tell "restored the provider order" apart from "handed the payload back
+# untouched", which is exactly how the engine shipped without a TMDb 'default' extractor.
 TMDB_ROWS = [
-	{'title': 'Banana', 'release_date': '2001-01-01', 'original_order': 0},
 	{'title': 'Cherry', 'release_date': '2010-01-01', 'original_order': 1},
-	{'title': 'Alpha', 'release_date': '1999-01-01', 'original_order': 2},
 	{'title': 'Damson', 'release_date': None, 'original_order': 3},
+	{'title': 'Banana', 'release_date': '2001-01-01', 'original_order': 0},
+	{'title': 'Alpha', 'release_date': '1999-01-01', 'original_order': 2},
 ]
+
+TMDB_PAYLOAD_ORDER = ['Cherry', 'Damson', 'Banana', 'Alpha']
 
 TMDB_PROVIDER_ORDER = ['Banana', 'Cherry', 'Alpha', 'Damson']
 TMDB_TITLE_ASC = ['Alpha', 'Banana', 'Cherry', 'Damson']
@@ -135,10 +143,26 @@ class MixedListResolutionTests(_StubbedTestCase):
 		result = list_sort.sort_source(list(PERSONAL_ROWS), 'personal:Faves|jo', None, 'personal')
 		self.assertEqual(['Alpha', 'Banana', 'Cherry', 'Damson'], [i['title'] for i in result])
 
+	def test_the_tmdb_fixture_is_not_already_in_provider_order(self):
+		# Guards the guards below: re-sort TMDB_ROWS into original_order and every provider-order
+		# assertion in this file stops distinguishing "restored" from "returned unchanged".
+		self.assertEqual(TMDB_PAYLOAD_ORDER, [i['title'] for i in TMDB_ROWS])
+		self.assertNotEqual(TMDB_PROVIDER_ORDER, TMDB_PAYLOAD_ORDER)
+		self.assertEqual(TMDB_PROVIDER_ORDER, [i['title'] for i in sorted(TMDB_ROWS, key=lambda i: i['original_order'])])
+
 	def test_tmdb_default_field_keeps_provider_order(self):
+		# 'default' for TMDb is a restore, not a no-op: the payload is page-interleaved by the
+		# thread pool that fetched it, and original_order is what TMDb served.
 		OVERRIDES['tmdb:watchlist'] = 'default:asc'
 		result = list_sort.sort_source(list(TMDB_ROWS), 'tmdb:watchlist', None, 'tmdb')
 		self.assertEqual(TMDB_PROVIDER_ORDER, [i['title'] for i in result])
+
+	def test_tmdb_rows_with_no_original_order_sort_last_without_raising(self):
+		# The old code's key was (k['original_order'] is None, k['original_order']); a row that never
+		# got stamped must not raise int-vs-None and drop the whole list back to payload order.
+		rows = [{'title': 'Nostamp', 'release_date': None}] + list(TMDB_ROWS)
+		result = list_sort.sort_source(rows, 'tmdb:watchlist', None, 'tmdb', fallback='default:asc')
+		self.assertEqual(TMDB_PROVIDER_ORDER + ['Nostamp'], [i['title'] for i in result])
 
 	def test_tmdb_release_date_override(self):
 		OVERRIDES['tmdb:8675309'] = 'release_date:desc'
@@ -311,8 +335,10 @@ class CallSiteFallbackTests(_StubbedTestCase):
 		found = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == 'get_tmdb_list']
 		self.assertEqual(1, len(found))
 		returns = [ast.unparse(n.value) for n in ast.walk(found[0]) if isinstance(n, ast.Return)]
-		self.assertEqual(1, len(returns), 'get_tmdb_list must have a single exit, through sort_source')
-		self.assertTrue(returns[0].startswith('list_sort.sort_source('), returns[0])
+		self.assertTrue(returns, 'get_tmdb_list must return something')
+		for expression in returns:
+			self.assertTrue(expression.startswith('list_sort.sort_source('),
+				'every get_tmdb_list exit must go through sort_source, not %s' % expression)
 
 	def test_tmdb_call_site_fallback_literal_preserves_provider_order(self):
 		call = self._single_call(TMDB_LISTS, "'tmdb'")

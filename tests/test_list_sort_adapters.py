@@ -155,10 +155,36 @@ class PersonalAdapterTests(unittest.TestCase):
 
 
 class TmdbAdapterTests(unittest.TestCase):
-	def test_default_field_preserves_provider_order(self):
-		data = [{'title': 'B', 'original_order': 1, 'release_date': None}, {'title': 'A', 'original_order': 0, 'release_date': None}]
+	def test_default_field_restores_provider_order(self):
+		# The rows arrive out of original_order on purpose: tmdblist_api appends pages 2..N in thread
+		# completion order, so the payload order is not TMDb's. A fixture already in original_order
+		# would pass against an engine that simply returned the payload untouched.
+		data = [{'title': 'B', 'original_order': 1, 'release_date': None},
+			{'title': 'C', 'original_order': 2, 'release_date': None},
+			{'title': 'A', 'original_order': 0, 'release_date': None}]
 		result = list_sort.apply(data, {'field': 'default', 'direction': 'asc'}, list_sort.TMDB)
-		self.assertEqual(['B', 'A'], [i['title'] for i in result])
+		self.assertEqual(['A', 'B', 'C'], [i['title'] for i in result])
+
+	def test_default_field_ignores_direction(self):
+		# 'default' is in DIRECTIONLESS_FIELDS; a stored 'default:desc' must not reverse the list.
+		data = [{'title': 'B', 'original_order': 1}, {'title': 'A', 'original_order': 0}]
+		result = list_sort.apply(data, {'field': 'default', 'direction': 'desc'}, list_sort.TMDB)
+		self.assertEqual(['A', 'B'], [i['title'] for i in result])
+
+	def test_default_field_missing_original_order_sorts_last(self):
+		data = [{'title': 'X'}, {'title': 'B', 'original_order': 1}, {'title': 'A', 'original_order': 0}]
+		result = list_sort.apply(data, {'field': 'default', 'direction': 'asc'}, list_sort.TMDB)
+		self.assertEqual(['A', 'B', 'X'], [i['title'] for i in result])
+
+	def test_adapters_without_a_default_extractor_hand_the_payload_back(self):
+		# Only TMDb declares one. Every other adapter's 'default' must stay the pass-through it was,
+		# or their provider ordering changes on upgrade too.
+		data = [{'title': 'B'}, {'title': 'A'}]
+		for name in ('trakt_list', 'simkl', 'personal'):
+			adapter = list_sort.ADAPTERS[name]
+			self.assertNotIn('default', adapter['fields'], name)
+			result = list_sort.apply(data, {'field': 'default', 'direction': 'asc'}, adapter)
+			self.assertEqual(['B', 'A'], [i['title'] for i in result], name)
 
 	def test_tmdb_has_no_date_added(self):
 		self.assertNotIn('date_added', list_sort.TMDB['capabilities'])

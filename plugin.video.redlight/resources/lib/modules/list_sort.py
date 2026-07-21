@@ -81,7 +81,18 @@ def apply(data, spec, adapter, ignore_articles=False):
 	"""
 	if not data: return []
 	field = spec.get('field', 'title')
-	if field == 'default': return list(data)
+	if field == 'default':
+		# 'default' means "the order the provider serves this list in". For most sources that is the
+		# order the payload already arrives in, so handing it back untouched is right. TMDb is not:
+		# pages 2..N are fetched by a thread pool and appended as they complete, so the assembled
+		# payload is page-interleaved. An adapter that can name the provider's order declares a
+		# 'default' extractor and it wins here; everything else keeps the pass-through.
+		default_extractor = adapter.get('fields', {}).get('default')
+		if default_extractor is None: return list(data)
+		try:
+			return sorted(data, key=default_extractor)
+		except Exception:
+			return list(data)
 	if field == 'random':
 		try:
 			return sorted(data, key=lambda k: _random())
@@ -176,11 +187,18 @@ PERSONAL = {
 	}
 }
 
+# 'default' is a real sort here, not a pass-through: tmdblist_api stamps each row with the
+# original_order TMDb served it under, then fetches pages 2..N through a thread pool and extends the
+# result list in completion order. The old get_tmdb_list restored it explicitly for sort code 4
+# (the shipped default for Watchlist and Favorites), so without this extractor every multi-page TMDb
+# list comes back page-interleaved. The (is None, value) key mirrors the old sort exactly: rows with
+# no original_order sort last instead of raising against an int.
 TMDB = {
 	'capabilities': ('title', 'release_date', 'random', 'default'),
 	'fields': {
 		'title': lambda i: i.get('title'),
 		'release_date': lambda i: i.get('release_date') or MISSING_DATE,
+		'default': lambda i: (i.get('original_order') is None, _safe_int(i.get('original_order'), 0)),
 	}
 }
 
