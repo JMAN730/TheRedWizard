@@ -65,37 +65,83 @@ class _StubbedTestCase(unittest.TestCase):
 		SETTINGS.clear()
 
 
-# Every fixture below is deliberately built so that no two of the four orderings under test
-# coincide: the payload order is neither title order nor date order, date_added is NOT in title
-# order (Banana is newest but sorts second), and release_date/year is a fourth order, distinct
-# from date_added - Cherry was added first but released last, Banana was added last but released
-# first, so date_added and release_date rank Cherry and Banana in opposite relative order. A
-# sort_source that ignores media_type, reads the wrong default setting, resolves under the wrong
-# list_key, or always falls back to DEFAULT_SPEC (title:asc) therefore produces a visibly wrong
-# list instead of accidentally matching the expectation. 'The Alpha' carries a leading article so
-# that title:asc also pins the ignore_articles lookup - without the article strip it sorts last.
+# Every fixture below is deliberately built so that no two of the orderings under test coincide:
+# the payload order is neither title order nor date order, date_added is NOT in title order
+# (Banana is newest but sorts second), and release_date/year is a third order distinct from both -
+# and, critically, distinct from date_added *reversed* as well. That last part is what makes the
+# release-date expectations mean anything: while RELEASE_ASC happened to equal DATE_ADDED_DESC, an
+# adapter whose release_date extractor read the date-added field would have satisfied every
+# release-date assertion here. So a sort_source that ignores media_type, reads the wrong default
+# setting, resolves under the wrong list_key, reads the wrong payload field, or always falls back
+# to DEFAULT_SPEC (title:asc) produces a visibly wrong list instead of accidentally matching the
+# expectation. 'The Alpha' carries a leading article so that title:asc also pins the
+# ignore_articles lookup - without the article strip it sorts last.
+#
+# The five distinct orderings, for reference:
+#   payload            Cherry, Banana, The Alpha
+#   title:asc          The Alpha, Banana, Cherry
+#   date_added:desc    Banana, The Alpha, Cherry
+#   release_date:asc   The Alpha, Cherry, Banana
+#   release_date:desc  Banana, Cherry, The Alpha
 SIMKL_ROWS = [
-	{'order': 1, 'title': 'Cherry', 'collected_at': '2024-01-01', 'released': '2001-01-01'},
-	{'order': 2, 'title': 'Banana', 'collected_at': '2024-01-03', 'released': '1995-01-01'},
-	{'order': 3, 'title': 'The Alpha', 'collected_at': '2024-01-02', 'released': '1999-01-01'},
+	{'order': 1, 'title': 'Cherry', 'collected_at': '2024-01-01', 'released': '1999-01-01'},
+	{'order': 2, 'title': 'Banana', 'collected_at': '2024-01-03', 'released': '2001-01-01'},
+	{'order': 3, 'title': 'The Alpha', 'collected_at': '2024-01-02', 'released': '1995-01-01'},
 ]
 
 MDBLIST_WATCHLIST_ROWS = [
-	{'title': 'Cherry', 'watchlist_at': '2024-01-01', 'release_date': '2001-01-01'},
-	{'title': 'Banana', 'watchlist_at': '2024-01-03', 'release_date': '1995-01-01'},
-	{'title': 'The Alpha', 'watchlist_at': '2024-01-02', 'release_date': '1999-01-01'},
+	{'title': 'Cherry', 'watchlist_at': '2024-01-01', 'release_date': '1999-01-01'},
+	{'title': 'Banana', 'watchlist_at': '2024-01-03', 'release_date': '2001-01-01'},
+	{'title': 'The Alpha', 'watchlist_at': '2024-01-02', 'release_date': '1995-01-01'},
 ]
 
 MDBLIST_COLLECTION_ROWS = [
-	{'title': 'Cherry', 'collected_at': '2024-01-01', 'year': 2001},
-	{'title': 'Banana', 'collected_at': '2024-01-03', 'year': 1995},
-	{'title': 'The Alpha', 'collected_at': '2024-01-02', 'year': 1999},
+	{'title': 'Cherry', 'collected_at': '2024-01-01', 'year': 1999},
+	{'title': 'Banana', 'collected_at': '2024-01-03', 'year': 2001},
+	{'title': 'The Alpha', 'collected_at': '2024-01-02', 'year': 1995},
 ]
 
 TITLE_ASC = ['The Alpha', 'Banana', 'Cherry']
 DATE_ADDED_DESC = ['Banana', 'The Alpha', 'Cherry']
-RELEASE_ASC = ['Banana', 'The Alpha', 'Cherry']
-RELEASE_DESC = ['Cherry', 'The Alpha', 'Banana']
+RELEASE_ASC = ['The Alpha', 'Cherry', 'Banana']
+RELEASE_DESC = ['Banana', 'Cherry', 'The Alpha']
+
+
+class FixtureDistinctnessTests(unittest.TestCase):
+	"""The expectations above are only evidence while they disagree with each other.
+
+	RELEASE_ASC once equalled DATE_ADDED_DESC, which made every release-date assertion in this file
+	satisfiable by an adapter that sorted on the date-added field instead. Pin the distinctness so
+	the next edit to the fixture rows cannot quietly reintroduce that.
+	"""
+
+	PAYLOAD_ORDER = ['Cherry', 'Banana', 'The Alpha']
+
+	def test_no_two_expected_orderings_coincide(self):
+		orderings = {'payload': self.PAYLOAD_ORDER, 'title:asc': TITLE_ASC, 'date_added:desc': DATE_ADDED_DESC,
+			'release_date:asc': RELEASE_ASC, 'release_date:desc': RELEASE_DESC}
+		names = sorted(orderings)
+		for a in names:
+			for b in names:
+				if a >= b: continue
+				self.assertNotEqual(orderings[a], orderings[b], '%s and %s are the same sequence' % (a, b))
+
+	def test_release_order_is_not_date_added_order_in_either_direction(self):
+		"""Named separately because this is the exact coincidence that was found."""
+		self.assertNotEqual(RELEASE_ASC, DATE_ADDED_DESC)
+		self.assertNotEqual(RELEASE_ASC, list(reversed(DATE_ADDED_DESC)))
+		self.assertNotEqual(RELEASE_DESC, DATE_ADDED_DESC)
+
+	def test_the_three_fixtures_agree_on_that_ordering(self):
+		"""SIMKL uses 'released', watchlist uses 'release_date', collection uses an integer 'year'.
+		The tests share one RELEASE_ASC, so the three payloads have to encode the same order."""
+		by_title = lambda rows, key: [r['title'] for r in sorted(rows, key=lambda r: r[key])]
+		self.assertEqual(RELEASE_ASC, by_title(SIMKL_ROWS, 'released'))
+		self.assertEqual(RELEASE_ASC, by_title(MDBLIST_WATCHLIST_ROWS, 'release_date'))
+		self.assertEqual(RELEASE_ASC, by_title(MDBLIST_COLLECTION_ROWS, 'year'))
+		self.assertEqual(DATE_ADDED_DESC, list(reversed(by_title(SIMKL_ROWS, 'collected_at'))))
+		self.assertEqual(DATE_ADDED_DESC, list(reversed(by_title(MDBLIST_WATCHLIST_ROWS, 'watchlist_at'))))
+		self.assertEqual(DATE_ADDED_DESC, list(reversed(by_title(MDBLIST_COLLECTION_ROWS, 'collected_at'))))
 
 
 class SimklSortTests(_StubbedTestCase):
