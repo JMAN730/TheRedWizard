@@ -681,13 +681,16 @@ def sync_settings(params={}):
 					if load_properties: settings_cache.set_memory_cache(setting_id, value)
 				if run_sort_migration(legacy_sort_settings, _write_sort_setting): migrated = True
 				try:
-					from caches.trakt_cache import get_all_lists_custom_sort
+					# The _strict getters raise instead of returning {} on a locked database or a corrupt
+					# row. Their swallowing siblings, which the UI uses, would report "nothing stored"
+					# and let the sentinel be written over preferences that were never read.
+					from caches.trakt_cache import get_all_lists_custom_sort_strict
 					from caches.tmdb_lists import tmdb_lists_cache
 					from caches.list_sort_cache import set_override
 					from modules.list_sort import migrate_legacy_stores
 					from caches.personal_lists_cache import personal_lists_cache
 					personal_rows = personal_lists_cache.get_all_sort_orders()
-					store_overrides = migrate_legacy_stores(get_all_lists_custom_sort(), personal_rows, tmdb_lists_cache.get_sort_orders())
+					store_overrides = migrate_legacy_stores(get_all_lists_custom_sort_strict(), personal_rows, tmdb_lists_cache.get_sort_orders_strict())
 					failed = [scope for scope, spec_string in store_overrides.items() if not set_override(scope, spec_string)]
 					if store_overrides: migrated = True
 					if failed:

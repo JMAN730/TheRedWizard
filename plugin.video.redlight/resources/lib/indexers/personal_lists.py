@@ -185,6 +185,9 @@ def get_personal_list(params):
 	list_name, author, seen, update_seen = params['list_name'], params['author'], params.get('seen', True), params.get('update_seen', True)
 	contents = personal_lists_cache.get_list(list_name, author, update_seen=update_seen, seen=seen)
 	from modules import list_sort
+	# No fallback, unlike the Trakt and TMDb call sites: sort_order is a column on the personal_lists
+	# row itself, so every list always has a stored value and "absent" cannot happen. A 'default:asc'
+	# fallback here would mean DB insertion order rather than the user's choice.
 	return list_sort.sort_source(contents, 'personal:%s|%s' % (list_name, author), None, 'personal')
 
 def make_new_personal_list(params):

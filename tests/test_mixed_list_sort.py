@@ -1,5 +1,6 @@
 import ast
 import sys
+import types
 import unittest
 
 from test_trakt_sync_list_sort import ROOT, list_sort, _install_stubs, OVERRIDES, SETTINGS
@@ -9,6 +10,7 @@ _STUBBED_MODULES = ('caches', 'caches.list_sort_cache', 'caches.settings_cache',
 
 TRAKT_API = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'apis' / 'trakt_api.py'
 TMDB_LISTS = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'indexers' / 'tmdb_lists.py'
+PERSONAL_LISTS = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'indexers' / 'personal_lists.py'
 
 # Every fixture below is laid out so that the input order is not equal to any of the orders the tests
 # assert. A two-row fixture cannot do that - one of the two possible orders always coincides with the
@@ -154,6 +156,20 @@ class MixedListResolutionTests(_StubbedTestCase):
 		result = list_sort.sort_source(list(TMDB_ROWS), 'tmdb:8675309', None, 'tmdb', fallback='default:asc')
 		self.assertEqual(TMDB_TITLE_ASC, [i['title'] for i in result])
 
+	def test_fallback_survives_a_failing_override_lookup(self):
+		# sort_source() catches resolve() raising - an unreadable override store, a broken import -
+		# and must land on the caller's fallback, not on DEFAULT_SPEC. Falling back to title:asc
+		# there is precisely the pre-fix behaviour, applied to every mixed list at once.
+		def _raise(scope): raise RuntimeError('override store unavailable')
+		sys.modules['caches.list_sort_cache'].get_override = _raise
+
+		result = list_sort.sort_source(list(TMDB_ROWS), 'tmdb:8675309', None, 'tmdb', fallback='default:asc')
+		self.assertEqual(TMDB_PROVIDER_ORDER, [i['title'] for i in result])
+
+		result = list_sort.sort_source(list(TRAKT_LIST_ROWS), 'trakt.list:99', None, 'trakt_list',
+			fallback=list_sort.trakt_list_fallback('rank', 'asc'))
+		self.assertEqual([1, 2, 3], [i['rank'] for i in result])
+
 
 class LegacyStoreMigrationTests(unittest.TestCase):
 	def test_trakt_rows_translate(self):
@@ -230,16 +246,22 @@ class LegacyStoreMigrationTests(unittest.TestCase):
 		self.assertEqual('4', list_sort._legacy_code({}, 'tmdbsort.watchlist'))
 
 
-def _sort_source_calls(path):
+def _sort_source_calls(path, function=None):
 	"""Every list_sort.sort_source(...) call in a module, as dicts of unparsed argument source.
 
 	Parsed from source with ast rather than imported, because both modules pull in the Kodi runtime.
-	Mirrors tests/test_simkl_mdblist_sort.py.
+	Mirrors tests/test_simkl_mdblist_sort.py. Pass function to restrict the search to one def, which
+	is how a call site is identified without reading the very arguments under test.
 	"""
 	with open(str(path), 'r', encoding='utf-8') as f:
 		tree = ast.parse(f.read())
+	scope = tree
+	if function is not None:
+		found = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == function]
+		if len(found) != 1: raise AssertionError('expected exactly one def %s in %s' % (function, path.name))
+		scope = found[0]
 	calls = []
-	for node in ast.walk(tree):
+	for node in ast.walk(scope):
 		if not isinstance(node, ast.Call): continue
 		func = node.func
 		if not isinstance(func, ast.Attribute) or func.attr != 'sort_source': continue
@@ -280,6 +302,18 @@ class CallSiteFallbackTests(_StubbedTestCase):
 		self.assertEqual('list_sort.trakt_list_fallback(sort_by, sort_how)',
 			_assigned_source(call['tree'], call['fallback']))
 
+	def test_every_tmdb_list_leaves_get_tmdb_list_through_the_engine(self):
+		# 'recommendations' used to return early. That was equivalent to falling through - with the
+		# provider-order fallback and no override, sort_source hands the payload straight back - but
+		# it also made tmdb:recommendations the one list that could never honour an override.
+		with open(str(TMDB_LISTS), 'r', encoding='utf-8') as f:
+			tree = ast.parse(f.read())
+		found = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == 'get_tmdb_list']
+		self.assertEqual(1, len(found))
+		returns = [ast.unparse(n.value) for n in ast.walk(found[0]) if isinstance(n, ast.Return)]
+		self.assertEqual(1, len(returns), 'get_tmdb_list must have a single exit, through sort_source')
+		self.assertTrue(returns[0].startswith('list_sort.sort_source('), returns[0])
+
 	def test_tmdb_call_site_fallback_literal_preserves_provider_order(self):
 		call = self._single_call(TMDB_LISTS, "'tmdb'")
 		self.assertEqual("'tmdb:%s' % list_id", call['list_key'])
@@ -295,6 +329,104 @@ class CallSiteFallbackTests(_StubbedTestCase):
 		fallback = eval(source, {'list_sort': list_sort, 'sort_by': 'rank', 'sort_how': 'asc'})
 		result = list_sort.sort_source(list(TRAKT_LIST_ROWS), 'trakt.list:99', None, 'trakt_list', fallback=fallback)
 		self.assertEqual([1, 2, 3], [i['rank'] for i in result])
+
+
+def _conditional_sort_source(path, adapter):
+	"""The source of the conditional expression whose true-branch is that adapter's sort_source call."""
+	with open(str(path), 'r', encoding='utf-8') as f:
+		tree = ast.parse(f.read())
+	for node in ast.walk(tree):
+		if not isinstance(node, ast.IfExp): continue
+		for inner in ast.walk(node.body):
+			if not isinstance(inner, ast.Call): continue
+			func = inner.func
+			if not isinstance(func, ast.Attribute) or func.attr != 'sort_source': continue
+			if len(inner.args) > 3 and ast.unparse(inner.args[3]) == adapter: return ast.unparse(node)
+	return None
+
+
+class TraktCallSiteBranchTests(_StubbedTestCase):
+	"""Pin which of get_trakt_list_contents' two branches each kind of list takes.
+
+	The fallback tests above read the sort_source call's arguments but never the condition choosing
+	between it and the ad-hoc apply(). Invert that condition and every stored user list silently
+	ignores its own override while every ad-hoc list gains a scope that can never have one.
+	"""
+
+	def _evaluate(self, list_id):
+		source = _conditional_sort_source(TRAKT_API, "'trakt_list'")
+		self.assertIsNotNone(source, 'the Trakt user list sort must stay a two-branch conditional')
+		calls = []
+
+		def _record(name, value):
+			def _call(*args, **kwargs):
+				calls.append((name, args, kwargs))
+				return value
+			return _call
+
+		fake = types.SimpleNamespace(sort_source=_record('sort_source', 'stored'),
+			apply=_record('apply', 'ad_hoc'), parse_spec=lambda raw, **kwargs: raw, TRAKT_LIST='TRAKT_LIST')
+		namespace = {'list_sort': fake, 'data': ['row'], 'list_id': list_id, 'payload_spec': 'rank:asc',
+			'settings': types.SimpleNamespace(ignore_articles=lambda: False)}
+		result = eval(source, namespace)
+		self.assertEqual(1, len(calls))
+		return result, calls[0]
+
+	def test_stored_user_list_is_sorted_through_its_override_scope(self):
+		result, call = self._evaluate('8675309')
+		self.assertEqual('stored', result, 'a list with an id must go through sort_source, not apply')
+		self.assertEqual('sort_source', call[0])
+		self.assertEqual('trakt.list:8675309', call[1][1])
+		self.assertEqual('rank:asc', call[2].get('fallback'))
+
+	def test_ad_hoc_list_without_an_id_is_sorted_by_its_payload_alone(self):
+		# No list_id means no scope an override could ever be stored under, so routing it through
+		# sort_source would resolve 'trakt.list:None' and drop the payload sort for every such list.
+		result, call = self._evaluate(None)
+		self.assertEqual('ad_hoc', result, 'a list with no id must go through apply, not sort_source')
+		self.assertEqual('apply', call[0])
+		self.assertEqual('rank:asc', call[1][1])
+
+
+class PersonalCallSiteTests(_StubbedTestCase):
+	"""Pin the personal call site's scope key and adapter.
+
+	Everything preserving a personal list's stored ordering rests on the key this call site builds
+	being byte-identical to the one migrate_legacy_stores() wrote the override under. Nothing else
+	compares the two, and a mismatch is invisible: the list simply comes back title-sorted.
+	"""
+
+	def _call(self):
+		calls = _sort_source_calls(PERSONAL_LISTS, function='get_personal_list')
+		self.assertEqual(1, len(calls), 'expected exactly one sort_source call in get_personal_list')
+		return calls[0]
+
+	def test_call_site_scope_is_the_key_the_migration_writes(self):
+		scope = eval(self._call()['list_key'], {'list_name': 'Faves', 'author': 'jo'})
+		migrated = list_sort.migrate_legacy_stores({}, {('Faves', 'jo'): '2'}, {})
+		self.assertEqual(['personal:Faves|jo'], list(migrated))
+		self.assertEqual('personal:Faves|jo', scope)
+
+		# And behaviourally: the migrated override must actually drive this call site's lookup.
+		OVERRIDES.update(migrated)
+		result = list_sort.sort_source(list(PERSONAL_ROWS), scope, None,
+			ast.literal_eval(self._call()['adapter']))
+		self.assertEqual(['Banana', 'Cherry', 'Alpha', 'Damson'], [i['title'] for i in result])
+
+	def test_call_site_uses_the_personal_adapter(self):
+		# The tmdb adapter has no date_added extractor, so swapping it silently degrades every
+		# date-added-sorted personal list to the payload order.
+		adapter = ast.literal_eval(self._call()['adapter'])
+		self.assertEqual('personal', adapter)
+		OVERRIDES['personal:Faves|jo'] = 'date_added:asc'
+		result = list_sort.sort_source(list(PERSONAL_ROWS), 'personal:Faves|jo', None, adapter)
+		self.assertEqual(['Damson', 'Alpha', 'Cherry', 'Banana'], [i['title'] for i in result])
+
+	def test_call_site_passes_no_fallback(self):
+		# Deliberate asymmetry with the Trakt and TMDb call sites: sort_order is a column on the
+		# personal_lists row itself, so every list always has a stored value and the migration always
+		# writes an override for it. A 'default:asc' fallback would mean DB insertion order.
+		self.assertIsNone(self._call()['fallback'])
 
 
 if __name__ == '__main__':

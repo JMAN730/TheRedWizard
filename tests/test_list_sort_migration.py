@@ -316,25 +316,43 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.failing_scopes = ()
 		self.trakt_rows, self.personal_rows, self.tmdb_rows = {}, {}, {}
 		self.stores_raise = False
+		self.failing_stores = set()
 		list_sort_cache = types.ModuleType('caches.list_sort_cache')
 		list_sort_cache.set_override = self._set_override
 		sys.modules['caches.list_sort_cache'] = list_sort_cache
 		sys.modules['modules.list_sort'] = list_sort
 		# The three legacy per-list stores. Without them the store migration would fail on an
 		# ImportError on every run here, which is exactly the condition these tests pin.
+		#
+		# Each store is stubbed twice, exactly as production has it: a _strict getter that raises when
+		# the store is unreadable, and - for Trakt and TMDb - the swallowing sibling the UI calls,
+		# which answers {} no matter what. The swallowing stub deliberately never raises, so a
+		# migration that reached for it would see "nothing stored" and set the sentinel; that is what
+		# test_unreadable_legacy_store_leaves_the_sentinel_unset detects.
 		trakt_cache = types.ModuleType('caches.trakt_cache')
-		trakt_cache.get_all_lists_custom_sort = lambda: self._store_rows(self.trakt_rows)
+		trakt_cache.get_all_lists_custom_sort_strict = lambda: self._store_rows('trakt', self.trakt_rows)
+		trakt_cache.get_all_lists_custom_sort = lambda: self._swallowed_rows('trakt', self.trakt_rows)
 		sys.modules['caches.trakt_cache'] = trakt_cache
 		tmdb_lists = types.ModuleType('caches.tmdb_lists')
-		tmdb_lists.tmdb_lists_cache = types.SimpleNamespace(get_sort_orders=lambda: self._store_rows(self.tmdb_rows))
+		tmdb_lists.tmdb_lists_cache = types.SimpleNamespace(
+			get_sort_orders_strict=lambda: self._store_rows('tmdb', self.tmdb_rows),
+			get_sort_orders=lambda: self._swallowed_rows('tmdb', self.tmdb_rows))
 		sys.modules['caches.tmdb_lists'] = tmdb_lists
 		personal_lists_cache = types.ModuleType('caches.personal_lists_cache')
 		personal_lists_cache.personal_lists_cache = types.SimpleNamespace(
-			get_all_sort_orders=lambda: self._store_rows(self.personal_rows))
+			get_all_sort_orders=lambda: self._store_rows('personal', self.personal_rows))
 		sys.modules['caches.personal_lists_cache'] = personal_lists_cache
 
-	def _store_rows(self, rows):
-		if self.stores_raise: raise RuntimeError('legacy store unavailable')
+	def _unreadable(self, name):
+		return self.stores_raise or name in self.failing_stores
+
+	def _store_rows(self, name, rows):
+		if self._unreadable(name): raise RuntimeError('legacy store unavailable')
+		return dict(rows)
+
+	def _swallowed_rows(self, name, rows):
+		"""What the UI-facing getters do: an unreadable store is indistinguishable from an empty one."""
+		if self._unreadable(name): return {}
 		return dict(rows)
 
 	def tearDown(self):
@@ -465,10 +483,39 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 	def test_unreadable_legacy_store_leaves_the_sentinel_unset(self):
 		# The sentinel is the one-way door: writing it on a run that saved nothing discards every
 		# per-list Trakt, personal and TMDb preference, because the legacy ids are purged next sync.
+		# Only the _strict getters raise here; the swallowing siblings answer {} exactly as they do
+		# in production, so this also fails if the migration reads the store through those.
 		self.stores_raise = True
 		cache = self._sync({'sort.watchlist': '1'})
 
 		self.assertEqual('false', cache.data['migration.unified_list_sort'])
+
+	def test_any_single_unreadable_store_leaves_the_sentinel_unset(self):
+		# One locked database out of three is enough: the rows in it are unrecoverable once the
+		# sentinel is set. Pinned per store because each is read through a different getter and a
+		# swallowing one would leave that store's preferences silently dropped.
+		for store in ('trakt', 'personal', 'tmdb'):
+			with self.subTest(store=store):
+				self.overrides = {}
+				self.failing_stores = {store}
+				self.trakt_rows = {'12345': {'sort_by': 'rank', 'sort_how': 'asc'}}
+				self.personal_rows = {('Faves', 'jo'): '2'}
+				self.tmdb_rows = {8675309: '2'}
+				cache = self._sync({'sort.watchlist': '1'})
+				self.assertEqual('false', cache.data['migration.unified_list_sort'])
+
+	def test_unreadable_store_is_not_mistaken_for_an_empty_one(self):
+		# The regression this guards: the store getters used to end in `except: return {}`, so a
+		# locked database produced an empty translation, no failure, and a permanent sentinel.
+		self.stores_raise = True
+		cache = self._sync({'sort.watchlist': '1'})
+		self.assertEqual('false', cache.data['migration.unified_list_sort'])
+
+		# Same profile, same empty result - but the stores really are empty this time.
+		self.stores_raise = False
+		self.module.settings_cache = cache
+		self.assertEqual('synced', self.module.sync_settings({'silent': 'true', 'load_properties': 'false', 'force': 'true'}))
+		self.assertEqual('true', cache.data['migration.unified_list_sort'])
 
 	def test_unpersisted_store_override_leaves_the_sentinel_unset(self):
 		# set_override() swallows its own exceptions and reports False, so an ignored return value
@@ -501,6 +548,137 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 
 		self.assertEqual({}, self.overrides)
 		self.assertEqual('title:asc', cache.data['sort.default.movies'])
+
+
+class _FakeCursor(object):
+	def __init__(self, rows):
+		self.rows = rows
+
+	def fetchall(self):
+		return list(self.rows)
+
+
+class _FakeConnection(object):
+	def __init__(self, rows):
+		self.rows = rows
+
+	def execute(self, *args):
+		return _FakeCursor(self.rows)
+
+
+class LegacyStoreGetterTests(unittest.TestCase):
+	"""The migration's three data sources, loaded for real, with the database stubbed underneath.
+
+	The whole retry story rests on these getters distinguishing "nothing stored" from "could not
+	read". Every one of them used to end in `except: return {}`, which makes a locked database or a
+	corrupt row look exactly like an empty store - the migration then translates nothing, reports
+	success, and the sentinel is written over preferences that were never read.
+	"""
+	_KEYS = ('modules', 'modules.kodi_utils', 'caches', 'caches.base_cache')
+
+	def setUp(self):
+		self._original_sys_modules = {}
+		for key in self._KEYS:
+			if key in sys.modules: self._original_sys_modules[key] = sys.modules[key]
+		self.rows = []
+		self.locked = False
+		modules = types.ModuleType('modules')
+		modules.__path__ = []
+		kodi_utils = types.ModuleType('modules.kodi_utils')
+		for name in ('sleep', 'confirm_dialog', 'close_all_dialog', 'notification', 'logger'):
+			setattr(kodi_utils, name, lambda *a, **k: None)
+		modules.kodi_utils = kodi_utils
+		caches = types.ModuleType('caches')
+		caches.__path__ = []
+		base_cache = types.ModuleType('caches.base_cache')
+		base_cache.connect_database = lambda *a, **k: self._connect()
+		base_cache.get_timestamp = lambda *a, **k: 0
+		test_case = self
+
+		class _BaseCache(object):
+			def __init__(self, *args, **kwargs): pass
+			def manual_connect(self, *args, **kwargs): return test_case._connect()
+
+		base_cache.BaseCache = _BaseCache
+		sys.modules['modules'] = modules
+		sys.modules['modules.kodi_utils'] = kodi_utils
+		sys.modules['caches'] = caches
+		sys.modules['caches.base_cache'] = base_cache
+
+	def tearDown(self):
+		for key in self._KEYS:
+			if key in self._original_sys_modules: sys.modules[key] = self._original_sys_modules[key]
+			else: sys.modules.pop(key, None)
+
+	def _connect(self):
+		if self.locked: raise RuntimeError('database is locked')
+		return _FakeConnection(self.rows)
+
+	def _load(self, name):
+		path = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'caches' / ('%s.py' % name)
+		spec = importlib.util.spec_from_file_location('legacy_store_%s_under_test' % name, str(path))
+		module = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(module)
+		return module
+
+	def test_trakt_strict_getter_raises_on_a_locked_database(self):
+		module = self._load('trakt_cache')
+		self.locked = True
+		with self.assertRaises(Exception):
+			module.get_all_lists_custom_sort_strict()
+		# The UI-facing sibling keeps swallowing - that is why the migration may not use it.
+		self.assertEqual({}, module.get_all_lists_custom_sort())
+
+	def test_trakt_strict_getter_raises_on_a_corrupt_row(self):
+		# get_all_lists_custom_sort_strict() eval()s each row. One unparseable row must not read as
+		# an empty store: the remaining lists' sorts are still in there and are still recoverable.
+		module = self._load('trakt_cache')
+		self.rows = [("{'list_id': '1', 'sort_by': 'rank', 'sort_how': 'asc'}",), ('not a dict {',)]
+		with self.assertRaises(Exception):
+			module.get_all_lists_custom_sort_strict()
+		self.assertEqual({}, module.get_all_lists_custom_sort())
+
+	def test_trakt_getters_agree_on_a_readable_store(self):
+		module = self._load('trakt_cache')
+		self.rows = [("{'list_id': '1', 'sort_by': 'rank', 'sort_how': 'asc'}",)]
+		expected = {'1': {'sort_by': 'rank', 'sort_how': 'asc'}}
+		self.assertEqual(expected, module.get_all_lists_custom_sort_strict())
+		self.assertEqual(expected, module.get_all_lists_custom_sort())
+
+	def test_tmdb_strict_getter_raises_on_a_locked_database(self):
+		module = self._load('tmdb_lists')
+		cache = module.TMDbListsCache()
+		self.locked = True
+		with self.assertRaises(Exception):
+			cache.get_sort_orders_strict()
+		self.assertEqual({}, cache.get_sort_orders())
+
+	def test_tmdb_strict_getter_raises_on_a_malformed_row(self):
+		module = self._load('tmdb_lists')
+		cache = module.TMDbListsCache()
+		self.rows = [('sort_order_notanumber', '2')]
+		with self.assertRaises(Exception):
+			cache.get_sort_orders_strict()
+		self.assertEqual({}, cache.get_sort_orders())
+
+	def test_tmdb_getters_agree_on_a_readable_store(self):
+		module = self._load('tmdb_lists')
+		cache = module.TMDbListsCache()
+		self.rows = [('sort_order_8675309', '2')]
+		self.assertEqual({8675309: '2'}, cache.get_sort_orders_strict())
+		self.assertEqual({8675309: '2'}, cache.get_sort_orders())
+
+	def test_personal_sort_order_getter_raises_on_a_locked_database(self):
+		# This one has no swallowing sibling: its only caller is the migration.
+		module = self._load('personal_lists_cache')
+		self.locked = True
+		with self.assertRaises(Exception):
+			module.personal_lists_cache.get_all_sort_orders()
+
+	def test_personal_sort_order_getter_reads_the_store(self):
+		module = self._load('personal_lists_cache')
+		self.rows = [('Faves', 'jo', '2')]
+		self.assertEqual({('Faves', 'jo'): '2'}, module.personal_lists_cache.get_all_sort_orders())
 
 
 if __name__ == '__main__':
