@@ -130,8 +130,10 @@ def get_timestamp(offset=0):
 
 def remove_old_databases():
 	databases_path = path.join(kodi_utils.addon_profile(), 'databases/')
-	current_dbs = ('navigator.db', 'watched.db', 'favourites.db', 'traktcache.db', 'simklcache.db', 'mdblistcache.db', 'maincache.db', 'lists.db', 'tmdb_lists.db', 'discover.db',
-	'metacache.db', 'debridcache.db', 'external.db', 'settings.db', 'episode_groups.db', 'personal_lists_db', 'episode_groups_db', 'personal_lists_db', 'random_widgets_db', 'list_sort.db')
+	# Derived from locations() rather than hand-maintained: the hand-written list had drifted and
+	# carried four database *keys* where filenames belong, which put personal_lists.db and
+	# random_widgets.db outside the allowlist and marked both live files as stale.
+	current_dbs = tuple(locations().values())
 	try:
 		files = kodi_utils.list_dirs(databases_path)[1]
 		for item in files:
