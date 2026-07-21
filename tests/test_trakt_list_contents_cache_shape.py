@@ -205,6 +205,28 @@ def _positional_arg_count(node, called_name):
 RANDOM_LISTS = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'indexers' / 'random_lists.py'
 
 
+def _sort_argument_offences(source, label):
+	"""(offences, call_count) for every get_trakt_list_contents call in `source`.
+
+	Only the sort arguments are forbidden. Other keywords - list_id in particular - are ordinary
+	parameters and say nothing about how the contents get sorted, so they are allowed through. A
+	sixth positional argument is a different matter: it lands past skip_sort, which means the
+	signature grew a slot, and historically that slot was sort_by.
+	"""
+	offences, seen = [], 0
+	for node in ast.walk(ast.parse(source)):
+		if not isinstance(node, ast.Call): continue
+		func = node.func
+		name = func.id if isinstance(func, ast.Name) else (func.attr if isinstance(func, ast.Attribute) else None)
+		if name != 'get_trakt_list_contents': continue
+		seen += 1
+		unparsed = '%s: %s' % (label, ast.unparse(node))
+		if len(node.args) > 5: offences.append('sixth positional argument - %s' % unparsed)
+		for kw in node.keywords:
+			if kw.arg in ('sort_by', 'sort_how'): offences.append('%s= keyword - %s' % (kw.arg, unparsed))
+	return offences, seen
+
+
 class SignatureTests(unittest.TestCase):
 	"""The divergence has to be unexpressible, not merely unexercised.
 
@@ -249,21 +271,35 @@ class SignatureTests(unittest.TestCase):
 
 	def test_no_module_passes_a_sort_string_to_the_contents_reader(self):
 		lib = ROOT / 'plugin.video.redlight' / 'resources' / 'lib'
-		seen = 0
+		offences, seen = [], 0
 		for path in lib.rglob('*.py'):
 			with open(str(path), 'r', encoding='utf-8') as f:
 				source = f.read()
 			if 'get_trakt_list_contents' not in source: continue
-			for node in ast.walk(ast.parse(source)):
-				if not isinstance(node, ast.Call): continue
-				func = node.func
-				name = func.id if isinstance(func, ast.Name) else (func.attr if isinstance(func, ast.Attribute) else None)
-				if name != 'get_trakt_list_contents': continue
-				seen += 1
-				self.assertLessEqual(len(node.args), 5, '%s: %s' % (path.name, ast.unparse(node)))
-				for kw in node.keywords:
-					self.assertEqual('skip_sort', kw.arg, '%s: %s' % (path.name, ast.unparse(node)))
+			found, count = _sort_argument_offences(source, path.name)
+			offences += found
+			seen += count
+		self.assertEqual([], offences)
 		self.assertTrue(seen >= 6, 'expected to find every call site, found %d' % seen)
+
+	def test_the_scan_catches_a_sort_argument_but_not_an_ordinary_keyword(self):
+		"""The scan above only proves something while it is capable of failing. Requiring every
+		keyword to be skip_sort was too strict - it would reject a plain list_id= - so pin what it
+		does and does not object to."""
+		allowed = ("get_trakt_list_contents('my_lists', u, s, True, lid)",
+			"get_trakt_list_contents('my_lists', u, s, True, lid, skip_sort=True)",
+			"get_trakt_list_contents('my_lists', u, s, True, list_id=lid)",
+			"get_trakt_list_contents('my_lists', u, s, True, list_id=lid, skip_sort=True)")
+		for source in allowed:
+			self.assertEqual(([], 1), _sort_argument_offences(source, 'x.py'), source)
+		forbidden = ("get_trakt_list_contents('my_lists', u, s, True, lid, 'rank')",
+			"get_trakt_list_contents('my_lists', u, s, True, lid, sort_by='rank')",
+			"get_trakt_list_contents('my_lists', u, s, True, lid, sort_how='asc')",
+			"get_trakt_list_contents('my_lists', u, s, True, list_id=lid, sort_by='rank')")
+		for source in forbidden:
+			found, seen = _sort_argument_offences(source, 'x.py')
+			self.assertEqual(1, seen, source)
+			self.assertEqual(1, len(found), source)
 
 
 class CallSiteTests(unittest.TestCase):
