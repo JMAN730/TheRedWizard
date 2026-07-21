@@ -1299,7 +1299,7 @@ def list_sort_override_choice(params):
 	if spec == 'use_default': success = delete_override(scope)
 	else: success = set_override(scope, list_sort.format_spec(spec))
 	if success: kodi_utils.kodi_refresh()
-	else: kodi_utils.ok_dialog('Custom Sort', 'An Error Occured')
+	else: kodi_utils.ok_dialog('Custom Sort', 'An Error Occurred')
 
 def _pick_sort_spec(heading, adapter_name, allow_default=False, current=None, fields=None):
 	"""Two stage picker: field, then direction. Returns a spec dict, 'use_default', or None.
