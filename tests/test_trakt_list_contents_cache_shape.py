@@ -108,7 +108,7 @@ class CacheShapeTests(unittest.TestCase):
 		builder_method = harness.method
 		harness.call('my_lists', 'jo', 'faves', True, '42')                # trakt_image_maker
 		self.assertEqual(builder_method, harness.method)
-		harness.call('my_lists', 'jo', 'faves', True, '42', 'skip')        # the random builders
+		harness.call('my_lists', 'jo', 'faves', True, '42', skip_sort=True)  # the random builders
 		self.assertEqual(builder_method, harness.method)
 		self.assertEqual('sort_by_headers', builder_method)
 
@@ -117,20 +117,30 @@ class CacheShapeTests(unittest.TestCase):
 		# whole file. Pinned so that change is a deliberate one.
 		harness = _Harness(_dict_row())
 		harness.call('my_lists', 'jo', 'faves', True, '42')
-		harness.call('my_lists', 'jo', 'faves', True, '42', 'skip')
+		harness.call('my_lists', 'jo', 'faves', True, '42', skip_sort=True)
 		self.assertEqual(1, len(set(i['string'] for i in harness.requested)))
 
 	def test_a_dict_row_is_unwrapped_for_the_skip_caller_too(self):
 		"""'skip' used to bypass the unwrapping entirely: the dict reached enumerate(), i['type'] ran
 		against the string 'sort_by', and every row was swallowed by the try - an empty list."""
 		harness = _Harness(_dict_row())
-		self.assertEqual(PAYLOAD_ORDER, harness.titles('my_lists', 'jo', 'faves', True, '42', 'skip'))
+		self.assertEqual(PAYLOAD_ORDER, harness.titles('my_lists', 'jo', 'faves', True, '42', skip_sort=True))
 
-	def test_a_dict_row_is_unwrapped_for_a_custom_sort_caller_too(self):
-		# The signature still accepts a sort_by. No caller passes one any more, but one that did must
-		# not resurrect the crash.
+	def test_the_skip_flag_does_not_change_the_requested_method(self):
+		"""The one remaining caller-visible knob must not be able to change the cache row's shape."""
 		harness = _Harness(_dict_row())
-		self.assertEqual(3, len(harness.call('my_lists', 'jo', 'faves', True, '42', 'rank', 'asc')))
+		harness.call('my_lists', 'jo', 'faves', True, '42', skip_sort=False)
+		unsorted_method = harness.method
+		harness.call('my_lists', 'jo', 'faves', True, '42', skip_sort=True)
+		self.assertEqual(unsorted_method, harness.method)
+		self.assertEqual('sort_by_headers', unsorted_method)
+
+	def test_the_skip_flag_only_skips_the_sort(self):
+		"""skip_sort must still hand back every row, in payload order - not an empty list, and not a
+		re-ordered one."""
+		harness = _Harness(_dict_row('rank', 'asc'))
+		self.assertEqual(PAYLOAD_ORDER, harness.titles('my_lists', 'jo', 'faves', True, '42', skip_sort=True))
+		self.assertEqual(RANK_ASC, harness.titles('my_lists', 'jo', 'faves', True, '42'))
 
 	def test_a_legacy_bare_list_row_still_reads(self):
 		"""Rows written by the previous build are plain lists. They must survive the upgrade."""
@@ -165,6 +175,70 @@ def _positional_arg_count(node, called_name):
 		if name != called_name: continue
 		counts.append((len(child.args), sorted(k.arg for k in child.keywords if k.arg)))
 	return counts
+
+
+RANDOM_LISTS = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'indexers' / 'random_lists.py'
+
+
+class SignatureTests(unittest.TestCase):
+	"""The divergence has to be unexpressible, not merely unexercised.
+
+	While the signature carried sort_by/sort_how, `method` could be made to depend on them again -
+	the exact cache-shape divergence this file exists to prevent - and no caller passed anything that
+	would reveal it. Collapsing them into one boolean removes the vocabulary for saying it.
+	"""
+
+	def test_the_signature_offers_no_sort_at_all(self):
+		node = _function(TRAKT_API, 'get_trakt_list_contents')
+		names = [a.arg for a in node.args.args]
+		self.assertEqual(['list_type', 'user', 'slug', 'with_auth', 'list_id', 'skip_sort'], names)
+		self.assertEqual([], list(node.args.kwonlyargs))
+		self.assertIsNone(node.args.vararg)
+		self.assertIsNone(node.args.kwarg)
+
+	def test_no_sort_name_is_bound_before_the_method_is_chosen(self):
+		"""`method = ... if sort_by ... else ...` must not even be a writable line: at the point the
+		method is chosen, no sort name exists in the function's scope yet."""
+		node = _function(TRAKT_API, 'get_trakt_list_contents')
+		method_line = min(t.lineno for s in ast.walk(node) if isinstance(s, ast.Assign)
+			for t in s.targets if isinstance(t, ast.Name) and t.id == 'method')
+		bound_earlier = [t.id for s in ast.walk(node) if isinstance(s, ast.Assign) and s.lineno <= method_line
+			for t in ast.walk(s) if isinstance(t, ast.Name) and isinstance(t.ctx, ast.Store)]
+		self.assertNotIn('sort_by', bound_earlier)
+		self.assertNotIn('sort_how', bound_earlier)
+		for arg in node.args.args:
+			self.assertNotIn(arg.arg, ('sort_by', 'sort_how', 'sort', 'method', 'mode'))
+		# ...and the flag that does exist is a boolean, so it cannot carry a field name either.
+		self.assertIs(False, node.args.defaults[-1].value)
+
+	def test_the_only_flag_a_caller_can_pass_is_the_skip_flag(self):
+		"""random_lists is the only module that passes a sixth argument, and it passes the boolean."""
+		for node in ast.walk(_tree(RANDOM_LISTS)):
+			if not isinstance(node, ast.Call): continue
+			func = node.func
+			name = func.id if isinstance(func, ast.Name) else (func.attr if isinstance(func, ast.Attribute) else None)
+			if name != 'get_trakt_list_contents': continue
+			self.assertEqual(5, len(node.args), ast.unparse(node))
+			self.assertEqual(['skip_sort'], [k.arg for k in node.keywords], ast.unparse(node))
+			self.assertIs(True, node.keywords[0].value.value, ast.unparse(node))
+
+	def test_no_module_passes_a_sort_string_to_the_contents_reader(self):
+		lib = ROOT / 'plugin.video.redlight' / 'resources' / 'lib'
+		seen = 0
+		for path in lib.rglob('*.py'):
+			with open(str(path), 'r', encoding='utf-8') as f:
+				source = f.read()
+			if 'get_trakt_list_contents' not in source: continue
+			for node in ast.walk(ast.parse(source)):
+				if not isinstance(node, ast.Call): continue
+				func = node.func
+				name = func.id if isinstance(func, ast.Name) else (func.attr if isinstance(func, ast.Attribute) else None)
+				if name != 'get_trakt_list_contents': continue
+				seen += 1
+				self.assertLessEqual(len(node.args), 5, '%s: %s' % (path.name, ast.unparse(node)))
+				for kw in node.keywords:
+					self.assertEqual('skip_sort', kw.arg, '%s: %s' % (path.name, ast.unparse(node)))
+		self.assertTrue(seen >= 6, 'expected to find every call site, found %d' % seen)
 
 
 class CallSiteTests(unittest.TestCase):

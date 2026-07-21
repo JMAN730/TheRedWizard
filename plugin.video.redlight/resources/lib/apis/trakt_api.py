@@ -574,13 +574,14 @@ def trakt_lists_with_media(media_type, imdb_id):
 	params = {'path': '%s/%s/lists/personal', 'path_insert': (media_type, imdb_id), 'params': {'limit': 100}, 'pagination': False}
 	return cache_object(_process, string, 'foo', False, 168)
 
-def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, sort_by='default', sort_how='default'):
-	# 'skip' is the random builders' sentinel: they reshuffle the payload themselves, so resolving
+def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, skip_sort=False):
+	# skip_sort is the random builders' flag: they reshuffle the payload themselves, so resolving
 	# and applying a sort first is wasted work. Everything else takes the list's own ordering.
-	skip_sort = sort_by == 'skip'
+	# There is deliberately no caller-supplied sort: the ordering comes from the payload headers
+	# below and from the stored override, never from an argument. A parameter that could select a
+	# different `method` is what let two callers write two shapes into one cache key.
 	# Always ask for the sort headers. The disk cache key below does not encode `method`, so a row
-	# written by one caller is read back by all of them; letting callers pick different methods is
-	# how trakt_image_maker and the list builder ended up disagreeing on the shape of one row.
+	# written by one caller is read back by all of them.
 	method = 'sort_by_headers'
 	if list_type == 'my_lists':
 		string = 'trakt_list_contents_%s_%s_%s' % (list_type, user, slug)
@@ -593,8 +594,11 @@ def get_trakt_list_contents(list_type, user, slug, with_auth, list_id=None, sort
 		if user == 'Trakt Official': params = {'path': 'lists/%s/items', 'path_insert': slug, 'params': {'extended': 'full'}, 'method': method, 'fetch_all': True}
 		else: params = {'path': 'users/%s/lists/%s/items', 'path_insert': (user, slug), 'params': {'extended': 'full'}, 'method': method, 'with_auth': with_auth, 'fetch_all': True}
 	data = trakt_cache.cache_trakt_object(get_trakt, string, params) or []
-	# Unwrapped unconditionally, including for 'skip': a cache row left behind by an older build,
-	# or by any caller at all, must never reach the enumerate() below as a dict of three keys.
+	# The list's declared order, as recorded in the cached row. 'default' is the standing-in value
+	# for a legacy bare-list row that carries no headers at all.
+	sort_by, sort_how = 'default', 'default'
+	# Unwrapped unconditionally, including when skip_sort is set: a cache row left behind by an
+	# older build, or by any caller at all, must never reach the enumerate() below as a dict.
 	if isinstance(data, dict):
 		sort_by, sort_how = data.get('sort_by', sort_by), data.get('sort_how', sort_how)
 		data = data.get('data') or []
