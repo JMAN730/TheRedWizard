@@ -1,4 +1,5 @@
 import importlib.util
+import sqlite3
 import sys
 import types
 import unittest
@@ -550,24 +551,13 @@ class SyncSettingsMigrationTests(unittest.TestCase):
 		self.assertEqual('title:asc', cache.data['sort.default.movies'])
 
 
-class _FakeCursor(object):
-	def __init__(self, rows):
-		self.rows = rows
-
-	def fetchall(self):
-		return list(self.rows)
-
-
-class _FakeConnection(object):
-	def __init__(self, rows):
-		self.rows = rows
-
-	def execute(self, *args):
-		return _FakeCursor(self.rows)
-
-
 class LegacyStoreGetterTests(unittest.TestCase):
-	"""The migration's three data sources, loaded for real, with the database stubbed underneath.
+	"""The migration's three data sources, loaded for real, against a real sqlite3(':memory:')
+	database seeded from the production schema - not a fake that discards the SQL and hands back
+	fixture rows unconditionally. That would leave the SELECT column list, its column order, and
+	the LIKE filters completely unexercised, which is exactly the kind of bug this class exists to
+	catch: see e.g. test_personal_sort_order_getter_keeps_name_and_author_in_order below, which
+	fails if `SELECT name, author, sort_order` silently became `SELECT author, name, sort_order`.
 
 	The whole retry story rests on these getters distinguishing "nothing stored" from "could not
 	read". Every one of them used to end in `except: return {}`, which makes a locked database or a
@@ -580,14 +570,23 @@ class LegacyStoreGetterTests(unittest.TestCase):
 		self._original_sys_modules = {}
 		for key in self._KEYS:
 			if key in sys.modules: self._original_sys_modules[key] = sys.modules[key]
-		self.rows = []
 		self.locked = False
+		self.conn = sqlite3.connect(':memory:')
 		modules = types.ModuleType('modules')
 		modules.__path__ = []
 		kodi_utils = types.ModuleType('modules.kodi_utils')
 		for name in ('sleep', 'confirm_dialog', 'close_all_dialog', 'notification', 'logger'):
 			setattr(kodi_utils, name, lambda *a, **k: None)
 		modules.kodi_utils = kodi_utils
+		sys.modules['modules'] = modules
+		sys.modules['modules.kodi_utils'] = kodi_utils
+
+		# Pull the real CREATE TABLE statements from the real base_cache module rather than
+		# hand-copying them, so the seeded schema cannot drift from production. Loading it here
+		# needs only the modules.kodi_utils stub just installed above.
+		real_base_cache = self._load('base_cache')
+		self._table_creators = real_base_cache.table_creators()
+
 		caches = types.ModuleType('caches')
 		caches.__path__ = []
 		base_cache = types.ModuleType('caches.base_cache')
@@ -600,19 +599,18 @@ class LegacyStoreGetterTests(unittest.TestCase):
 			def manual_connect(self, *args, **kwargs): return test_case._connect()
 
 		base_cache.BaseCache = _BaseCache
-		sys.modules['modules'] = modules
-		sys.modules['modules.kodi_utils'] = kodi_utils
 		sys.modules['caches'] = caches
 		sys.modules['caches.base_cache'] = base_cache
 
 	def tearDown(self):
+		self.conn.close()
 		for key in self._KEYS:
 			if key in self._original_sys_modules: sys.modules[key] = self._original_sys_modules[key]
 			else: sys.modules.pop(key, None)
 
 	def _connect(self):
 		if self.locked: raise RuntimeError('database is locked')
-		return _FakeConnection(self.rows)
+		return self.conn
 
 	def _load(self, name):
 		path = ROOT / 'plugin.video.redlight' / 'resources' / 'lib' / 'caches' / ('%s.py' % name)
@@ -620,6 +618,36 @@ class LegacyStoreGetterTests(unittest.TestCase):
 		module = importlib.util.module_from_spec(spec)
 		spec.loader.exec_module(module)
 		return module
+
+	def _create_table(self, db_name):
+		for statement in self._table_creators[db_name]: self.conn.execute(statement)
+
+	def _seed_trakt(self, rows):
+		"""rows: (id, data) tuples inserted with a real INSERT, exactly as trakt_cache.py writes them."""
+		self._create_table('trakt_db')
+		self.conn.executemany('INSERT INTO trakt_data (id, data) VALUES (?, ?)', rows)
+		self.conn.commit()
+
+	def _seed_tmdb(self, rows):
+		"""rows: (id, data) tuples inserted with a real INSERT, exactly as TMDbListsCache.set_sort_order writes them."""
+		self._create_table('tmdb_lists_db')
+		self.conn.executemany('INSERT INTO tmdb_lists (id, data, expires) VALUES (?, ?, 0)', rows)
+		self.conn.commit()
+
+	def _seed_personal(self, rows):
+		"""rows: (name, author, sort_order, description) tuples. sort_order is passed as the string
+		PersonalListsCache.make_list() would actually receive from the legacy sort-order URL
+		parameter; the personal_lists table declares that column `integer`, so SQLite's column
+		affinity converts the stored '2' to the int 2 on insert - real production behaviour that
+		migrate_legacy_stores()'s str() coercion depends on. Inserting an int here directly would
+		paper over that instead of exercising it."""
+		self._create_table('personal_lists_db')
+		for name, author, sort_order, description in rows:
+			self.conn.execute(
+				'INSERT INTO personal_lists (name, contents, total, created, sort_order, description, seen, poster, fanart, author, updated) '
+				'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				(name, '[]', 0, '0', sort_order, description, 'false', '', '', author, '0'))
+		self.conn.commit()
 
 	def test_trakt_strict_getter_raises_on_a_locked_database(self):
 		module = self._load('trakt_cache')
@@ -632,18 +660,35 @@ class LegacyStoreGetterTests(unittest.TestCase):
 	def test_trakt_strict_getter_raises_on_a_corrupt_row(self):
 		# get_all_lists_custom_sort_strict() eval()s each row. One unparseable row must not read as
 		# an empty store: the remaining lists' sorts are still in there and are still recoverable.
+		self._seed_trakt([
+			('trakt_list_custom_sort_1', "{'list_id': '1', 'sort_by': 'rank', 'sort_how': 'asc'}"),
+			('trakt_list_custom_sort_2', 'not a dict {'),
+		])
 		module = self._load('trakt_cache')
-		self.rows = [("{'list_id': '1', 'sort_by': 'rank', 'sort_how': 'asc'}",), ('not a dict {',)]
 		with self.assertRaises(Exception):
 			module.get_all_lists_custom_sort_strict()
 		self.assertEqual({}, module.get_all_lists_custom_sort())
 
 	def test_trakt_getters_agree_on_a_readable_store(self):
+		self._seed_trakt([
+			('trakt_list_custom_sort_1', "{'list_id': '1', 'sort_by': 'rank', 'sort_how': 'asc'}"),
+		])
 		module = self._load('trakt_cache')
-		self.rows = [("{'list_id': '1', 'sort_by': 'rank', 'sort_how': 'asc'}",)]
 		expected = {'1': {'sort_by': 'rank', 'sort_how': 'asc'}}
 		self.assertEqual(expected, module.get_all_lists_custom_sort_strict())
 		self.assertEqual(expected, module.get_all_lists_custom_sort())
+
+	def test_trakt_getter_filters_out_rows_that_are_not_custom_sorts(self):
+		# Kills the mutant that drops "WHERE id LIKE 'trakt_list_custom_sort_%'": without the
+		# filter, every row cached under trakt_data - including unrelated ones that merely happen
+		# to eval() to a dict - would be folded into the migrated result.
+		self._seed_trakt([
+			('trakt_list_custom_sort_1', "{'list_id': '1', 'sort_by': 'rank', 'sort_how': 'asc'}"),
+			('trakt_get_activity', "{'list_id': 'decoy', 'sort_by': 'title', 'sort_how': 'asc'}"),
+		])
+		module = self._load('trakt_cache')
+		expected = {'1': {'sort_by': 'rank', 'sort_how': 'asc'}}
+		self.assertEqual(expected, module.get_all_lists_custom_sort_strict())
 
 	def test_tmdb_strict_getter_raises_on_a_locked_database(self):
 		module = self._load('tmdb_lists')
@@ -654,19 +699,32 @@ class LegacyStoreGetterTests(unittest.TestCase):
 		self.assertEqual({}, cache.get_sort_orders())
 
 	def test_tmdb_strict_getter_raises_on_a_malformed_row(self):
+		self._seed_tmdb([('sort_order_notanumber', '2')])
 		module = self._load('tmdb_lists')
 		cache = module.TMDbListsCache()
-		self.rows = [('sort_order_notanumber', '2')]
 		with self.assertRaises(Exception):
 			cache.get_sort_orders_strict()
 		self.assertEqual({}, cache.get_sort_orders())
 
 	def test_tmdb_getters_agree_on_a_readable_store(self):
+		self._seed_tmdb([('sort_order_8675309', '2')])
 		module = self._load('tmdb_lists')
 		cache = module.TMDbListsCache()
-		self.rows = [('sort_order_8675309', '2')]
 		self.assertEqual({8675309: '2'}, cache.get_sort_orders_strict())
 		self.assertEqual({8675309: '2'}, cache.get_sort_orders())
+
+	def test_tmdb_getter_filters_out_rows_that_are_not_sort_orders(self):
+		# Kills the mutant that drops "WHERE id LIKE 'sort_order_%'": a stray tmdb_lists row (e.g.
+		# the cached user-lists payload) has an id with no 'sort_order_' prefix, so once the filter
+		# is gone int(id.replace('sort_order_', '')) raises on it - with the strict getter, that
+		# means the migration is stuck raising forever instead of reading the row that matters.
+		self._seed_tmdb([
+			('sort_order_8675309', '2'),
+			('get_user_lists', '[]'),
+		])
+		module = self._load('tmdb_lists')
+		cache = module.TMDbListsCache()
+		self.assertEqual({8675309: '2'}, cache.get_sort_orders_strict())
 
 	def test_personal_sort_order_getter_raises_on_a_locked_database(self):
 		# This one has no swallowing sibling: its only caller is the migration.
@@ -676,9 +734,30 @@ class LegacyStoreGetterTests(unittest.TestCase):
 			module.personal_lists_cache.get_all_sort_orders()
 
 	def test_personal_sort_order_getter_reads_the_store(self):
+		self._seed_personal([('Faves', 'jo', '2', 'a description, not a sort order')])
 		module = self._load('personal_lists_cache')
-		self.rows = [('Faves', 'jo', '2')]
-		self.assertEqual({('Faves', 'jo'): '2'}, module.personal_lists_cache.get_all_sort_orders())
+		result = module.personal_lists_cache.get_all_sort_orders()
+		# sort_order comes back as the int 2, not the string '2' that was inserted - SQLite integer
+		# affinity on the column, not something this fake should paper over.
+		self.assertEqual({('Faves', 'jo'): 2}, result)
+
+	def test_personal_sort_order_getter_keeps_name_and_author_in_order(self):
+		# Kills the mutant "SELECT name, author, sort_order" -> "SELECT author, name, sort_order":
+		# with name != author, a column swap silently inverts every migrated scope key, e.g.
+		# 'personal:jo|Faves' instead of 'personal:Faves|jo', so no migrated override is ever found.
+		self._seed_personal([('Faves', 'jo', '2', 'irrelevant')])
+		module = self._load('personal_lists_cache')
+		result = module.personal_lists_cache.get_all_sort_orders()
+		self.assertIn(('Faves', 'jo'), result)
+		self.assertNotIn(('jo', 'Faves'), result)
+
+	def test_personal_sort_order_getter_reads_sort_order_not_description(self):
+		# Kills the mutant "SELECT name, author, sort_order" -> "SELECT name, author, description":
+		# every personal list would migrate under a garbage code and be dropped as unmappable.
+		self._seed_personal([('Faves', 'jo', '2', 'this text must never be read as a sort order')])
+		module = self._load('personal_lists_cache')
+		result = module.personal_lists_cache.get_all_sort_orders()
+		self.assertEqual(2, result[('Faves', 'jo')])
 
 
 if __name__ == '__main__':
