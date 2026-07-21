@@ -172,6 +172,7 @@ def delete_personal_list(params):
 	if not kodi_utils.confirm_dialog(heading='Personal Lists', text='Delete [B]%s[/B] Personal List?' % list_name): return
 	if personal_lists_cache.delete_list(list_name, author):
 		for image_type, custom_image in (('poster', poster), ('fanart', fanart)): delete_current_image(image_type, list_name, author, custom_image)
+		_delete_sort_override(list_name, author)
 		return kodi_utils.kodi_refresh()
 	kodi_utils.notification('Error Deleting List', 3000)
 
@@ -185,9 +186,12 @@ def get_personal_list(params):
 	list_name, author, seen, update_seen = params['list_name'], params['author'], params.get('seen', True), params.get('update_seen', True)
 	contents = personal_lists_cache.get_list(list_name, author, update_seen=update_seen, seen=seen)
 	from modules import list_sort
-	# No fallback, unlike the Trakt and TMDb call sites: sort_order is a column on the personal_lists
-	# row itself, so every list always has a stored value and "absent" cannot happen. A 'default:asc'
-	# fallback here would mean DB insertion order rather than the user's choice.
+	# No fallback, unlike the Trakt and TMDb call sites: those exist to preserve a provider's own
+	# declared ordering for a list nobody has overridden yet. A personal list has no such ordering -
+	# migrate_legacy_stores() already turned every list's old sort_order column into an override row,
+	# so one with no override now is one nobody has ever chosen a sort for, and the engine's own
+	# default (title:asc) is the right answer. A 'default:asc' fallback would read as "Provider
+	# Default" for a provider that does not exist.
 	return list_sort.sort_source(contents, 'personal:%s|%s' % (list_name, author), None, 'personal')
 
 def make_new_personal_list(params):
@@ -392,6 +396,14 @@ def _move_sort_override(old_name, old_author, new_name, new_author):
 	spec_string = get_override(old_scope)
 	if not spec_string: return
 	if set_override(new_scope, spec_string): delete_override(old_scope)
+
+def _delete_sort_override(list_name, author):
+	"""Same defect class as the rename orphan above: the override scope is keyed by name and author,
+	not by any id the deleted row still owns, so a deleted list's row would otherwise sit there ready
+	to be silently inherited by a future list created with the same name and author. Best effort - a
+	failed delete leaves a harmless orphaned row, since the list it described is already gone."""
+	from caches.list_sort_cache import delete_override
+	delete_override(_sort_scope(list_name, author))
 
 def personal_list_description():
 	description = kodi_utils.kodi_dialog().input('Optional Description for the New List') or ' '

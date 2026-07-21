@@ -68,6 +68,35 @@ def _string_constants(node, prefix):
 		if isinstance(i, ast.Constant) and isinstance(i.value, str) and i.value.startswith(prefix))
 
 
+def _call_args(node, called_name):
+	"""(positional literal values, keyword literal values) for the first called_name(...) call found
+	in node. None for any argument that is not itself a literal constant (a Name, a BinOp, ...)."""
+	for child in ast.walk(node):
+		if not isinstance(child, ast.Call): continue
+		func = child.func
+		name = func.id if isinstance(func, ast.Name) else (func.attr if isinstance(func, ast.Attribute) else None)
+		if name != called_name: continue
+		positional = [a.value if isinstance(a, ast.Constant) else None for a in child.args]
+		keywords = dict((k.arg, k.value.value if isinstance(k.value, ast.Constant) else None)
+			for k in child.keywords if k.arg)
+		return positional, keywords
+	raise AssertionError('%s(...) not called in %s' % (called_name, node.name if hasattr(node, 'name') else node))
+
+
+def _call_dict_literal(node, called_name, index=0):
+	"""The {str: str} literal at position `index` of the first called_name(...) call found in node."""
+	for child in ast.walk(node):
+		if not isinstance(child, ast.Call): continue
+		func = child.func
+		name = func.id if isinstance(func, ast.Name) else (func.attr if isinstance(func, ast.Attribute) else None)
+		if name != called_name: continue
+		if len(child.args) <= index or not isinstance(child.args[index], ast.Dict): continue
+		arg = child.args[index]
+		return dict((k.value, v.value) for k, v in zip(arg.keys, arg.values)
+			if isinstance(k, ast.Constant) and isinstance(v, ast.Constant))
+	raise AssertionError('%s(...) with a dict literal at position %d not found' % (called_name, index))
+
+
 # --------------------------------------------------------------------------------------------
 # Half one: the dialog handlers, loaded against stubs and run for real.
 # --------------------------------------------------------------------------------------------
@@ -470,6 +499,11 @@ class CallSiteRewiringTests(unittest.TestCase):
 		scopes = _string_constants(node, 'trakt.list:')
 		self.assertEqual({'trakt.list:%s'}, scopes)
 		self.assertIn('trakt.list:%s', _string_constants(_tree(TRAKT_API), 'trakt.list:'))
+		# The adapter has to be 'trakt_list' (mixed, rank/rating/etc.), not 'trakt_sync' (the
+		# watchlist/collection adapter with none of those fields) - a swap would silently drop every
+		# field a Trakt user list's own picker offers.
+		payload = _call_dict_literal(node, 'list_sort_override_choice')
+		self.assertEqual('trakt_list', payload['adapter'])
 
 	def test_no_trakt_ui_writes_the_legacy_per_list_sort_store_any_more(self):
 		source = _source(TRAKT_LISTS)
@@ -488,7 +522,20 @@ class CallSiteRewiringTests(unittest.TestCase):
 		self.assertIn('_pick_sort_spec', called)
 		self.assertIn('resolve', called)
 		self.assertEqual({'tmdb:%s'}, _string_constants(node, 'tmdb:'))
-		self.assertIn('tmdb:%s', _string_constants(_function(TMDB_LISTS, 'get_tmdb_list'), 'tmdb:'))
+		get_tmdb_list_node = _function(TMDB_LISTS, 'get_tmdb_list')
+		self.assertIn('tmdb:%s', _string_constants(get_tmdb_list_node, 'tmdb:'))
+		# The picker must be handed the tmdb adapter, not some other list's - a swap would silently
+		# offer the wrong field set and let the wrong adapter's fields drive this list's sort.
+		pick_args, _pick_kwargs = _call_args(node, '_pick_sort_spec')
+		self.assertEqual('tmdb', pick_args[1])
+		# The 'Currently ...' label's fallback and get_tmdb_list's own fallback have to be the same
+		# literal - the comment above the resolve() call says so, but nothing besides this enforced
+		# it: a drift here means the label can say something get_tmdb_list would never produce.
+		resolve_args, _resolve_kwargs = _call_args(node, 'resolve')
+		label_fallback = resolve_args[2]
+		_list_args, list_kwargs = _call_args(get_tmdb_list_node, 'sort_source')
+		self.assertEqual('default:asc', label_fallback)
+		self.assertEqual(label_fallback, list_kwargs.get('fallback'))
 
 	def test_no_tmdb_ui_writes_the_legacy_sort_order_column(self):
 		self.assertNotIn('set_sort_order', _source(TMDB_LISTS))
@@ -506,6 +553,10 @@ class CallSiteRewiringTests(unittest.TestCase):
 		node = _function(PERSONAL_LISTS, 'run')
 		self.assertIn('make_list', _called_names(node))
 		self.assertIn('_set_sort_override', _called_names(node))
+		# The imported file's own order is date_added ascending. A flip to descending would silently
+		# reverse every list ExternalImport ever creates.
+		spec = _call_dict_literal(node, '_set_sort_override', index=2)
+		self.assertEqual({'field': 'date_added', 'direction': 'asc'}, spec)
 
 	def test_the_personal_properties_dialog_writes_the_override_store(self):
 		node = _function(PERSONAL_LISTS, 'adjust_personal_list_properties')
@@ -521,6 +572,16 @@ class CallSiteRewiringTests(unittest.TestCase):
 
 	def test_every_personal_scope_literal_is_the_one_get_personal_list_resolves(self):
 		self.assertEqual({'personal:%s|%s'}, _string_constants(_tree(PERSONAL_LISTS), 'personal:'))
+
+	def test_current_sort_spec_passes_no_fallback(self):
+		"""A 'default:asc' fallback here is the exact defect acceptance criterion 1 was about: every
+		list without an override would show 'Provider Default' in the 'Currently ...' label instead
+		of the title sort get_personal_list() actually falls back to. Covered behaviourally too, in
+		tests/test_personal_lists_sort_overrides.py."""
+		node = _function(PERSONAL_LISTS, '_current_sort_spec')
+		positional, keywords = _call_args(node, 'resolve')
+		self.assertEqual(1, len(positional))
+		self.assertNotIn('fallback', keywords)
 
 
 if __name__ == '__main__':
