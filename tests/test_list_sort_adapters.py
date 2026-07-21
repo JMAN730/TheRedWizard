@@ -58,6 +58,25 @@ class TraktSyncAdapterTests(unittest.TestCase):
 		self.assertEqual(['B', 'A'], [i['title'] for i in result])
 
 
+class SimklAdapterTests(unittest.TestCase):
+	def test_date_added_reads_collected_at(self):
+		data = [{'title': 'B', 'collected_at': '2024-02-01', 'released': '2001-01-01'},
+			{'title': 'A', 'collected_at': '2024-03-01', 'released': '1999-01-01'}]
+		result = list_sort.apply(data, {'field': 'date_added', 'direction': 'desc'}, list_sort.SIMKL)
+		self.assertEqual(['A', 'B'], [i['title'] for i in result])
+
+	def test_release_date_reads_released(self):
+		data = [{'title': 'B', 'collected_at': '', 'released': '2001-01-01'},
+			{'title': 'A', 'collected_at': '', 'released': '1999-01-01'}]
+		result = list_sort.apply(data, {'field': 'release_date', 'direction': 'asc'}, list_sort.SIMKL)
+		self.assertEqual(['A', 'B'], [i['title'] for i in result])
+
+	def test_release_date_missing_uses_sentinel(self):
+		data = [{'title': 'A', 'collected_at': '', 'released': None}, {'title': 'B', 'collected_at': '', 'released': '1999-01-01'}]
+		result = list_sort.apply(data, {'field': 'release_date', 'direction': 'asc'}, list_sort.SIMKL)
+		self.assertEqual(['B', 'A'], [i['title'] for i in result])
+
+
 class TraktListAdapterTests(unittest.TestCase):
 	def setUp(self):
 		self.data = [

@@ -67,33 +67,35 @@ class _StubbedTestCase(unittest.TestCase):
 
 # Every fixture below is deliberately built so that no two of the four orderings under test
 # coincide: the payload order is neither title order nor date order, date_added is NOT in title
-# order (Banana is newest but sorts second), and release_date/year is in a third order again. A
+# order (Banana is newest but sorts second), and release_date/year is a fourth order, distinct
+# from date_added - Cherry was added first but released last, Banana was added last but released
+# first, so date_added and release_date rank Cherry and Banana in opposite relative order. A
 # sort_source that ignores media_type, reads the wrong default setting, resolves under the wrong
 # list_key, or always falls back to DEFAULT_SPEC (title:asc) therefore produces a visibly wrong
 # list instead of accidentally matching the expectation. 'The Alpha' carries a leading article so
 # that title:asc also pins the ignore_articles lookup - without the article strip it sorts last.
 SIMKL_ROWS = [
-	{'order': 1, 'title': 'Cherry', 'collected_at': '2024-01-01', 'released': '1995-01-01'},
-	{'order': 2, 'title': 'Banana', 'collected_at': '2024-01-03', 'released': '2001-01-01'},
+	{'order': 1, 'title': 'Cherry', 'collected_at': '2024-01-01', 'released': '2001-01-01'},
+	{'order': 2, 'title': 'Banana', 'collected_at': '2024-01-03', 'released': '1995-01-01'},
 	{'order': 3, 'title': 'The Alpha', 'collected_at': '2024-01-02', 'released': '1999-01-01'},
 ]
 
 MDBLIST_WATCHLIST_ROWS = [
-	{'title': 'Cherry', 'watchlist_at': '2024-01-01', 'release_date': '1995-01-01'},
-	{'title': 'Banana', 'watchlist_at': '2024-01-03', 'release_date': '2001-01-01'},
+	{'title': 'Cherry', 'watchlist_at': '2024-01-01', 'release_date': '2001-01-01'},
+	{'title': 'Banana', 'watchlist_at': '2024-01-03', 'release_date': '1995-01-01'},
 	{'title': 'The Alpha', 'watchlist_at': '2024-01-02', 'release_date': '1999-01-01'},
 ]
 
 MDBLIST_COLLECTION_ROWS = [
-	{'title': 'Cherry', 'collected_at': '2024-01-01', 'year': 1995},
-	{'title': 'Banana', 'collected_at': '2024-01-03', 'year': 2001},
+	{'title': 'Cherry', 'collected_at': '2024-01-01', 'year': 2001},
+	{'title': 'Banana', 'collected_at': '2024-01-03', 'year': 1995},
 	{'title': 'The Alpha', 'collected_at': '2024-01-02', 'year': 1999},
 ]
 
 TITLE_ASC = ['The Alpha', 'Banana', 'Cherry']
 DATE_ADDED_DESC = ['Banana', 'The Alpha', 'Cherry']
-RELEASE_ASC = ['Cherry', 'The Alpha', 'Banana']
-RELEASE_DESC = ['Banana', 'The Alpha', 'Cherry']
+RELEASE_ASC = ['Banana', 'The Alpha', 'Cherry']
+RELEASE_DESC = ['Cherry', 'The Alpha', 'Banana']
 
 
 class SimklSortTests(_StubbedTestCase):
