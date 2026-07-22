@@ -705,13 +705,19 @@ def sync_settings(params={}):
 			currentsettings['migration.my_content_nav_mode_v136'] = 'true'
 			if load_properties: settings_cache.set_memory_cache('migration.my_content_nav_mode_v136', 'true')
 		if currentsettings.get('migration.continue_watching_menu') != 'true':
+			# Only record the migration as done when it did not raise, so a transient failure
+			# (e.g. a locked navigator DB) retries on the next sync instead of being skipped forever.
 			try:
 				from caches.navigator_cache import refresh_continue_watching_menu_defaults
 				if refresh_continue_watching_menu_defaults(): migrated = True
-			except: pass
-			settings_cache.write_db('migration.continue_watching_menu', 'true', defaults_map.get('migration.continue_watching_menu'))
-			currentsettings['migration.continue_watching_menu'] = 'true'
-			if load_properties: settings_cache.set_memory_cache('migration.continue_watching_menu', 'true')
+				cw_menu_migration_ok = True
+			except Exception as e:
+				cw_menu_migration_ok = False
+				kodi_utils.logger('sync_settings', 'continue watching menu migration: %s' % e)
+			if cw_menu_migration_ok:
+				settings_cache.write_db('migration.continue_watching_menu', 'true', defaults_map.get('migration.continue_watching_menu'))
+				currentsettings['migration.continue_watching_menu'] = 'true'
+				if load_properties: settings_cache.set_memory_cache('migration.continue_watching_menu', 'true')
 		if currentsettings.get('migration.unified_list_sort') != 'true':
 			# Only record the migration as done when it did not raise. The obsolete purge above
 			# holds back the five legacy sort ids while this sentinel is unset, so a failed run

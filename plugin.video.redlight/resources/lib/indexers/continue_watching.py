@@ -12,10 +12,17 @@ def plan_continue_watching(movie_rows, progress_episode_rows, next_episode_rows,
 	def _show_id(row): return str(row.get('media_ids', {}).get('tmdb', ''))
 	def _stamp(row): return row.get('last_played') or row.get('date') or ''
 	if nextep_limit: next_episode_rows = next_episode_rows[:nextep_limit]
-	progress_rows = [i for i in progress_episode_rows if _show_id(i) not in hidden]
+	def _latest_by_show(rows):
+		result = {}
+		for row in rows:
+			show_id = _show_id(row)
+			if show_id not in result or _stamp(row) > _stamp(result[show_id]):
+				result[show_id] = row
+		return list(result.values())
+	progress_rows = _latest_by_show([i for i in progress_episode_rows if _show_id(i) not in hidden])
 	in_progress_shows = set(_show_id(i) for i in progress_rows)
-	next_rows = [dict(i, cw_next=True) for i in next_episode_rows
-				if _show_id(i) not in hidden and _show_id(i) not in in_progress_shows]
+	next_rows = _latest_by_show([dict(i, cw_next=True) for i in next_episode_rows
+				if _show_id(i) not in hidden and _show_id(i) not in in_progress_shows])
 	merged = [('movie', i) for i in movie_rows] + [('episode', i) for i in progress_rows + next_rows]
 	merged.sort(key=lambda k: _stamp(k[1]), reverse=True)
 	movies, episodes = [], []

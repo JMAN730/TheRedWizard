@@ -61,6 +61,21 @@ class DedupTests(unittest.TestCase):
 		self.assertFalse(row.get('cw_next'))
 		self.assertEqual(42.0, row['resume_point'])
 
+	def test_duplicate_progress_rows_keep_only_the_most_recent(self):
+		plan = plan_continue_watching(
+			[], [_progress_ep(100, 2, 5, '2026-07-20 21:00:00'), _progress_ep(100, 1, 3, '2026-07-18 21:00:00')],
+			[], [], None)
+		self.assertEqual(1, len(plan['episodes']))
+		self.assertEqual(5, plan['episodes'][0]['episode'])
+
+	def test_duplicate_next_rows_keep_only_the_most_recent(self):
+		plan = plan_continue_watching(
+			[], [],
+			[_next_ep(200, 1, 1, '2026-07-19 20:00:00'), _next_ep(200, 1, 2, '2026-07-20 20:00:00')],
+			[], None)
+		self.assertEqual(1, len(plan['episodes']))
+		self.assertEqual(2, plan['episodes'][0]['episode'])
+
 	def test_next_rows_are_tagged_cw_next(self):
 		plan = plan_continue_watching([], [], [_next_ep(200, 1, 1, '2026-07-19 20:00:00')], [], None)
 		self.assertTrue(plan['episodes'][0]['cw_next'])

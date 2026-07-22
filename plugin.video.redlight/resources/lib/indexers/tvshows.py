@@ -225,7 +225,7 @@ class TVShows:
 				playcount, total_watched, total_unwatched = watched_status.get_watched_status_tvshow(self.watched_info.get(str(tmdb_id), None), progress_aired_eps)
 				if total_watched: progress = watched_status.get_progress_status_tvshow(total_watched, progress_aired_eps)
 				else: progress = 0
-				visible_progress = '0' if progress == 100 else progress
+			visible_progress = '0' if progress == 100 else progress
 			extras_params = self.build_url({'mode': 'extras_menu_choice', 'tmdb_id': tmdb_id, 'media_type': 'tvshow', 'is_external': self.is_external})
 			options_params = self.build_url({'mode': 'options_menu_choice', 'content': 'tvshow', 'tmdb_id': tmdb_id, 'poster': poster,
 										'is_external': self.is_external})
