@@ -103,8 +103,10 @@ class NavigatorCache:
 			if default_contents == None:
 				self.rebuild_database()
 				return self.get_main_lists(list_name)
-			try: edited_contents = self.get_list(list_name, 'edited')
-			except: edited_contents = None
+			try:
+				edited_contents = self.get_list(list_name, 'edited')
+			except:
+				edited_contents = None
 		else:
 			edited_contents = self.get_memory_cache(list_name, 'edited')
 		return default_contents, edited_contents
@@ -113,9 +115,14 @@ class NavigatorCache:
 		contents = None
 		try:
 			dbcon = connect_database('navigator_db')
-			contents = eval(dbcon.execute('SELECT list_contents FROM navigator WHERE list_name = ? AND list_type = ?', (list_name, list_type)).fetchone()[0])
+			row = dbcon.execute('SELECT list_contents FROM navigator WHERE list_name = ? AND list_type = ?', (list_name, list_type)).fetchone()
+			if row is None:
+				return None
+			contents = eval(row[0])
 			self.set_memory_cache(list_name, list_type, contents)
-		except: pass
+		except TypeError:
+			# fetchone()[0] raises TypeError if row is None; treat as missing row
+			return None
 		return contents
 
 	def set_list(self, list_name, list_type, list_contents):
@@ -309,7 +316,11 @@ def refresh_continue_watching_menu_defaults():
 			# Customised menus keep their contents; the editor's update flow offers the
 			# new entry there instead.
 			previous_default = [i for i in current_default if i.get('mode') != 'build_continue_watching']
-			if stored != previous_default: continue
+			# stored is None if row is genuinely missing; skip migration for customized menus
+			if stored is None:
+				continue
+			if stored != previous_default:
+				continue
 			nc.set_list(list_name, 'default', current_default)
 			changed = True
 		except Exception as e:
