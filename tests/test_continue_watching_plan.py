@@ -62,8 +62,9 @@ class DedupTests(unittest.TestCase):
 		self.assertEqual(42.0, row['resume_point'])
 
 	def test_duplicate_progress_rows_keep_only_the_most_recent(self):
+		# Older row listed first so first-row-wins deduplication would fail this test.
 		plan = plan_continue_watching(
-			[], [_progress_ep(100, 2, 5, '2026-07-20 21:00:00'), _progress_ep(100, 1, 3, '2026-07-18 21:00:00')],
+			[], [_progress_ep(100, 1, 3, '2026-07-18 21:00:00'), _progress_ep(100, 2, 5, '2026-07-20 21:00:00')],
 			[], [], None)
 		self.assertEqual(1, len(plan['episodes']))
 		self.assertEqual(5, plan['episodes'][0]['episode'])
@@ -127,6 +128,25 @@ class HiddenAndLimitTests(unittest.TestCase):
 		plan = plan_continue_watching(
 			[], [_progress_ep(100, 2, 5, '2026-07-20 21:00:00')], next_rows, [], 2)
 		self.assertEqual(3, len(plan['episodes']))
+
+	def test_next_limit_ignores_hidden_and_duplicate_rows(self):
+		# The hidden show and the duplicate lead the raw list; a pre-dedup slice
+		# would spend the whole limit on them and drop show 202 entirely.
+		next_rows = [
+			_next_ep(900, 1, 1, '2026-07-20 22:00:00'),
+			_next_ep(201, 1, 1, '2026-07-20 21:00:00'), _next_ep(201, 1, 2, '2026-07-20 21:30:00'),
+			_next_ep(202, 1, 1, '2026-07-19 20:00:00')]
+		plan = plan_continue_watching([], [], next_rows, [900], 2)
+		shows = sorted(i['media_ids']['tmdb'] for i in plan['episodes'])
+		self.assertEqual([201, 202], shows)
+
+	def test_next_limit_keeps_the_most_recent_shows(self):
+		# Raw order is oldest-first; the limit must keep the most recently watched shows.
+		next_rows = [_next_ep(201, 1, 1, '2026-07-18 20:00:00'), _next_ep(202, 1, 1, '2026-07-20 20:00:00'),
+					_next_ep(203, 1, 1, '2026-07-19 20:00:00')]
+		plan = plan_continue_watching([], [], next_rows, [], 2)
+		shows = sorted(i['media_ids']['tmdb'] for i in plan['episodes'])
+		self.assertEqual([202, 203], shows)
 
 
 class ContentTypeTests(unittest.TestCase):

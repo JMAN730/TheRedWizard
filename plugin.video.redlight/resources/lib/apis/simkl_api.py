@@ -285,7 +285,8 @@ def _simkl_fetch_tv_status(status):
 	shows = _simkl_fetch_status('shows', status)
 	anime = _simkl_fetch_status('anime', status)
 	if not shows and not anime: return []
-	# sort_source never raises, so no guard here: a bare except would only swallow KeyboardInterrupt.
+	# sort_source never raises, so no guard here: any except clause would only ever catch
+	# BaseExceptions passing through (KeyboardInterrupt, SystemExit).
 	return list_sort.sort_source(shows + anime, 'simkl', 'shows', 'simkl')
 
 def simkl_plantowatch(media_kind, page_no=None):
@@ -570,8 +571,8 @@ def simkl_reset_scrobble(params):
 	try:
 		if media_type == 'movie':
 			simkl_scrobble('stop', 'movie', tmdb_id, 0)
-			resume_id = watched_db.execute('SELECT resume_id FROM progress WHERE db_type=? AND media_id=?', ('movie', str(tmdb_id))).fetchone()[0]
-			simkl_progress('clear_progress', 'movie', tmdb_id, 0, resume_id=resume_id)
+			row = watched_db.execute('SELECT resume_id FROM progress WHERE db_type=? AND media_id=?', ('movie', str(tmdb_id))).fetchone()
+			if row: simkl_progress('clear_progress', 'movie', tmdb_id, 0, resume_id=row[0])
 			erase_bookmark('movie', tmdb_id, '', '', 'true', 2)
 		elif media_type == 'episode' and season and episode:
 			simkl_scrobble('stop', 'episode', tmdb_id, 0, season, episode)

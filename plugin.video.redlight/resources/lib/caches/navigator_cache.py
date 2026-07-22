@@ -299,16 +299,21 @@ def refresh_continue_watching_menu_defaults():
 	"""Rewrite the stored default Movies/TV menus so existing installs gain the Continue Watching entry."""
 	nc = NavigatorCache()
 	changed = False
+	failed = []
 	for list_name in ('MovieList', 'TVShowList'):
 		try:
 			stored = nc.get_list(list_name, 'default')
 			if stored == NavigatorCache.main_menus[list_name]: continue
 			nc.set_list(list_name, 'default', NavigatorCache.main_menus[list_name])
 			changed = True
-		except: pass
+		except Exception as e:
+			failed.append('%s: %s' % (list_name, e))
 	if changed:
 		for list_name in NavigatorCache.main_menus:
 			nc.delete_memory_cache(list_name, 'default')
+	# Raise after attempting both menus so a partial failure still refreshes what it can,
+	# but the caller's migration sentinel stays unset and the next sync retries.
+	if failed: raise Exception('continue watching menu refresh failed for %s' % '; '.join(failed))
 	return changed
 
 navigator_cache = NavigatorCache()

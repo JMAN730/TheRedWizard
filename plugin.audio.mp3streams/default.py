@@ -912,11 +912,14 @@ def download_album(url, name, iconimage):
     dialog = xbmcgui.Dialog()
     check_downloads = os.path.join(settings.music_dir(), 'downloading.txt')
     xbmc.log("check_downloads = {0}".format(check_downloads), xbmc.LOGINFO)
-    if os.path.exists(check_downloads):
+    try:
+        # O_EXCL makes check-and-create atomic: a concurrent download loses the race here
+        # instead of both passing an exists() check.
+        os.close(os.open(check_downloads, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+    except OSError:
         dialog.ok("Album download in progress", 'Please wait for the current download to finish')
         return
     notification('MP3 Streams', 'Downloading album: %s' % settings.decode_text(name), '3000', iconimage or iconart)
-    create_file(settings.music_dir(), "downloading.txt")
     downloaded = 0
     failed = 0
     try:
@@ -973,8 +976,10 @@ def download_album(url, name, iconimage):
         xbmc.log('MP3 Streams album download failed for %s: %s' % (name, exc), xbmc.LOGERROR)
         notification(nartist + ' ' + nalbum, 'Album download failed', '3000', iconimage)
     finally:
-        if os.path.exists(download_lock_path()):
-            os.remove(download_lock_path())
+        # This invocation owns the lock (it won the O_EXCL create above); tolerate it
+        # already being gone (e.g. removed via clear_lock).
+        try: os.remove(download_lock_path())
+        except OSError: pass
 
 def clear_lock():
     if os.path.exists(download_lock_path()):
