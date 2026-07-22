@@ -425,6 +425,7 @@ def trakt_reset_scrobble(params):
 	from modules.watched_status import get_database, get_bookmarks_movie, get_bookmarks_episode, erase_bookmark
 	media_type = params.get('media_type') or params.get('content') or 'movie'
 	tmdb_id = params.get('tmdb_id')
+	if tmdb_id in (None, '', 'None'): return kodi_utils.notification('Error', 3000)
 	season, episode = params.get('season'), params.get('episode')
 	try:
 		watched_db = get_database(1)
@@ -518,19 +519,16 @@ def _trakt_media_ids_match(ids, tmdb_id=None, imdb_id=None, tvdb_id=None):
 	return False
 
 def trakt_item_in_sync_list(list_type, media_type, tmdb_id=None, imdb_id=None, tvdb_id=None):
+	# Deliberately lets lookup failures propagate: returning False here would present an
+	# Add/Remove choice built from stale state. Callers abort and notify instead.
 	media = 'movie' if media_type in ('movie', 'movies') else 'show'
-	try:
-		data = trakt_fetch_collection_watchlist(list_type, media) or []
-	except:
-		return False
+	data = trakt_fetch_collection_watchlist(list_type, media) or []
 	return any(_trakt_media_ids_match(item.get('media_ids'), tmdb_id, imdb_id, tvdb_id) for item in data)
 
 def trakt_item_in_favorites(media_type, tmdb_id=None, imdb_id=None, tvdb_id=None):
+	# Same contract as trakt_item_in_sync_list: failures propagate to the caller.
 	media = 'movie' if media_type in ('movie', 'movies') else 'show'
-	try:
-		data = trakt_favorites(media, None) or []
-	except:
-		return False
+	data = trakt_favorites(media, None) or []
 	return any(_trakt_media_ids_match(item.get('media_ids'), tmdb_id, imdb_id, tvdb_id) for item in data)
 
 def trakt_item_is_dropped(tmdb_id):
@@ -631,8 +629,11 @@ def toggle_watchlist(params):
 	else:
 		key = 'shows'
 		media_ids = [(tmdb_id, 'tmdb'), (imdb_id, 'imdb'), (tvdb_id, 'tvdb')]
-		media_id, media_key = next(item for item in media_ids if item[0] not in ('None', None, ''))
-		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
+		media_id, media_key = next((item for item in media_ids if item[0] not in ('None', None, '')), (None, None))
+		if media_id is None: return kodi_utils.notification('Error', 3000)
+		if media_key in ('tmdb', 'tvdb'):
+			try: media_id = int(media_id)
+			except ValueError: return kodi_utils.notification('Error', 3000)
 	data = {key: [{'ids': {media_key: media_id}}]}
 	result = add_to_watchlist(data) if action == 'add' else remove_from_watchlist(data)
 	if result:
