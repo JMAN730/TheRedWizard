@@ -257,6 +257,11 @@ class TVShows:
 			if settings.tmdblist_user_active():
 				tmdb_manager_params = self.build_url({'mode': 'tmdblists_manager_choice', 'media_type': 'tv', 'tmdb_id': tmdb_id, 'icon': poster})
 			favorites_manager_params = self.build_url({'mode': 'favorites_manager_choice', 'media_type': 'tvshow', 'tmdb_id': tmdb_id, 'title': title})
+			trakt_watchlist_params = ''
+			if self.watchlist_provider:
+				watchlist_action = 'remove' if str(tmdb_id) in self.watchlist_ids else 'add'
+				trakt_watchlist_params = self.build_url({'mode': 'watchlist.toggle_watchlist', 'provider': self.watchlist_provider, 'action': watchlist_action,
+														'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id, 'media_type': 'tvshow'})
 			if self.all_episodes:
 				if self.all_episodes == 1 and total_seasons > 1: url_params = self.build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
 				else: url_params = self.build_url({'mode': 'build_episode_list', 'tmdb_id': tmdb_id, 'season': 'all'})
@@ -274,6 +279,9 @@ class TVShows:
 			cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
 			if self.ai_model_active: cm_append(['similar', ('[B]Browse Similar[/B]', self.window_command % browse_similar_params)])
 			if browse_in_trakt_list_params: cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % browse_in_trakt_list_params)])
+			if trakt_watchlist_params:
+				watchlist_label = '[B]Remove from Watchlist[/B]' if watchlist_action == 'remove' else '[B]Add to Watchlist[/B]'
+				cm_append(['trakt_watchlist', (watchlist_label, 'RunPlugin(%s)' % trakt_watchlist_params)])
 			if mdblist_manager_params: cm_append(['mdblist_manager', ('[B]MDBList Manager[/B]', 'RunPlugin(%s)' % mdblist_manager_params)])
 			if simkl_manager_params: cm_append(['simkl_manager', ('[B]Simkl Lists Manager[/B]', 'RunPlugin(%s)' % simkl_manager_params)])
 			if trakt_manager_params: cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
@@ -318,6 +326,7 @@ class TVShows:
 				'redlight.browse_more_like_this_params': browse_more_like_this_params,
 				'redlight.browse_similar_params': browse_similar_params,
 				'redlight.browse_in_trakt_list_params': browse_in_trakt_list_params,
+				'redlight.trakt_watchlist_params': trakt_watchlist_params,
 				'redlight.trakt_manager_params': trakt_manager_params,
 				'redlight.simkl_manager_params': simkl_manager_params,
 				'redlight.mdblist_manager_params': mdblist_manager_params,
@@ -351,6 +360,11 @@ class TVShows:
 			from apis.mdblist_api import mdblist_sync_activities
 			mdblist_sync_activities()
 		self.watched_info = watched_status.watched_info_tvshow(watched_db)
+		self.watchlist_provider = settings.active_watchlist_provider()
+		if self.watchlist_provider:
+			from modules.watchlist import watchlist_tmdb_ids
+			self.watchlist_ids = watchlist_tmdb_ids(self.watchlist_provider, 'tvshow')
+		else: self.watchlist_ids = set()
 		self.window_command = 'ActivateWindow(Videos,%s,return)' if self.is_external else 'Container.Update(%s)'
 		if self.custom_order:
 			threads = TaskPool().tasks(self.build_tvshow_content, self.list, min(len(self.list), settings.max_threads()))

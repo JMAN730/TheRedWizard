@@ -53,6 +53,12 @@ def browse_in_trakt_list():
 		window_function = activate_window if params['is_external'] in (True, 'True', 'true') else container_update
 		return window_function(params)
 
+def trakt_watchlist():
+	params = get_params('trakt_watchlist_params')
+	if params:
+		from modules.watchlist import toggle_watchlist
+		toggle_watchlist(params)
+
 def trakt_manager():
 	params = get_params('trakt_manager_params')
 	if params: dialogs.trakt_manager_choice(params)

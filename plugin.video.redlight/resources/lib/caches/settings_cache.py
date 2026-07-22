@@ -541,6 +541,13 @@ _DIRECTORY_LISTING_MODES = frozenset((
 _LEGACY_SORT_SETTING_IDS = frozenset((
 	'sort.watchlist', 'sort.collection', 'sort.simkl', 'tmdbsort.watchlist', 'tmdbsort.favorites'))
 
+# The five settings the unified-list-sort migration reads. They are no longer in default_settings(),
+# so the obsolete-id purge in sync_settings() would delete them on the same pass that migrates them -
+# leaving nothing to retry from if the migration fails. The purge is deferred until the sentinel says
+# the migration succeeded, which happens in the same run, so they are removed on the following sync.
+_LEGACY_SORT_SETTING_IDS = frozenset((
+	'sort.watchlist', 'sort.collection', 'sort.simkl', 'tmdbsort.watchlist', 'tmdbsort.favorites'))
+
 def is_directory_listing_mode(mode):
 	if not mode: return False
 	if mode.startswith('navigator.'): return True
@@ -682,10 +689,12 @@ def sync_settings(params={}):
 		currentsettings['migration.ad_cache_check_removed_v173'] = 'true'
 		if load_properties: settings_cache.set_memory_cache('migration.ad_cache_check_removed_v173', 'true')
 	if currentsettings:
-		from modules.settings import migrate_simkl_context_menu_for_upgrade, migrate_mdblist_context_menu_for_upgrade, migrate_cm_manager_order_for_upgrade, migrate_external_scraper_context_menu_for_upgrade
+		from modules.settings import migrate_simkl_context_menu_for_upgrade, migrate_mdblist_context_menu_for_upgrade, migrate_cm_manager_order_for_upgrade, \
+			migrate_external_scraper_context_menu_for_upgrade, migrate_trakt_watchlist_context_menu_for_upgrade
 		if migrate_simkl_context_menu_for_upgrade(had_existing_settings): migrated = True
 		if migrate_mdblist_context_menu_for_upgrade(had_existing_settings): migrated = True
 		if migrate_external_scraper_context_menu_for_upgrade(had_existing_settings): migrated = True
+		if migrate_trakt_watchlist_context_menu_for_upgrade(had_existing_settings): migrated = True
 		if migrate_cm_manager_order_for_upgrade(): migrated = True
 		if currentsettings.get('migration.my_content_nav_mode_v136') != 'true':
 			try:
@@ -776,7 +785,7 @@ def sync_settings(params={}):
 			else:
 				name_default = item['settings_options'][setting_default]
 				name_value = item['settings_options'].get(setting_value, name_default)
-			insert_list_append(('%s_name' % setting_id, 'name', name_default, name_value))
+			insert_list_append((f'{setting_id}_name', 'name', name_default, name_value))
 		insert_list_append((setting_id, setting_type, setting_default, setting_value))
 	if insert_list:
 		settings_cache.set_many(insert_list, load_properties=load_properties)
@@ -1035,6 +1044,7 @@ def default_settings():
 {'setting_id': 'simkl.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'mdblist.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'external_scraper.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'trakt_watchlist.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'cm_manager_order_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'cm_manager_order_migrated_v2', 'setting_type': 'boolean', 'setting_default': 'false'},
 #======+============= Trakt Cache
@@ -1124,12 +1134,14 @@ def default_settings():
 {'setting_id': 'rpdb_enabled', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'None', '1': 'Movies', '2': 'TV Shows', '3': 'Both'}},
 {'setting_id': 'rpdb_format', 'setting_type': 'string', 'setting_default': ''},
 #==================== Context Menu
+{'setting_id': 'watchlist.provider', 'setting_type': 'action', 'setting_default': 'auto',
+'settings_options': {'auto': 'Automatic', 'trakt': 'Trakt', 'simkl': 'Simkl', 'mdblist': 'MDBList'}},
 {'setting_id': 'context_menu.enabled', 'setting_type': 'string',
 'setting_default': 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
+'trakt_watchlist,mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
 {'setting_id': 'context_menu.order', 'setting_type': 'string',
 'setting_default': 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
+'trakt_watchlist,mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
 
 
 #==================================================================================#

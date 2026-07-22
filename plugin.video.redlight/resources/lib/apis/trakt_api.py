@@ -618,6 +618,27 @@ def remove_from_watchlist(data):
 	if kodi_utils.path_check('trakt_watchlist') or kodi_utils.external(): kodi_utils.kodi_refresh()
 	return result
 
+def trakt_watchlist_tmdb_ids(media_type):
+	try: data = trakt_fetch_collection_watchlist('watchlist', media_type)
+	except: return set()
+	return set(str(i['media_ids'].get('tmdb', '')) for i in data)
+
+def toggle_watchlist(params):
+	if not settings.trakt_user_active(): return kodi_utils.notification('No Active Trakt Account', 3500)
+	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params.get('tvdb_id', 'None'), params.get('imdb_id', 'None'), params['media_type']
+	action = params.get('action', 'add')
+	if media_type == 'movie': key, media_key, media_id = ('movies', 'tmdb', int(tmdb_id))
+	else:
+		key = 'shows'
+		media_ids = [(tmdb_id, 'tmdb'), (imdb_id, 'imdb'), (tvdb_id, 'tvdb')]
+		media_id, media_key = next(item for item in media_ids if item[0] not in ('None', None, ''))
+		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
+	data = {key: [{'ids': {media_key: media_id}}]}
+	result = add_to_watchlist(data) if action == 'add' else remove_from_watchlist(data)
+	if result:
+		if action == 'add' or not (kodi_utils.path_check('trakt_watchlist') or kodi_utils.external()): kodi_utils.kodi_refresh()
+	return result
+
 def add_to_collection(data):
 	result = call_trakt('/sync/collection', data=data)
 	if result['existing']['movies'] + result['existing']['episodes'] > 0: return kodi_utils.notification('Already In List', 3000)
