@@ -35,11 +35,20 @@ def _load_settings_cache_module():
 	settings.migrate_mdblist_context_menu_for_upgrade = lambda had_existing: False
 	settings.migrate_simkl_context_menu_for_upgrade = lambda had_existing: False
 	settings.migrate_trakt_watchlist_context_menu_for_upgrade = lambda had_existing: False
+	# sanitize_setting_value() reaches back into modules.settings for these option tables whenever the
+	# settings they belong to are present with a non-default value - which only happens once a profile
+	# already holds them, i.e. on a second sync_settings() run. An empty map sanitizes those settings to
+	# their declared defaults. Declared by name on purpose: a catch-all __getattr__ would answer a
+	# genuinely missing name with an empty map instead of failing loudly.
+	settings.watched_provider_options = lambda: {}
+	settings.subtitles_source_options = lambda: {}
+	settings.alert_timing_options = lambda next_episode=False: {}
 
 	caches = types.ModuleType('caches')
 	caches.__path__ = []
 	base_cache = types.ModuleType('caches.base_cache')
 	base_cache.connect_database = lambda name: None
+	base_cache.database_locations = lambda name: '%s.db' % name
 
 	sys.modules['modules'] = modules
 	sys.modules['modules.kodi_utils'] = kodi_utils
@@ -55,9 +64,17 @@ def _load_settings_cache_module():
 
 
 class FakeSettingsCache:
-	def __init__(self, initial=None):
+	"""The production settings store, minus sqlite.
+
+	`db_readable = False` models the one failure the real store cannot report through get_all():
+	a locked or corrupt settings.db, where get_all() swallows the error and answers {} exactly as a
+	fresh install would. is_empty_strict() is the question that is allowed to fail, so it raises.
+	"""
+
+	def __init__(self, initial=None, db_readable=True):
 		self.data = dict(initial or {})
 		self.rows = {}
+		self.db_readable = db_readable
 
 	def clean_database(self):
 		return True
@@ -66,7 +83,12 @@ class FakeSettingsCache:
 		pass
 
 	def get_all(self):
+		if not self.db_readable: return {}
 		return dict(self.data)
+
+	def is_empty_strict(self):
+		if not self.db_readable: raise RuntimeError('database is locked')
+		return not self.data
 
 	def remove_setting(self, setting_id):
 		self.data.pop(setting_id, None)
