@@ -3,6 +3,7 @@
 
 import urllib.request, urllib.error, urllib.parse, re
 import xbmcplugin, xbmcgui, xbmcvfs, os, xbmc, sys
+import errno
 import settings, time
 import requests
 from bs4 import BeautifulSoup
@@ -66,6 +67,18 @@ def genre_icon(parent=None, child=None, top=False, albums=False):
 
 def download_lock_path():
     return os.path.join(settings.music_dir(), 'downloading.txt')
+
+def release_album_lock(lock_token):
+    # Remove the lock only while this invocation still owns it: after a manual clear_lock()
+    # another download may have acquired a fresh lock that must not be deleted here.
+    lock_path = download_lock_path()
+    try:
+        with open(lock_path) as lock_file:
+            owned = lock_file.read() == lock_token
+        if owned:
+            os.remove(lock_path)
+    except OSError:
+        pass
 xbmc_version=xbmc.getInfoLabel("System.BuildVersion")[:4]
 ua = 'Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.64 Safari/537.36'
 
@@ -912,12 +925,21 @@ def download_album(url, name, iconimage):
     dialog = xbmcgui.Dialog()
     check_downloads = os.path.join(settings.music_dir(), 'downloading.txt')
     xbmc.log("check_downloads = {0}".format(check_downloads), xbmc.LOGINFO)
+    lock_token = '%s:%s' % (os.getpid(), time.time())
     try:
         # O_EXCL makes check-and-create atomic: a concurrent download loses the race here
-        # instead of both passing an exists() check.
-        os.close(os.open(check_downloads, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
-    except OSError:
-        dialog.ok("Album download in progress", 'Please wait for the current download to finish')
+        # instead of both passing an exists() check. The token identifies this owner.
+        lock_fd = os.open(check_downloads, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        try:
+            os.write(lock_fd, lock_token.encode('utf-8'))
+        finally:
+            os.close(lock_fd)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST:
+            dialog.ok("Album download in progress", 'Please wait for the current download to finish')
+        else:
+            xbmc.log('MP3 Streams could not acquire album download lock: %s' % exc, xbmc.LOGERROR)
+            notification('MP3 Streams', 'Download failed', '3000', iconimage or iconart)
         return
     notification('MP3 Streams', 'Downloading album: %s' % settings.decode_text(name), '3000', iconimage or iconart)
     downloaded = 0
@@ -976,10 +998,7 @@ def download_album(url, name, iconimage):
         xbmc.log('MP3 Streams album download failed for %s: %s' % (name, exc), xbmc.LOGERROR)
         notification(nartist + ' ' + nalbum, 'Album download failed', '3000', iconimage)
     finally:
-        # This invocation owns the lock (it won the O_EXCL create above); tolerate it
-        # already being gone (e.g. removed via clear_lock).
-        try: os.remove(download_lock_path())
-        except OSError: pass
+        release_album_lock(lock_token)
 
 def clear_lock():
     if os.path.exists(download_lock_path()):

@@ -572,7 +572,8 @@ def simkl_reset_scrobble(params):
 		if media_type == 'movie':
 			simkl_scrobble('stop', 'movie', tmdb_id, 0)
 			row = watched_db.execute('SELECT resume_id FROM progress WHERE db_type=? AND media_id=?', ('movie', str(tmdb_id))).fetchone()
-			if row: simkl_progress('clear_progress', 'movie', tmdb_id, 0, resume_id=row[0])
+			if row:
+				simkl_progress('clear_progress', 'movie', tmdb_id, 0, resume_id=row[0])
 			erase_bookmark('movie', tmdb_id, '', '', 'true', 2)
 		elif media_type == 'episode' and season and episode:
 			simkl_scrobble('stop', 'episode', tmdb_id, 0, season, episode)

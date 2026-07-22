@@ -303,8 +303,14 @@ def refresh_continue_watching_menu_defaults():
 	for list_name in ('MovieList', 'TVShowList'):
 		try:
 			stored = nc.get_list(list_name, 'default')
-			if stored == NavigatorCache.main_menus[list_name]: continue
-			nc.set_list(list_name, 'default', NavigatorCache.main_menus[list_name])
+			current_default = NavigatorCache.main_menus[list_name]
+			# The menu editor writes user customisations into the 'default' row when no
+			# 'edited' row exists, so only migrate exact copies of the previous stock menu.
+			# Customised menus keep their contents; the editor's update flow offers the
+			# new entry there instead.
+			previous_default = [i for i in current_default if i.get('mode') != 'build_continue_watching']
+			if stored != previous_default: continue
+			nc.set_list(list_name, 'default', current_default)
 			changed = True
 		except Exception as e:
 			failed.append('%s: %s' % (list_name, e))
