@@ -8,7 +8,7 @@ import settings, time
 import requests
 from bs4 import BeautifulSoup
 from t0mm0.common.net import Net
-from threading import Thread
+from threading import Thread, Lock
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
@@ -68,17 +68,23 @@ def genre_icon(parent=None, child=None, top=False, albums=False):
 def download_lock_path():
     return os.path.join(settings.music_dir(), 'downloading.txt')
 
+# Serializes lock acquisition, release and manual clearing within this process so an
+# ownership check can never interleave with a concurrent remove/acquire. Across
+# processes, acquisition itself stays atomic via O_EXCL.
+ALBUM_LOCK_GUARD = Lock()
+
 def release_album_lock(lock_token):
     # Remove the lock only while this invocation still owns it: after a manual clear_lock()
     # another download may have acquired a fresh lock that must not be deleted here.
-    lock_path = download_lock_path()
-    try:
-        with open(lock_path) as lock_file:
-            owned = lock_file.read() == lock_token
-        if owned:
-            os.remove(lock_path)
-    except OSError:
-        pass
+    with ALBUM_LOCK_GUARD:
+        lock_path = download_lock_path()
+        try:
+            with open(lock_path) as lock_file:
+                owned = lock_file.read() == lock_token
+            if owned:
+                os.remove(lock_path)
+        except OSError:
+            pass
 xbmc_version=xbmc.getInfoLabel("System.BuildVersion")[:4]
 ua = 'Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.64 Safari/537.36'
 
@@ -927,13 +933,23 @@ def download_album(url, name, iconimage):
     xbmc.log("check_downloads = {0}".format(check_downloads), xbmc.LOGINFO)
     lock_token = '%s:%s' % (os.getpid(), time.time())
     try:
-        # O_EXCL makes check-and-create atomic: a concurrent download loses the race here
-        # instead of both passing an exists() check. The token identifies this owner.
-        lock_fd = os.open(check_downloads, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        try:
-            os.write(lock_fd, lock_token.encode('utf-8'))
-        finally:
-            os.close(lock_fd)
+        with ALBUM_LOCK_GUARD:
+            # O_EXCL makes check-and-create atomic: a concurrent download loses the race here
+            # instead of both passing an exists() check. The token identifies this owner.
+            lock_fd = os.open(check_downloads, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                try:
+                    os.write(lock_fd, lock_token.encode('utf-8'))
+                finally:
+                    os.close(lock_fd)
+            except OSError:
+                # Roll back the half-initialized lock so a failed token write cannot leave
+                # a tokenless file that blocks every future download.
+                try:
+                    os.remove(check_downloads)
+                except OSError:
+                    pass
+                raise
     except OSError as exc:
         if exc.errno == errno.EEXIST:
             dialog.ok("Album download in progress", 'Please wait for the current download to finish')
@@ -1001,8 +1017,14 @@ def download_album(url, name, iconimage):
         release_album_lock(lock_token)
 
 def clear_lock():
-    if os.path.exists(download_lock_path()):
-        os.remove(download_lock_path())
+    with ALBUM_LOCK_GUARD:
+        removed = False
+        try:
+            os.remove(download_lock_path())
+            removed = True
+        except OSError:
+            pass
+    if removed:
         notification('Downloads', 'Unlocked', '3000', iconart)
 
 def id3_tags():
