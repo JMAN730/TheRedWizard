@@ -46,6 +46,7 @@ def build_episode_list(params):
 				cm_append(['extras', ('[B]Extras[/B]', 'RunPlugin(%s)' % extras_params)])
 				cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
 				cm_append(['playback_options', ('[B]Play Options[/B]', 'RunPlugin(%s)' % playback_options_params)])
+				settings.append_source_shortcut_context_menus(cm_append, build_url, cm_sort_order, 'episode', tmdb_id, season, episode, playcount)
 				settings.append_external_scraper_settings_cm(cm_append, build_url)
 				if not unaired and not season_special:
 					if playcount:
@@ -165,7 +166,7 @@ def build_single_episode(list_type, params={}):
 			tmdb_id, tvdb_id, imdb_id, title, show_year = meta_get('tmdb_id'), meta_get('tvdb_id'), meta_get('imdb_id'), meta_get('title'), meta_get('year') or '2050'
 			season_data = meta_get('season_data')
 			watched_info = ws.watched_info_episode(meta_get('tmdb_id'), watched_db)
-			if list_type_starts_with('next'):
+			if list_type_starts_with('next') or ep_data_get('cw_next'):
 				orig_season, orig_episode = ws.get_next(orig_season, orig_episode, watched_info, season_data, nextep_content)
 				if not orig_season or not orig_episode: return
 				if ws.get_watched_status_episode(watched_info, (orig_season, orig_episode)): return
@@ -179,6 +180,7 @@ def build_single_episode(list_type, params={}):
 			episode_type = item_get('episode_type') or ''
 			episode_id = item_get('episode_id') or None
 			if not episode_date or current_date < episode_date:
+				if ep_data_get('cw_next'): return
 				if list_type_starts_with('next_'):
 					if not episode_date: return
 					if not include_unaired: return
@@ -222,10 +224,10 @@ def build_single_episode(list_type, params={}):
 			elif list_type_compare == 'trakt_calendar':
 				if not episode_date:
 					display_premiered = 'UNKNOWN'
-				elif calendar_date_format:
-					display_premiered = make_day(current_date, episode_date, calendar_date_format, use_words=False)
 				else:
-					display_premiered = make_day(current_date, episode_date)
+					display_premiered = make_day(
+						current_date, episode_date, calendar_date_strftime,
+						use_words=calendar_use_words, include_date=calendar_include_date)
 				display = '[%s] %s%s%s' % (display_premiered, title_str, seas_ep, ep_name)
 			else: display = '%s%s%s' % (title_str, seas_ep, ep_name)
 			if no_spoilers and not playcount: thumb, plot = show_landscape or show_fanart, tvshow_plot or '* Hidden to Prevent Spoilers *'
@@ -246,6 +248,7 @@ def build_single_episode(list_type, params={}):
 			cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
 			cm_append(['playback_options', ('[B]Play Options[/B]', 'RunPlugin(%s)' % \
 						build_url({'mode': 'playback_choice', 'media_type': 'episode', 'meta': tmdb_id, 'season': season, 'episode': episode, 'episode_id': episode_id}))])
+			settings.append_source_shortcut_context_menus(cm_append, build_url, cm_sort_order, 'episode', tmdb_id, season, episode, playcount)
 			settings.append_external_scraper_settings_cm(cm_append, build_url)
 			cm_append(['browse_seasons', ('[B]Browse Seasons[/B]', window_command % build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id}))])
 			cm_append(['browse_episodes', ('[B]Browse Episodes[/B]', window_command % build_url({'mode': 'build_episode_list', 'tmdb_id': tmdb_id, 'season': season}))])
@@ -260,9 +263,9 @@ def build_single_episode(list_type, params={}):
 								build_url({'mode': 'watched_status.erase_bookmark', 'media_type': 'episode', 'tmdb_id': tmdb_id,
 											'season': season, 'episode': episode, 'refresh': 'true'}))])
 				if unwatched_info:
-					total_aired_eps = meta_get('total_aired_eps')
-					total_unwatched = ws.get_watched_status_tvshow(ws.watched_info_tvshow(watched_db).get(str(tmdb_id), None), total_aired_eps)[2]
-					if total_aired_eps != total_unwatched: set_properties({'watchedepisodes': '1', 'unwatchedepisodes': str(total_unwatched)})
+					progress_aired_eps = ws.progress_aired_eps(meta)
+					total_unwatched = ws.get_watched_status_tvshow(ws.watched_info_tvshow(watched_db).get(str(tmdb_id), None), progress_aired_eps)[2]
+					if progress_aired_eps != total_unwatched: set_properties({'watchedepisodes': '1', 'unwatchedepisodes': str(total_unwatched)})
 			if list_type_starts_with('next_') and (season, episode) != (1, 1):
 				cm_append(['unmark_previous_episode', ('[B]Unmark Previous Watched[/B]', 'RunPlugin(%s)' % \
 								build_url({'mode': 'watched_status.unmark_previous_episode', 'action': 'mark_as_unwatched', 'tmdb_id': tmdb_id, 'tvdb_id': tvdb_id,
@@ -310,9 +313,11 @@ def build_single_episode(list_type, params={}):
 	watched_indicators = settings.watched_indicators()
 	if list_type == 'episode.trakt':
 		display_format = settings.calendar_display_format(is_external)
-		calendar_date_format = settings.calendar_date_format()
+		calendar_date_strftime, calendar_use_words, calendar_include_date = settings.calendar_date_label_options()
+		calendar_date_format = None if calendar_use_words else calendar_date_strftime
 	else:
 		display_format = settings.single_ep_display_format(is_external)
+		calendar_date_strftime, calendar_use_words, calendar_include_date = '%Y-%m-%d', True, False
 		calendar_date_format = None
 	current_date, current_time, adjust_hours = get_datetime(), get_current_timestamp(), settings.date_offset()
 	unwatched_info = settings.single_ep_unwatched_episodes()
@@ -371,7 +376,9 @@ def build_single_episode(list_type, params={}):
 		else:
 			try: data = sorted(data, key=lambda i: (i['sort_title'], i.get('first_aired', '2100-12-31')), reverse=True)
 			except: data = sorted(data, key=lambda i: i['sort_title'], reverse=True)
-	else: data, return_results = sorted(params, key=lambda i: i['custom_order']), True
+	else:
+		if list_type == 'episode.continue_watching': nextep_content = settings.nextep_method()
+		data, return_results = sorted(params, key=lambda i: i['custom_order']), True
 	list_type_compare = list_type.split('episode.')[1]
 	list_type_starts_with = list_type_compare.startswith
 	threads = TaskPool().tasks_enumerate(_process, data, min(len(data), settings.max_threads()))

@@ -532,7 +532,14 @@ def run_deferred_setup_background_if_needed():
 _DIRECTORY_LISTING_MODES = frozenset((
 	'build_movie_list', 'build_tvshow_list', 'build_season_list', 'build_episode_list',
 	'build_in_progress_episode', 'build_recently_watched_episode', 'build_next_episode',
-	'build_my_calendar', 'build_next_episode_manager'))
+	'build_my_calendar', 'build_next_episode_manager', 'build_continue_watching'))
+
+# The five settings the unified-list-sort migration reads. They are no longer in default_settings(),
+# so the obsolete-id purge in sync_settings() would delete them on the same pass that migrates them -
+# leaving nothing to retry from if the migration fails. The purge is deferred until the sentinel says
+# the migration succeeded, which happens in the same run, so they are removed on the following sync.
+_LEGACY_SORT_SETTING_IDS = frozenset((
+	'sort.watchlist', 'sort.collection', 'sort.simkl', 'tmdbsort.watchlist', 'tmdbsort.favorites'))
 
 # The five settings the unified-list-sort migration reads. They are no longer in default_settings(),
 # so the obsolete-id purge in sync_settings() would delete them on the same pass that migrates them -
@@ -697,6 +704,20 @@ def sync_settings(params={}):
 			settings_cache.write_db('migration.my_content_nav_mode_v136', 'true', defaults_map.get('migration.my_content_nav_mode_v136'))
 			currentsettings['migration.my_content_nav_mode_v136'] = 'true'
 			if load_properties: settings_cache.set_memory_cache('migration.my_content_nav_mode_v136', 'true')
+		if currentsettings.get('migration.continue_watching_menu') != 'true':
+			# Only record the migration as done when it did not raise, so a transient failure
+			# (e.g. a locked navigator DB) retries on the next sync instead of being skipped forever.
+			try:
+				from caches.navigator_cache import refresh_continue_watching_menu_defaults
+				if refresh_continue_watching_menu_defaults(): migrated = True
+				cw_menu_migration_ok = True
+			except Exception as e:
+				cw_menu_migration_ok = False
+				kodi_utils.logger('sync_settings', 'continue watching menu migration: %s' % e)
+			if cw_menu_migration_ok:
+				settings_cache.write_db('migration.continue_watching_menu', 'true', defaults_map.get('migration.continue_watching_menu'))
+				currentsettings['migration.continue_watching_menu'] = 'true'
+				if load_properties: settings_cache.set_memory_cache('migration.continue_watching_menu', 'true')
 		if currentsettings.get('migration.unified_list_sort') != 'true':
 			# Only record the migration as done when it did not raise. The obsolete purge above
 			# holds back the five legacy sort ids while this sentinel is unset, so a failed run
@@ -1057,6 +1078,7 @@ def default_settings():
 {'setting_id': 'media_open_action_movie', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'None', '1': 'Open Extras', '2': 'Open Movie Set', '3': 'Both'}},
 {'setting_id': 'media_open_action_tvshow', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'None', '1': 'Open Extras'}},
 {'setting_id': 'media_open_action_skip_inprogress_movie', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'media_open_action_skip_inprogress_tvshow', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== AI Generated Similar Titles
 {'setting_id': 'ai_model.order', 'setting_type': 'string', 'setting_default': 'gemini-2.5-flash-lite,llama-3.3-70b-versatile,gemma-3-27b-it,llama-3.1-8b-instant'},
 {'setting_id': 'ai_model.limit', 'setting_type': 'action', 'setting_default': '15', 'min_value': '1', 'max_value': '25'},
@@ -1080,6 +1102,7 @@ def default_settings():
 {'setting_id': 'lists_cache_duraton', 'setting_type': 'string', 'setting_default': '24'},
 {'setting_id': 'tv_progress_location', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Watched', '1': 'In Progress', '2': 'Both'}},
 {'setting_id': 'show_specials', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'exclude_specials_progress', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'use_season_name', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'default_all_episodes', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Never', '1': 'If Only One Season', '2': 'Always'}},
 {'setting_id': 'avoid_episode_spoilers', 'setting_type': 'boolean', 'setting_default': 'false'},
@@ -1149,7 +1172,10 @@ def default_settings():
 {'setting_id': 'trakt.calendar_display', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'TITLE: SxE - EPISODE', '1': 'SxE - EPISODE', '2': 'EPISODE'}},
 {'setting_id': 'trakt.calendar_display_widget', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'TITLE: SxE - EPISODE', '1': 'SxE - EPISODE', '2': 'EPISODE'}},
 {'setting_id': 'trakt.calendar_sort_order', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Descending', '1': 'Ascending'}},
-{'setting_id': 'trakt.calendar_date_labels', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Words (Today, Tomorrow, Weekday)', '1': 'MM/DD/YYYY', '2': 'DD/MM/YYYY', '3': 'YYYY-MM-DD'}},
+{'setting_id': 'trakt.calendar_date_labels', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {
+	'0': 'Words / YYYY-MM-DD', '7': 'Words / MM-DD-YYYY', '8': 'Words / DD-MM-YYYY',
+	'3': 'YYYY-MM-DD', '1': 'MM-DD-YYYY', '2': 'DD-MM-YYYY',
+	'6': 'Day + YYYY-MM-DD', '4': 'Day + MM-DD-YYYY', '5': 'Day + DD-MM-YYYY'}},
 {'setting_id': 'trakt.calendar_previous_days', 'setting_type': 'action', 'setting_default': '7', 'min_value': '0', 'max_value': '14'},
 {'setting_id': 'trakt.calendar_future_days', 'setting_type': 'action', 'setting_default': '7', 'min_value': '0', 'max_value': '14'},
 
@@ -1198,6 +1224,7 @@ def default_settings():
 {'setting_id': 'migration.cache_check_pm_oc_tb_v129e', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.ad_cache_check_removed_v173', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.my_content_nav_mode_v136', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'migration.continue_watching_menu', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.unified_list_sort', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== Real Debrid
 {'setting_id': 'rd.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},
@@ -1424,7 +1451,6 @@ def default_settings():
 {'setting_id': 'autoplay_skip_intro', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Off', '2': 'Auto', '1': 'Prompt'}},
 {'setting_id': 'skip_intro_all_episodes', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'autoplay_watching_check', 'setting_type': 'action', 'setting_default': '3', 'min_value': '0', 'max_value': '5'},
-{'setting_id': 'autoplay_random_continual_watching_check', 'setting_type': 'boolean', 'setting_default': 'true'},
 {'setting_id': 'autoscrape_next_episode', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'autoscrape_next_window_percentage', 'setting_type': 'action', 'setting_default': '95', 'min_value': '75', 'max_value': '99'},
 {'setting_id': 'autoscrape_alert_timing', 'setting_type': 'action', 'setting_default': '1', 'settings_options': {'0': 'Playback Percentage', '1': 'Chapter Info', '2': 'Subtitles Info', '3': 'IntroDB Info'}},

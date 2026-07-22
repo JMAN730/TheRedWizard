@@ -157,14 +157,17 @@ class CalendarDateLabelsSettingTests(StubModulesTestCase):
 		self.assertIsNotNone(setting, 'trakt.calendar_date_labels missing from default settings')
 		self.assertEqual('action', setting['setting_type'])
 		self.assertEqual('0', setting['setting_default'])
-		self.assertEqual({'0': 'Words (Today, Tomorrow, Weekday)', '1': 'MM/DD/YYYY', '2': 'DD/MM/YYYY', '3': 'YYYY-MM-DD'},
-						 setting['settings_options'])
+		self.assertEqual({
+			'0': 'Words / YYYY-MM-DD', '7': 'Words / MM-DD-YYYY', '8': 'Words / DD-MM-YYYY',
+			'3': 'YYYY-MM-DD', '1': 'MM-DD-YYYY', '2': 'DD-MM-YYYY',
+			'6': 'Day + YYYY-MM-DD', '4': 'Day + MM-DD-YYYY', '5': 'Day + DD-MM-YYYY'},
+			setting['settings_options'])
 
 	def test_fresh_install_defaults_to_words(self):
 		cache = self._sync({})
 
 		self.assertEqual('0', cache.data['trakt.calendar_date_labels'])
-		self.assertEqual('Words (Today, Tomorrow, Weekday)', cache.data['trakt.calendar_date_labels_name'])
+		self.assertEqual('Words / YYYY-MM-DD', cache.data['trakt.calendar_date_labels_name'])
 
 	def test_upgrade_inserts_setting_without_touching_existing_preferences(self):
 		cache = self._sync({

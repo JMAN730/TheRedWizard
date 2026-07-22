@@ -40,27 +40,30 @@ def _load_source_utils_module():
 
 	requests_stub = sys.modules.get('requests') or types.ModuleType('requests')
 
-	sys.modules['caches'] = caches
-	sys.modules['caches.settings_cache'] = settings_cache
-	sys.modules['modules'] = modules
-	sys.modules['modules.metadata'] = metadata
-	sys.modules['modules.settings'] = settings
-	sys.modules['modules.kodi_utils'] = kodi_utils
-	sys.modules['modules.utils'] = utils
-	sys.modules['requests'] = requests_stub
-
-	spec = importlib.util.spec_from_file_location('source_utils_under_test', SOURCE_UTILS_PATH)
-	module = importlib.util.module_from_spec(spec)
-	spec.loader.exec_module(module)
+	# Stubs are scoped to the module load so they never leak into other tests' imports.
+	stubs = {'caches': caches, 'caches.settings_cache': settings_cache, 'modules': modules,
+			'modules.metadata': metadata, 'modules.settings': settings, 'modules.kodi_utils': kodi_utils,
+			'modules.utils': utils, 'requests': requests_stub}
+	saved = {name: sys.modules.get(name) for name in stubs}
+	sys.modules.update(stubs)
+	try:
+		spec = importlib.util.spec_from_file_location('source_utils_under_test', SOURCE_UTILS_PATH)
+		module = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(module)
+	finally:
+		for name, previous in saved.items():
+			if previous is None: sys.modules.pop(name, None)
+			else: sys.modules[name] = previous
 	return module
 
 
 source_utils = _load_source_utils_module()
 
+# Alphabetical by display name, matching audio_lang_choices().
 EXPECTED_LANGS = (
-	('ENGLISH AUDIO', 'ENG'), ('SPANISH AUDIO', 'SPA'), ('FRENCH AUDIO', 'FRE'), ('GERMAN AUDIO', 'GER'),
-	('ITALIAN AUDIO', 'ITA'), ('PORTUGUESE AUDIO', 'POR'), ('HINDI AUDIO', 'HIN'), ('JAPANESE AUDIO', 'JPN'),
-	('KOREAN AUDIO', 'KOR'), ('RUSSIAN AUDIO', 'RUS'))
+	('ENGLISH AUDIO', 'ENG'), ('FRENCH AUDIO', 'FRE'), ('GERMAN AUDIO', 'GER'), ('HINDI AUDIO', 'HIN'),
+	('ITALIAN AUDIO', 'ITA'), ('JAPANESE AUDIO', 'JPN'), ('KOREAN AUDIO', 'KOR'), ('PORTUGUESE AUDIO', 'POR'),
+	('RUSSIAN AUDIO', 'RUS'), ('SPANISH AUDIO', 'SPA'))
 
 
 def _info_tags(release_title):

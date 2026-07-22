@@ -107,6 +107,9 @@ def routing(sys):
 		elif mode == 'build_my_calendar':
 			from indexers.episodes import build_single_episode
 			return build_single_episode('episode.trakt', params)
+		elif mode == 'build_continue_watching':
+			from indexers.continue_watching import build_continue_watching
+			return build_continue_watching(params)
 		elif mode == 'build_next_episode_manager':
 			from modules.episode_tools import build_next_episode_manager
 			return build_next_episode_manager()
@@ -276,6 +279,9 @@ def routing(sys):
 		elif mode == 'torbox.delete':
 			from indexers.torbox import tb_delete
 			return tb_delete(params.get('folder_id'), params.get('media_type'))
+		elif mode == 'torbox.airlock':
+			from indexers.torbox import tb_airlock
+			return tb_airlock(params.get('folder_id'), params.get('media_type'))
 		elif mode == 'torbox.send_webdl':
 			from indexers.torbox import tb_send_webdl
 			tb_send_webdl()

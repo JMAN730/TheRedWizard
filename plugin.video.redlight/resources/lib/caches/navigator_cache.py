@@ -41,7 +41,8 @@ class NavigatorCache:
 	{'name': 'Because You Watched...', 'iconImage': 'because_you_watched', 'mode': 'navigator.because_you_watched', 'menu_type': 'movie'},
 	{'name': 'Watched', 'mode': 'build_movie_list', 'action': 'watched_movies', 'iconImage': 'watched_1'},
 	{'name': 'Recently Watched', 'mode': 'build_movie_list', 'action': 'recent_watched_movies', 'iconImage': 'watched_recent'},
-	{'name': 'In Progress', 'mode': 'build_movie_list', 'action': 'in_progress_movies', 'iconImage': 'player'}
+	{'name': 'In Progress', 'mode': 'build_movie_list', 'action': 'in_progress_movies', 'iconImage': 'player'},
+	{'name': 'Continue Watching', 'mode': 'build_continue_watching', 'iconImage': 'player'}
 				]
 	tvshow_list = [
 	{'name': 'Trending', 'mode': 'build_tvshow_list', 'action': 'trakt_tv_trending', 'random_support': 'true', 'iconImage': 'trending'},
@@ -67,7 +68,8 @@ class NavigatorCache:
 	{'name': 'In Progress', 'mode': 'build_tvshow_list', 'action': 'in_progress_tvshows', 'iconImage': 'in_progress_tvshow'},
 	{'name': 'Recently Watched Episodes', 'mode': 'build_recently_watched_episode', 'iconImage': 'watched_recent'},
 	{'name': 'In Progress Episodes', 'mode': 'build_in_progress_episode', 'iconImage': 'player'},
-	{'name': 'Next Episodes', 'mode': 'build_next_episode', 'iconImage': 'next_episodes'}
+	{'name': 'Next Episodes', 'mode': 'build_next_episode', 'iconImage': 'next_episodes'},
+	{'name': 'Continue Watching', 'mode': 'build_continue_watching', 'iconImage': 'player'}
 				]
 	anime_list = [
 	{'name': 'Anime Trending', 'mode': 'build_tvshow_list', 'action': 'trakt_anime_trending', 'random_support': 'true', 'iconImage': 'trending'},
@@ -101,8 +103,10 @@ class NavigatorCache:
 			if default_contents == None:
 				self.rebuild_database()
 				return self.get_main_lists(list_name)
-			try: edited_contents = self.get_list(list_name, 'edited')
-			except: edited_contents = None
+			try:
+				edited_contents = self.get_list(list_name, 'edited')
+			except:
+				edited_contents = None
 		else:
 			edited_contents = self.get_memory_cache(list_name, 'edited')
 		return default_contents, edited_contents
@@ -111,9 +115,14 @@ class NavigatorCache:
 		contents = None
 		try:
 			dbcon = connect_database('navigator_db')
-			contents = eval(dbcon.execute('SELECT list_contents FROM navigator WHERE list_name = ? AND list_type = ?', (list_name, list_type)).fetchone()[0])
+			row = dbcon.execute('SELECT list_contents FROM navigator WHERE list_name = ? AND list_type = ?', (list_name, list_type)).fetchone()
+			if row is None:
+				return None
+			contents = eval(row[0])
 			self.set_memory_cache(list_name, list_type, contents)
-		except: pass
+		except TypeError:
+			# fetchone()[0] raises TypeError if row is None; treat as missing row
+			return None
 		return contents
 
 	def set_list(self, list_name, list_type, list_contents):
@@ -291,6 +300,37 @@ def migrate_my_content_nav_mode():
 		for list_name in NavigatorCache.main_menus:
 			nc.delete_memory_cache(list_name, 'default')
 			nc.delete_memory_cache(list_name, 'edited')
+	return changed
+
+def refresh_continue_watching_menu_defaults():
+	"""Rewrite the stored default Movies/TV menus so existing installs gain the Continue Watching entry."""
+	nc = NavigatorCache()
+	changed = False
+	failed = []
+	for list_name in ('MovieList', 'TVShowList'):
+		try:
+			stored = nc.get_list(list_name, 'default')
+			current_default = NavigatorCache.main_menus[list_name]
+			# The menu editor writes user customisations into the 'default' row when no
+			# 'edited' row exists, so only migrate exact copies of the previous stock menu.
+			# Customised menus keep their contents; the editor's update flow offers the
+			# new entry there instead.
+			previous_default = [i for i in current_default if i.get('mode') != 'build_continue_watching']
+			# stored is None if row is genuinely missing; skip migration for customized menus
+			if stored is None:
+				continue
+			if stored != previous_default:
+				continue
+			nc.set_list(list_name, 'default', current_default)
+			changed = True
+		except Exception as e:
+			failed.append('%s: %s' % (list_name, e))
+	if changed:
+		for list_name in NavigatorCache.main_menus:
+			nc.delete_memory_cache(list_name, 'default')
+	# Raise after attempting both menus so a partial failure still refreshes what it can,
+	# but the caller's migration sentinel stays unset and the next sync retries.
+	if failed: raise Exception('continue watching menu refresh failed for %s' % '; '.join(failed))
 	return changed
 
 navigator_cache = NavigatorCache()

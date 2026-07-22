@@ -218,13 +218,14 @@ class TVShows:
 			clearlogo, landscape = meta_get('clearlogo') or '', meta_get('landscape') or ''
 			thumb = poster or landscape or fanart
 			tmdb_id, total_seasons, total_aired_eps = meta_get('tmdb_id'), meta_get('total_seasons'), meta_get('total_aired_eps')
+			progress_aired_eps = watched_status.progress_aired_eps(meta)
 			unaired = total_aired_eps == 0
-			if unaired: progress, playcount, total_watched, total_unwatched = 0, 0, 0, total_aired_eps
+			if unaired: progress, playcount, total_watched, total_unwatched = 0, 0, 0, progress_aired_eps
 			else:
-				playcount, total_watched, total_unwatched = watched_status.get_watched_status_tvshow(self.watched_info.get(str(tmdb_id), None), total_aired_eps)
-				if total_watched: progress = watched_status.get_progress_status_tvshow(total_watched, total_aired_eps)
+				playcount, total_watched, total_unwatched = watched_status.get_watched_status_tvshow(self.watched_info.get(str(tmdb_id), None), progress_aired_eps)
+				if total_watched: progress = watched_status.get_progress_status_tvshow(total_watched, progress_aired_eps)
 				else: progress = 0
-				visible_progress = '0' if progress == 100 else progress
+			visible_progress = '0' if progress == 100 else progress
 			extras_params = self.build_url({'mode': 'extras_menu_choice', 'tmdb_id': tmdb_id, 'media_type': 'tvshow', 'is_external': self.is_external})
 			options_params = self.build_url({'mode': 'options_menu_choice', 'content': 'tvshow', 'tmdb_id': tmdb_id, 'poster': poster,
 										'is_external': self.is_external})
@@ -236,9 +237,11 @@ class TVShows:
 										'name': 'More Like This based on %s' % title, 'is_external': self.is_external})
 			browse_similar_params = self.build_url({'mode': 'build_tvshow_list', 'action': 'ai_similar', 'is_external': self.is_external,
 										'key_id': 'tvshow|%s' % tmdb_id, 'name': 'Similar based on %s' % title})
-			browse_in_trakt_list_params = self.build_url({'mode': 'trakt.list.in_trakt_lists', 'media_type': 'tvshow', 'imdb_id': imdb_id, 'is_external': self.is_external,
+			browse_in_trakt_list_params, trakt_manager_params = '', ''
+			if settings.trakt_user_active():
+				browse_in_trakt_list_params = self.build_url({'mode': 'trakt.list.in_trakt_lists', 'media_type': 'tvshow', 'imdb_id': imdb_id, 'is_external': self.is_external,
 										'category_name': '%s In Trakt Lists' % title})
-			trakt_manager_params = self.build_url({'mode': 'trakt_manager_choice', 'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id, 'media_type': 'tvshow',
+				trakt_manager_params = self.build_url({'mode': 'trakt_manager_choice', 'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id, 'media_type': 'tvshow',
 													'title': title, 'icon': poster})
 			simkl_manager_params = ''
 			if settings.simkl_user_active():
@@ -250,7 +253,9 @@ class TVShows:
 														'title': title, 'icon': poster})
 			personal_manager_params = self.build_url({'mode': 'personallists_manager_choice', 'list_type': 'tvshow', 'tmdb_id': tmdb_id, 'title': title,
 										'premiered': premiered, 'current_time': self.current_time, 'icon': poster})
-			tmdb_manager_params = self.build_url({'mode': 'tmdblists_manager_choice', 'media_type': 'tv', 'tmdb_id': tmdb_id, 'icon': poster})
+			tmdb_manager_params = ''
+			if settings.tmdblist_user_active():
+				tmdb_manager_params = self.build_url({'mode': 'tmdblists_manager_choice', 'media_type': 'tv', 'tmdb_id': tmdb_id, 'icon': poster})
 			favorites_manager_params = self.build_url({'mode': 'favorites_manager_choice', 'media_type': 'tvshow', 'tmdb_id': tmdb_id, 'title': title})
 			trakt_watchlist_params = ''
 			if self.watchlist_provider:
@@ -261,7 +266,9 @@ class TVShows:
 				if self.all_episodes == 1 and total_seasons > 1: url_params = self.build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
 				else: url_params = self.build_url({'mode': 'build_episode_list', 'tmdb_id': tmdb_id, 'season': 'all'})
 			else: url_params = self.build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
-			if self.open_extras:
+			item_open_extras = self.open_extras and not (self.skip_inprogress and str(tmdb_id) in self.in_progress_show_ids)
+			item_is_folder = not item_open_extras
+			if item_open_extras:
 				cm_append(['extras', ('[B]Browse[/B]', 'Container.Update(%s)' % url_params)])
 				url_params = extras_params
 			else: cm_append(['extras', ('[B]Extras[/B]', 'RunPlugin(%s)' % extras_params)])
@@ -271,14 +278,15 @@ class TVShows:
 			cm_append(['related', ('[B]Browse Related[/B]', self.window_command % browse_related_params)])
 			cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
 			if self.ai_model_active: cm_append(['similar', ('[B]Browse Similar[/B]', self.window_command % browse_similar_params)])
-			cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % browse_in_trakt_list_params)])
+			if browse_in_trakt_list_params: cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % browse_in_trakt_list_params)])
 			if trakt_watchlist_params:
 				watchlist_label = '[B]Remove from Watchlist[/B]' if watchlist_action == 'remove' else '[B]Add to Watchlist[/B]'
 				cm_append(['trakt_watchlist', (watchlist_label, 'RunPlugin(%s)' % trakt_watchlist_params)])
 			if mdblist_manager_params: cm_append(['mdblist_manager', ('[B]MDBList Manager[/B]', 'RunPlugin(%s)' % mdblist_manager_params)])
 			if simkl_manager_params: cm_append(['simkl_manager', ('[B]Simkl Lists Manager[/B]', 'RunPlugin(%s)' % simkl_manager_params)])
-			cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
-			cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
+			if trakt_manager_params: cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
+			if tmdb_manager_params: cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
+			settings.append_list_shortcut_context_menus(cm_append, self.build_url, self.cm_sort_order, 'tvshow', tmdb_id, imdb_id, tvdb_id, title, poster)
 			cm_append(['personal_manager', ('[B]Personal Lists Manager[/B]', 'RunPlugin(%s)' % personal_manager_params)])
 			cm_append(['favorites_manager', ('[B]Favorites Manager[/B]', 'RunPlugin(%s)' % favorites_manager_params)])
 			if playcount:
@@ -290,7 +298,7 @@ class TVShows:
 				cm_append(['mark_watched', ('[B]Mark Unwatched[/B]', 'RunPlugin(%s)' % self.build_url({'mode': 'watched_status.mark_tvshow', 'action': 'mark_as_unwatched',
 																			'title': title, 'tmdb_id': tmdb_id, 'tvdb_id': tvdb_id}))])
 			set_properties({'watchedepisodes': str(total_watched), 'unwatchedepisodes': str(total_unwatched)})
-			set_properties({'watchedprogress': visible_progress, 'totalepisodes': str(total_aired_eps), 'totalseasons': str(total_seasons)})
+			set_properties({'watchedprogress': visible_progress, 'totalepisodes': str(progress_aired_eps), 'totalseasons': str(total_seasons)})
 			if not self.is_external: cm_append(['exit', ('[B]Exit TV Show List[/B]', 'RunPlugin(%s)' % self.build_url({'mode': 'navigator.exit_media_menu'}))])
 			if self.is_external:
 				cm.extend([['refresh', ('[B]Refresh Widgets[/B]', 'RunPlugin(%s)' % self.build_url({'mode': 'refresh_widgets'}))],
@@ -326,7 +334,7 @@ class TVShows:
 				'redlight.tmdb_manager_params': tmdb_manager_params,
 				'redlight.favorites_manager_params': favorites_manager_params
 				})
-			self.append(((url_params, listitem, self.is_folder), _position))
+			self.append(((url_params, listitem, item_is_folder), _position))
 		except: pass
 
 	def worker(self):
@@ -340,8 +348,10 @@ class TVShows:
 		self.all_episodes, self.open_extras = settings.default_all_episodes(), settings.media_open_action('tvshow') == 1
 		self.cm_sort_order = settings.cm_sort_order()
 		self.custom_cm_menu = self.cm_sort_order != settings.cm_default_order()
-		self.is_folder = False if self.open_extras else True
 		self.watched_indicators = settings.watched_indicators()
+		self.skip_inprogress = settings.media_open_action_skip_inprogress_tvshow()
+		watched_db = watched_status.get_database(self.watched_indicators)
+		self.in_progress_show_ids = watched_status.get_in_progress_tvshow_ids(watched_db) if self.skip_inprogress else set()
 		browsing_external_lists = self.action in self.simkl_personal or self.action in self.mdblist_personal or self.action in self.trakt_personal
 		if self.watched_indicators == 2 and settings.simkl_user_active() and not browsing_external_lists:
 			from apis.simkl_api import simkl_sync_activities
@@ -349,7 +359,7 @@ class TVShows:
 		if self.watched_indicators == 3 and settings.mdblist_user_active() and not browsing_external_lists:
 			from apis.mdblist_api import mdblist_sync_activities
 			mdblist_sync_activities()
-		self.watched_info = watched_status.watched_info_tvshow(watched_status.get_database(self.watched_indicators))
+		self.watched_info = watched_status.watched_info_tvshow(watched_db)
 		self.watchlist_provider = settings.active_watchlist_provider()
 		if self.watchlist_provider:
 			from modules.watchlist import watchlist_tmdb_ids

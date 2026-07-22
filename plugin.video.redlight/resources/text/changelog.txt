@@ -1,3 +1,43 @@
+[COLOR red][B]Version 2.0.0[/B][/COLOR]
+- [B]List Sort Order[/B]: Movies and TV Shows now have independent default sort orders (Settings → Content → List Sort Order). Applies to Watchlist, Collection, Simkl, and MDBList; individual lists can override from the context menu, or Use Default to clear. One shared sort model replaces the previous per-provider mechanisms; existing ordering is preserved on upgrade except title sorting is now case-insensitive (thanks JMAN730 / #40).
+
+[COLOR red][B]Version 1.9.9[/B][/COLOR]
+- [B]Progress[/B]: [B]Exclude Specials from Show Progress[/B] (default On) — Season 0 specials no longer count toward TV show watched progress, progress %, or In Progress / Watched classification. Independent of [B]Show Special Episodes When Available[/B]. Turn Off to restore the previous behaviour.
+- [B]Trakt[/B] / [B]Simkl[/B]: [B]Reset Scrobble[/B] now clears that provider's progress DB even when a different watched-status provider is active (avoids deleting the wrong service's resume bookmark).
+- [B]Context Menu[/B] / [B]Options[/B]: [B]Trakt Lists Manager[/B], [B]In Trakt Lists[/B], and [B]TMDb Lists Manager[/B] only appear when that account is authorised (same as Simkl / MDBList).
+
+[COLOR red][B]Version 1.9.8[/B][/COLOR]
+- [B]Trakt Lists Manager[/B]: state-aware Add/Remove for Watchlist, Collection, and Favorites; Drop/Undrop for shows; personal-list pickers filtered by membership; Mark Watched/Unwatched and Reset Scrobble; Open Watchlist / Collection / Favorites / Liked Lists / My Lists and Refresh Widgets (Simkl/MDBList parity).
+- [B]TMDb Lists Manager[/B]: state-aware Watchlist/Favorites Add or Remove; custom-list pickers filtered by membership using cached list contents (live item status only when a list is not cached).
+
+[COLOR red][B]Version 1.9.7[/B][/COLOR]
+- [B]Trakt Calendar[/B]: [B]Calendar Date Labels[/B] — three groups in matching order ([B]YYYY-MM-DD[/B], [B]MM-DD-YYYY[/B], [B]DD-MM-YYYY[/B]): [B]Words / …[/B] (Today/Tomorrow/weekday for the near week, that format outside it; default [B]Words / YYYY-MM-DD[/B]), date-only, and [B]Day + …[/B] (e.g. [B]TODAY 07-20-2026[/B]). Word and Day + date modes keep pin-today.
+
+[COLOR red][B]Version 1.9.6[/B][/COLOR]
+- [B]Special Open Actions[/B]: optional [B]Skip on In-Progress Movies[/B] — when enabled, selecting an in-progress movie resumes playback directly instead of opening Extras / Movie Set (thanks JMAN730 / #77).
+- [B]Special Open Actions[/B]: optional [B]Skip on In-Progress Shows[/B] — when enabled, selecting a show that has an in-progress episode opens seasons/episodes instead of Extras (partially watched shows without a resume point are unchanged; Extras stays in the context menu).
+- [B]Results[/B]: audio language tags ([B]ENGLISH[/B], [B]SPANISH[/B], [B]FRENCH[/B], [B]GERMAN[/B], [B]ITALIAN[/B], [B]PORTUGUESE[/B], [B]HINDI[/B], [B]JAPANESE[/B], [B]KOREAN[/B], [B]RUSSIAN AUDIO[/B]) can be chosen under [B]Sort To Top[/B] / Filter Results; only explicitly tagged audio (e.g. [B].ENG.[/B], dual-audio [B]ITA.ENG[/B]) is matched — untagged releases are not inferred as English (thanks JMAN730 / #20).
+- [B]Results[/B]: [B]ENGLISH OR UNTAGGED[/B] Sort To Top / Filter Results option — boosts explicitly tagged English audio or releases with no other audio-language tag (typical plain English rips); pure foreign-tagged audio stays unboosted.
+- [B]Results[/B]: Sort To Top language block ordered as [B]SUBTITLES[/B], [B]MULTIPLE LANGUAGES[/B], then languages alphabetically ([B]ENGLISH[/B], [B]ENGLISH OR UNTAGGED[/B], [B]FRENCH[/B], …).
+- [B]Trakt Calendar[/B]: [B]Calendar Date Labels[/B] setting — keep word labels ([B]Today[/B] / [B]Tomorrow[/B] / weekday) or use [B]MM/DD/YYYY[/B], [B]DD/MM/YYYY[/B], or [B]YYYY-MM-DD[/B]; date modes skip pin-today so the list stays chronological (thanks JMAN730 / #138).
+- [B]Context Menu[/B]: optional shortcuts under [B]Choose Content for the Context Menu[/B] (not enabled by default) — [B]Trakt Watchlist[/B] / [B]Collection[/B], [B]Simkl Plan to Watch[/B], [B]MDBList Watchlist[/B] / [B]Library[/B], [B]TMDb Watchlist[/B] / [B]Favorites[/B], plus [B]Select Source[/B] and [B]Rescrape & Select Source[/B]. Service shortcuts only appear when that account is authorised; full managers and [B]Play Options[/B] remain unchanged; list shortcuts use a state-aware add/remove confirm.
+- [B]TorBox Cloud[/B] / [B]History[/B]: context [B]Add to Airlock[/B] / [B]Remove from Airlock[/B] for torrents, usenet, and web downloads (live status check on open and on action); airlocked items show an [B]AIRLOCK[/B] label.
+- [B]Continual Random Play[/B]: removed [B]Use Still Watching with Continual Random Play[/B] — Continual Random no longer uses [B]Check Still Watching After X[/B]; Autoplay Next Episode Still Watching is unchanged.
+
+[COLOR red][B]Version 1.9.5[/B][/COLOR]
+- [B]Confirm Autoscrape[/B]: [B]Next Episode Ready[/B] no longer appears as soon as the scrape finishes after [B]Yes[/B] — it waits for the same alert window as Autoscrape without confirm, so Ready means the handoff is imminent (not merely that prep completed).
+- [B]Confirm Autoscrape[/B] / [B]Still Watching[/B] / related playback overlays: closing the dialog while video is still playing restores fullscreen video instead of leaving Home widgets or the episodes list on top (common when playback was started from a widget, especially on Android).
+
+[COLOR red][B]Version 1.9.4[/B][/COLOR]
+- [B]Trakt[/B]: [B]Search User Lists[/B] no longer returns an empty folder — list owners are read from Trakt's nested [B]user[/B] object (same as Popular / Trending), instead of a missing top-level [B]username[/B] field that skipped every result.
+
+[COLOR red][B]Version 1.9.3[/B][/COLOR]
+- [B]Autoscrape Next Episode[/B]: after you pick a source from the Autoscrape results, Next Episode stays enabled so the binge can keep going to later episodes (it was turning off after that pick, so only the first Autoscrape hop worked).
+
+[COLOR red][B]Version 1.9.2[/B][/COLOR]
+- [B]Trakt Calendar[/B]: separate episode-title display formats for within the addon and widgets, without changing existing users' effective formatting during upgrade (thanks JMAN730 / #131).
+- [B]Subtitles[/B]: added an overview to [B]Tools > Tips for Use[/B], covering automatic subtitle sources, language and local-subtitle preferences, subtitle-based alert timing, limitations, and cache maintenance.
+
 [COLOR red][B]Version 1.9.1[/B][/COLOR]
 - [B]Watchlist[/B]: the single-click [B]Add to Watchlist[/B] / [B]Remove from Watchlist[/B] context menu item now works with whichever list service you use — Trakt, Simkl ([B]Plan to Watch[/B]) or MDBList. New [B]Watchlist Provider[/B] setting (Settings > Content > Context Menu) chooses the service; [B]Automatic[/B] uses your first active service (Trakt, Simkl, then MDBList).
 - [B]Browse[/B]: choosing [B]Browse[/B] on a source no longer closes the sources results window underneath (progress-dialog cleanup was force-closing it) — fixes being kicked back to the previous screen with the file picker floating over it, and the [B]Source search already running[/B] lockout (until Kodi restart) when backing out of the picker without playing. Backing out or a failed file resolve now returns to the sources list; play/stop returns to the sources list as before.

@@ -10,7 +10,7 @@ from caches.settings_cache import get_setting
 from scrapers import external, folders
 from modules import debrid, kodi_utils, settings, metadata, watched_status
 from modules.player import RedLightPlayer
-from modules.source_utils import get_cache_expiry, make_alias_dict, include_exclude_filters, get_file_info, release_info_format, audio_lang_choices
+from modules.source_utils import get_cache_expiry, make_alias_dict, include_exclude_filters, get_file_info, release_info_format, audio_lang_choices, matches_english_or_untagged
 from modules.utils import clean_file_name, string_to_float, safe_string, remove_accents, get_datetime, append_module_to_syspath, manual_function_import
 # logger = kodi_utils.logger
 
@@ -34,6 +34,9 @@ PROP_AUTOSCRAPE_NEXTEP_READY = 'redlight.autoscrape_nextep_ready'
 PROP_RANDOM_CONTINUAL_SKIP_ATTEMPTS = 'redlight.random_continual_skip_attempts'
 RANDOM_CONTINUAL_MAX_SKIPS = 25
 _NEXTEP_NATURAL_END_SEC = 15
+_PREF_TAG_ALIASES = {'d/vision': 'D/VISION', 'dolby vision': 'D/VISION', 'hdr': 'HDR', 'high dynamic range (hdr)': 'HDR', 'dolby atmos': 'ATMOS', 'atmos': 'ATMOS', 'hevc (x265)': 'HEVC', 'hevc': 'HEVC',
+				'english or untagged': 'ENG-OR-UNTAGGED', 'eng-or-untagged': 'ENG-OR-UNTAGGED'}
+_PREF_TAG_ALIASES.update({name.lower(): lang_tag for name, lang_tag, _ in audio_lang_choices()})
 _NEXTEP_AUTOPLAY_STASH = {}
 _NEXTEP_PLAY_STASH_PATH = None
 _NEXTEP_STASH_PLAY_IN_FLIGHT = False
@@ -387,10 +390,7 @@ class Sources():
 		if self.background and self.play_type in ('autoplay_nextep', 'autoscrape_nextep', 'random_continual'):
 			self._log_nextep_scrape_started()
 			self._prefetch_nextep_segment_data()
-		if self.background and self.play_type == 'random_continual' and not self.nextep_settings:
-			# Continual random reuses Autoplay Next Episode's "Check Still Watching After X".
-			self.nextep_settings = {'watching_check': settings.auto_nextep_settings('autoplay_nextep')['watching_check']}
-		if self.background and (self.autoplay_nextep or self.play_type == 'random_continual') and self.nextep_settings and not getattr(self, '_nextep_alert_handled', False):
+		if self.background and self.autoplay_nextep and self.nextep_settings and not getattr(self, '_nextep_alert_handled', False):
 			if not self.still_watching_check():
 				self._decline_nextep_prep('still watching')
 				kodi_utils.notification('Cancel Autoplay', icon=self.meta.get('poster'))
@@ -717,9 +717,7 @@ class Sources():
 	def _normalize_pref_tag(self, tag):
 		key = (tag or '').lower().replace('[b]', '').replace('[/b]', '').strip()
 		if key in self.filter_keys: return self.filter_keys[key]
-		aliases = {'d/vision': 'D/VISION', 'dolby vision': 'D/VISION', 'hdr': 'HDR', 'high dynamic range (hdr)': 'HDR', 'dolby atmos': 'ATMOS', 'atmos': 'ATMOS', 'hevc (x265)': 'HEVC', 'hevc': 'HEVC'}
-		aliases.update({name.lower(): lang_tag for name, lang_tag, _ in audio_lang_choices()})
-		return aliases.get(key, tag)
+		return _PREF_TAG_ALIASES.get(key, tag)
 
 	def _parse_extra_info_tags(self, extra_info):
 		tags = []
@@ -769,10 +767,12 @@ class Sources():
 		return 'SDR' in self._all_extra_info_tags(item)
 
 	def _pref_tag_in_result(self, tag, item):
+		normalized = self._normalize_pref_tag(tag)
+		if normalized == 'ENG-OR-UNTAGGED':
+			return matches_english_or_untagged(self._parse_extra_info_tags(self._all_extra_info_tags(item)))
 		if self._pref_tag_in_extra_info(tag, item.get('extraInfo', '')): return True
 		if self._pref_tag_in_extra_info(tag, self._all_extra_info_tags(item)): return True
 		if self._explicit_sdr_release(item): return False
-		normalized = self._normalize_pref_tag(tag)
 		blob = self._normalized_title_blob(item)
 		if normalized == 'D/VISION' and any(x in blob for x in ('dolby vision', 'dolbyvision', ' dovi ', ' dv ', 'dovi', 'profile 8', 'profile8')): return True
 		if normalized == 'ATMOS' and ('atmos' in blob or ('ddp' in blob and 'atmos' in blob)): return True
@@ -1381,7 +1381,7 @@ class Sources():
 		return self._show_modal_message(heading, 'No results found.', '[B]Next Up:[/B] No Results')
 
 	def _random_continual_skip(self):
-		"""Continual random: no links for this episode — try another (capped), keep Still Watching count."""
+		"""Continual random: no links for this episode — try another (capped)."""
 		from modules.episode_tools import EpisodeTools
 		attempts = int(kodi_utils.get_property(PROP_RANDOM_CONTINUAL_SKIP_ATTEMPTS) or 0)
 		self._close_progress_before_modal()
@@ -1392,7 +1392,6 @@ class Sources():
 		kodi_utils.logger('Red Light', 'Continual random play: no results for %s S%02dE%02d, skipping to another episode' % (
 			self.meta.get('title', ''), self.meta.get('season', 0), self.meta.get('episode', 0)))
 		meta = metadata.tvshow_meta('tmdb_id', self.tmdb_id, settings.tmdb_api_key(), settings.mpaa_region(), get_datetime())
-		meta['watch_count'] = self.meta.get('watch_count', self.watch_count or 1)
 		return EpisodeTools(meta).play_random_continual(first_run=False)
 
 	def get_search_title(self):
@@ -2495,24 +2494,6 @@ class Sources():
 		kodi_utils.notification('[B]Next Episode Ready:[/B] %s S%02dE%02d' \
 				% (meta.get('title'), meta.get('season'), meta.get('episode')), 6500, meta.get('poster') or None)
 
-	def _sync_autoscrape_ready_notified_player(self):
-		try:
-			player = kodi_utils.kodi_player()
-			if isinstance(player, RedLightPlayer):
-				player._autoscrape_ready_notified = True
-		except:
-			pass
-
-	def _notify_autoscrape_ready_immediate(self, remaining, window_time):
-		if getattr(self, '_autoscrape_ready_notified', False):
-			return
-		kodi_utils.logger('Red Light', 'Autoscrape next episode ready (confirm): %s S%02dE%02d remaining=%ss alert_window=%ss' % (
-			self.meta.get('title'), self.meta.get('season'), self.meta.get('episode'), remaining, window_time))
-		self._autoscrape_ready_notified = True
-		self._mark_autoscrape_nextep_ready()
-		self._show_autoscrape_ready_notification()
-		self._sync_autoscrape_ready_notified_player()
-
 	def _notify_autoscrape_ready(self, remaining, window_time):
 		kodi_utils.logger('Red Light', 'Autoscrape next episode ready: %s S%02dE%02d remaining=%ss alert_window=%ss' % (
 			self.meta.get('title'), self.meta.get('season'), self.meta.get('episode'), remaining, window_time))
@@ -2549,13 +2530,9 @@ class Sources():
 	def still_watching_check(self):
 		watching_check = self.nextep_settings.get('watching_check', 0)
 		if watching_check == 0: return True
-		if self.play_type == 'random_continual' and not settings.random_continual_still_watching_enabled():
-			return True
 		player = kodi_utils.kodi_player()
 		# Autoplay next-episode idle edge case: don't prompt/count when nothing is playing.
-		# Continual random counts skipped episodes toward Still Watching when enabled (#62),
-		# including cold-start skip chains where playback never started.
-		if not player.isPlayingVideo() and self.play_type != 'random_continual':
+		if not player.isPlayingVideo():
 			return bool(self.background)
 		watch_count = self.meta.get('watch_count')
 		if watch_count is None:
@@ -2628,12 +2605,10 @@ class Sources():
 		return False
 
 	def autoscrape_nextep_handler(self):
-		autoscrape_confirmed = False
 		if settings.autoscrape_confirm():
 			if not self._make_still_watching_dialog('Autoscrape Next Episode of [B]%s[/B]?', heading='Autoscrape Next Episode?', right_align=True):
 				self._decline_nextep_prep('autoscrape confirm')
 				return
-			autoscrape_confirmed = True
 		player = kodi_utils.kodi_player()
 		if not self._player_episode_active(player):
 			return
@@ -2664,9 +2639,9 @@ class Sources():
 				kodi_utils.logger('Red Light', 'Autoscrape next episode ready (stopped during scrape): %s S%02dE%02d remaining=%ss alert_window=%ss' % (
 					self.meta.get('title'), self.meta.get('season'), self.meta.get('episode'), remaining, window_time))
 			return self._display_results_nextep_handoff(results)
-		if autoscrape_confirmed:
-			self._notify_autoscrape_ready_immediate(remaining, window_time)
-		elif remaining is not None and remaining <= int(window_time):
+		# Toast only in the alert window (same with or without Confirm) — Ready must mean
+		# handoff is imminent, not merely that the background scrape finished.
+		if remaining is not None and remaining <= int(window_time):
 			self._notify_autoscrape_ready(remaining, window_time)
 		else:
 			remaining, should_notify = self._wait_autoscrape_pop_window(player, window_time)
@@ -2694,10 +2669,12 @@ class Sources():
 		if not self._autoscrape_playback_ended_naturally():
 			self._decline_nextep_prep('user stopped')
 			return
+		# Leave background scrape mode, but keep Autoscrape nextep armed so the episode
+		# the user picks from these results still monitors / preps the following episode.
 		self.background = False
 		self.autoscrape = False
-		self.autoscrape_nextep = False
-		self.play_type = ''
+		self.autoscrape_nextep = True
+		self.play_type = 'autoscrape_nextep'
 		return self.display_results(results)
 
 	def debrid_importer(self, debrid_provider):

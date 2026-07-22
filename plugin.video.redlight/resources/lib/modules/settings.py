@@ -415,11 +415,6 @@ def nextep_pipeline_headroom(play_type, scraper_time, still_watching_due=False):
 		headroom = max(headroom, NEXTEP_AUTOSCRAPE_MIN_HEADROOM_SEC)
 	return headroom
 
-def random_continual_still_watching_enabled():
-	if not autoplay_next_episode(): return False
-	if int(get_setting('redlight.autoplay_watching_check', '3')) == 0: return False
-	return get_setting('redlight.autoplay_random_continual_watching_check', 'true') == 'true'
-
 def auto_nextep_settings(play_type):
 	play_type = 'autoplay' if play_type == 'autoplay_nextep' else 'autoscrape'
 	window_percentage = 100 - int(get_setting('redlight.%s_next_window_percentage' % play_type, '95'))
@@ -462,6 +457,9 @@ def personal_lists_show_author():
 
 def show_specials():
 	return get_setting('redlight.show_specials', 'false') == 'true'
+
+def exclude_specials_from_progress():
+	return get_setting('redlight.exclude_specials_progress', 'true') == 'true'
 
 def single_ep_unwatched_episodes():
 	return get_setting('redlight.single_ep_unwatched_episodes', 'false') == 'true'
@@ -731,6 +729,43 @@ def append_external_scraper_settings_cm(cm_append, build_url_fn):
 	cm_append(['external_scraper_settings', ('[B]%s[/B]' % external_scraper_settings_tools_label(),
 		'RunPlugin(%s)' % build_url_fn({'mode': 'open_external_scraper_settings'}))])
 
+def append_cm_if_enabled(cm_append, cm_sort_order, key, label, command):
+	# Opt-in shortcuts must gate on enabled membership — stock menus show every cm_append.
+	if key not in (cm_sort_order or {}): return
+	cm_append([key, (label, command)])
+
+def append_list_shortcut_context_menus(cm_append, build_url_fn, cm_sort_order, media_type, tmdb_id, imdb_id, tvdb_id, title, poster):
+	# Catalog lists every service; live CM only appends shortcuts for authorised accounts.
+	base = {'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': tvdb_id or 'None', 'media_type': media_type, 'title': title, 'icon': poster}
+	if mdblist_user_active():
+		append_cm_if_enabled(cm_append, cm_sort_order, 'mdblist_watchlist', '[B]MDBList Watchlist[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='mdblist_watchlist_shortcut_choice')))
+		append_cm_if_enabled(cm_append, cm_sort_order, 'mdblist_library', '[B]MDBList Library[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='mdblist_library_shortcut_choice')))
+	if simkl_user_active():
+		append_cm_if_enabled(cm_append, cm_sort_order, 'simkl_plantowatch', '[B]Simkl Plan to Watch[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='simkl_plantowatch_shortcut_choice')))
+	if trakt_user_active():
+		# 'trakt_watchlist' is the provider-aware add/remove toggle appended by the indexers,
+		# so only the collection shortcut is offered here to avoid a duplicate menu entry.
+		append_cm_if_enabled(cm_append, cm_sort_order, 'trakt_collection', '[B]Trakt Collection[/B]',
+			'RunPlugin(%s)' % build_url_fn(dict(base, mode='trakt_collection_shortcut_choice')))
+	if tmdblist_user_active():
+		tmdb_media = 'movie' if media_type == 'movie' else 'tv'
+		append_cm_if_enabled(cm_append, cm_sort_order, 'tmdb_watchlist', '[B]TMDb Watchlist[/B]',
+			'RunPlugin(%s)' % build_url_fn({'mode': 'tmdb_watchlist_shortcut_choice', 'media_type': tmdb_media, 'tmdb_id': tmdb_id, 'title': title, 'icon': poster}))
+		append_cm_if_enabled(cm_append, cm_sort_order, 'tmdb_favorites', '[B]TMDb Favorites[/B]',
+			'RunPlugin(%s)' % build_url_fn({'mode': 'tmdb_favorites_shortcut_choice', 'media_type': tmdb_media, 'tmdb_id': tmdb_id, 'title': title, 'icon': poster}))
+
+def append_source_shortcut_context_menus(cm_append, build_url_fn, cm_sort_order, media_type, meta, season='', episode='', playcount='0'):
+	params = {'media_type': media_type, 'meta': meta, 'playcount': playcount}
+	if media_type == 'episode':
+		params.update({'season': season, 'episode': episode})
+	append_cm_if_enabled(cm_append, cm_sort_order, 'select_source', '[B]Select Source[/B]',
+		'RunPlugin(%s)' % build_url_fn(dict(params, mode='select_source_choice')))
+	append_cm_if_enabled(cm_append, cm_sort_order, 'rescrape_select_source', '[B]Rescrape & Select Source[/B]',
+		'RunPlugin(%s)' % build_url_fn(dict(params, mode='rescrape_select_source_choice')))
+
 def external_scraper_run_mode():
 	return str(get_setting('redlight.external_scraper.run_mode', '1'))
 
@@ -924,12 +959,24 @@ def widget_hide_watched():
 def calendar_sort_order():
 	return int(get_setting('redlight.trakt.calendar_sort_order', '0'))
 
-def calendar_date_format():
-	# None means word labels (Today, Tomorrow, weekday names)
-	formats = {1: '%m/%d/%Y', 2: '%d/%m/%Y', 3: '%Y-%m-%d'}
+def calendar_date_label_options():
+	# (strftime format, use_words, include_date). Hyphen formats match picker labels.
+	# Words modes: Today/Tomorrow/weekday within ~1 week; format used outside that window.
+	# 0/7/8 Words / date | 1-3 date only | 4-6 Day + date (word and date together)
+	date_only = {3: '%Y-%m-%d', 1: '%m-%d-%Y', 2: '%d-%m-%Y'}
+	day_plus = {6: '%Y-%m-%d', 4: '%m-%d-%Y', 5: '%d-%m-%Y'}
+	words_far = {0: '%Y-%m-%d', 7: '%m-%d-%Y', 8: '%d-%m-%Y'}
 	try: choice = int(get_setting('redlight.trakt.calendar_date_labels', '0'))
-	except (TypeError, ValueError): return None
-	return formats.get(choice)
+	except (TypeError, ValueError): choice = 0
+	if choice in date_only: return date_only[choice], False, False
+	if choice in day_plus: return day_plus[choice], True, True
+	return words_far.get(choice, '%Y-%m-%d'), True, False
+
+def calendar_date_format():
+	# None when word labels are used (words-only or Day + date); strftime string for date-only.
+	fmt, use_words, _ = calendar_date_label_options()
+	if use_words: return None
+	return fmt
 
 def ignore_articles():
 	return get_setting('redlight.ignore_articles', 'false') == 'true'
@@ -945,6 +992,9 @@ def media_open_action(media_type):
 
 def media_open_action_skip_inprogress_movie():
 	return get_setting('redlight.media_open_action_skip_inprogress_movie', 'false') == 'true'
+
+def media_open_action_skip_inprogress_tvshow():
+	return get_setting('redlight.media_open_action_skip_inprogress_tvshow', 'false') == 'true'
 
 def _resolve_watched_provider():
 	ind = int(get_setting('redlight.watched_indicators', '0'))

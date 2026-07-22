@@ -52,12 +52,16 @@ def extras_items():
 def context_menu_items():
 	return [
 	{'name': 'Extras', 'value': 'extras'}, {'name': 'Options', 'value': 'options'}, {'name': 'Play Options', 'value': 'playback_options'},
+	{'name': 'Select Source', 'value': 'select_source'}, {'name': 'Rescrape & Select Source', 'value': 'rescrape_select_source'},
 	{'name': 'External Scraper Settings', 'value': 'external_scraper_settings'},
 	{'name': 'Browse Movie Set', 'value': 'browse_movie_set'}, {'name': 'Browse TV Seasons', 'value': 'browse_seasons'},
 	{'name': 'Browse Season Episodes', 'value': 'browse_episodes'}, {'name': 'Browse Recommended', 'value': 'recommended'}, {'name': 'Browse Related', 'value': 'related'},
 	{'name': 'Browse More Like This', 'value': 'more_like_this'}, {'name': 'Browse Similar', 'value': 'similar'}, {'name': 'In Trakt Lists', 'value': 'in_trakt_list'},
 	{'name': 'Add/Remove Trakt Watchlist', 'value': 'trakt_watchlist'},
-	{'name': 'MDBList Manager', 'value': 'mdblist_manager'}, {'name': 'Simkl Lists Manager', 'value': 'simkl_manager'}, {'name': 'Trakt Lists Manager', 'value': 'trakt_manager'}, {'name': 'TMDb Lists Manager', 'value': 'tmdb_manager'},
+	{'name': 'MDBList Manager', 'value': 'mdblist_manager'}, {'name': 'MDBList Watchlist', 'value': 'mdblist_watchlist'}, {'name': 'MDBList Library', 'value': 'mdblist_library'},
+	{'name': 'Simkl Lists Manager', 'value': 'simkl_manager'}, {'name': 'Simkl Plan to Watch', 'value': 'simkl_plantowatch'},
+	{'name': 'Trakt Lists Manager', 'value': 'trakt_manager'}, {'name': 'Trakt Collection', 'value': 'trakt_collection'},
+	{'name': 'TMDb Lists Manager', 'value': 'tmdb_manager'}, {'name': 'TMDb Watchlist', 'value': 'tmdb_watchlist'}, {'name': 'TMDb Favorites', 'value': 'tmdb_favorites'},
 	{'name': 'Personal Lists Manager', 'value': 'personal_manager'}, {'name': 'Favorites Manager', 'value': 'favorites_manager'}, {'name': 'Mark Watched/Unwatched', 'value': 'mark_watched'},
 	{'name': 'Unmark Previous Watched Episode', 'value': 'unmark_previous_episode'}, {'name': 'Exit List', 'value': 'exit'}, {'name': 'Refresh Widgets', 'value': 'refresh'},
 	{'name': 'Reload Widgets', 'value': 'reload'}]

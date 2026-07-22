@@ -77,6 +77,14 @@ class TorBoxAPI:
 			return self._safe_json(response)
 		except Exception: return None
 
+	def _put(self, url, params=None, json=None, data=None, timeout=30):
+		if self.token in ('empty_setting', '', None): return None
+		try:
+			headers = {'Authorization': 'Bearer %s' % self.token}
+			response = session.put(base_url + url, params=params, json=json, data=data, headers=headers, timeout=timeout)
+			return self._safe_json(response)
+		except Exception: return None
+
 	def add_headers_to_url(self, url):
 		return url + '|' + urlencode({
 			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -379,6 +387,30 @@ class TorBoxAPI:
 	def delete_webdl(self, request_id=''):
 		data = {'webdl_id': _to_int(request_id), 'operation': 'delete'}
 		return self._post('webdl/controlwebdownload', json=data)
+
+	# ----------- AIRLOCK (edit) -----------
+	# Minimal body only — edit endpoints can overwrite name/tags if sent.
+	@staticmethod
+	def item_is_airlocked(item):
+		value = (item or {}).get('airlocked')
+		return value in (True, 1, '1', 'true', 'True')
+
+	def get_airlocked_status(self, media_type, request_id, timeout=15):
+		"""Live mylist lookup (bypass_cache) for current Airlock state."""
+		response = self.mylist_folder(request_id, media_type, fresh=True, timeout=timeout)
+		item = self._torrent_item_from_info(response)
+		if item is None:
+			return None
+		return self.item_is_airlocked(item)
+
+	def set_airlocked(self, media_type, request_id, airlocked):
+		request_id = _to_int(request_id)
+		airlocked = bool(airlocked)
+		if media_type == 'torrent':
+			return self._put('torrents/edittorrent', json={'torrent_id': request_id, 'airlocked': airlocked})
+		if media_type == 'webdl':
+			return self._put('webdl/editwebdownload', json={'webdl_id': request_id, 'airlocked': airlocked})
+		return self._put('usenet/editusenetdownload', json={'usenet_id': request_id, 'airlocked': airlocked})
 
 	# ----------- UNRESTRICT (request download URL) -----------
 	@staticmethod

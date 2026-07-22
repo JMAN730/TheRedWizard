@@ -114,19 +114,21 @@ def adjust_premiered_date(orig_date, adjust_hours):
 	adjusted_string = adjusted_datetime.strftime('%Y-%m-%d')
 	return adjusted_datetime.date(), adjusted_string
 
-def make_day(today, date, date_format='%Y-%m-%d', use_words=True):
-	if use_words:
-		day_diff = (date - today).days
-		if day_diff == -1: day = 'YESTERDAY'
-		elif day_diff == 0: day = 'TODAY'
-		elif day_diff == 1: day = 'TOMORROW'
-		elif 1 < day_diff < 7: day = date.strftime('%A').upper()
-		else:
-			try: day = date.strftime(date_format)
-			except ValueError: day = date.strftime('%Y-%m-%d')
+def make_day(today, date, date_format='%Y-%m-%d', use_words=True, include_date=False):
+	try: formatted = date.strftime(date_format)
+	except ValueError: formatted = date.strftime('%Y-%m-%d')
+	if not use_words:
+		return formatted
+	day_diff = (date - today).days
+	if day_diff == -1: day = 'YESTERDAY'
+	elif day_diff == 0: day = 'TODAY'
+	elif day_diff == 1: day = 'TOMORROW'
+	elif include_date or (1 < day_diff < 7):
+		day = date.strftime('%A').upper()
 	else:
-		try: day = date.strftime(date_format)
-		except ValueError: day = date.strftime('%Y-%m-%d')
+		return formatted
+	if include_date:
+		return '%s %s' % (day, formatted)
 	return day
 
 def subtract_dates(date1, date2):

@@ -106,13 +106,25 @@ class SourcesResults(BaseDialog):
 					choice = [i.upper() for i in keywords]
 					filtered_list = [i for i in self.item_list if all(x in i.getProperty('name') for x in choice)]
 				elif filter_value == 'extraInfo':
+					from modules.source_utils import matches_english_or_untagged
 					filters = source_filters()
 					list_items = [{'line1': item[0], 'icon': self.poster} for item in filters]
 					kwargs = {'items': json.dumps(list_items), 'heading': 'Filter Results', 'multi_choice': 'true'}
 					choice = select_dialog(filters, **kwargs)
 					if choice == None: return
-					choice = [i[1] for i in choice]
-					filtered_list = [i for i in self.item_list if all(x in i.getProperty('extraInfo') for x in choice)]
+					choice = [i[1].replace('[B]', '').replace('[/B]', '') for i in choice]
+					def _extra_info_tags(listitem):
+						extra = listitem.getProperty('extraInfo') or ''
+						return [p.replace('[B]', '').replace('[/B]', '').strip() for p in extra.split(' | ') if p.strip()]
+					def _matches_filters(listitem):
+						tags = _extra_info_tags(listitem)
+						for filt in choice:
+							if filt == 'ENG-OR-UNTAGGED':
+								if not matches_english_or_untagged(tags): return False
+							elif filt not in tags:
+								return False
+						return True
+					filtered_list = [i for i in self.item_list if _matches_filters(i)]
 				elif filter_value == 'showuncached': filtered_list = self.make_items(self.uncached_results)
 				else: #cache_check_rescrape
 					self.selected = ('cache_change_rescrape', 'false' if self._any_cache_check_active() else 'true')

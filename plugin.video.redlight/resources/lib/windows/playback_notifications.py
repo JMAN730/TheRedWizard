@@ -1,10 +1,24 @@
 # -*- coding: utf-8 -*-
 import time
 from threading import Thread
-from modules.kodi_utils import addon_fanart
+from modules.kodi_utils import addon_fanart, execute_builtin, get_visibility, kodi_player
 from windows.base_window import BaseDialog
 from modules.settings import avoid_episode_spoilers
 # from modules.kodi_utils import logger
+
+def _restore_fullscreen_playback(player=None):
+	"""After a playback overlay closes, return to fullscreen if video is still playing.
+	Otherwise Kodi can leave the previous window (Home/widgets/episodes) on top —
+	especially after Autoscrape confirm / Still Watching on Android widget launches."""
+	try:
+		player = player or kodi_player()
+		if not (player.isPlayingVideo() or player.isPlaying()):
+			return
+		if get_visibility('Window.IsActive(fullscreenvideo)'):
+			return
+		execute_builtin('ActivateWindow(fullscreenvideo)', block=False)
+	except:
+		pass
 
 class NextEpisode(BaseDialog):
 	episode_status_dict = {
@@ -29,7 +43,9 @@ class NextEpisode(BaseDialog):
 	def run(self):
 		self.doModal()
 		self.clearProperties()
+		player = getattr(self, 'player', None)
 		self.clear_modals()
+		_restore_fullscreen_playback(player)
 		return self.selected
 
 	def onAction(self, action):
@@ -128,7 +144,9 @@ class StillWatching(BaseDialog):
 	def run(self):
 		self.doModal()
 		self.clearProperties()
+		player = getattr(self, 'player', None)
 		self.clear_modals()
+		_restore_fullscreen_playback(player)
 		return self.selected
 
 	def onAction(self, action):
@@ -197,7 +215,9 @@ class IntroSkipPrompt(BaseDialog):
 	def run(self):
 		self.doModal()
 		self.clearProperties()
+		player = getattr(self, 'player', None)
 		self.clear_modals()
+		_restore_fullscreen_playback(player)
 		if self.timed_out:
 			return None
 		return self.selected

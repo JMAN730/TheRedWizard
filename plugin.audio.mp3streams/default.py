@@ -3,11 +3,13 @@
 
 import urllib.request, urllib.error, urllib.parse, re
 import xbmcplugin, xbmcgui, xbmcvfs, os, xbmc, sys
+import errno
+import fcntl
 import settings, time
 import requests
 from bs4 import BeautifulSoup
 from t0mm0.common.net import Net
-from threading import Thread
+from threading import Thread, Lock
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
@@ -66,6 +68,50 @@ def genre_icon(parent=None, child=None, top=False, albums=False):
 
 def download_lock_path():
     return os.path.join(settings.music_dir(), 'downloading.txt')
+
+def _interprocess_lock_path():
+    """Path to the advisory lock file used to serialize lock operations across processes."""
+    return os.path.join(settings.music_dir(), 'downloading.advisory.lock')
+
+def _write_all(fd, data):
+    """Write all bytes from data to fd, raising an error if incomplete."""
+    data_bytes = data.encode('utf-8') if isinstance(data, str) else data
+    total = len(data_bytes)
+    written = 0
+    while written < total:
+        n = os.write(fd, data_bytes[written:])
+        if n == 0:
+            raise IOError('os.write returned 0, cannot make progress')
+        written += n
+
+# Serializes lock acquisition, release and manual clearing within this process so an
+# ownership check can never interleave with a concurrent remove/acquire. Across
+# processes, acquisition itself stays atomic via O_EXCL.
+ALBUM_LOCK_GUARD = Lock()
+
+def release_album_lock(lock_token):
+    # Remove the lock only while this invocation still owns it: after a manual clear_lock()
+    # another download may have acquired a fresh lock that must not be deleted here.
+    with ALBUM_LOCK_GUARD:
+        advisory_lock = None
+        try:
+            advisory_lock = open(_interprocess_lock_path(), 'a')
+            fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_EX)
+            lock_path = download_lock_path()
+            try:
+                with open(lock_path) as lock_file:
+                    owned = lock_file.read() == lock_token
+                if owned:
+                    os.remove(lock_path)
+            except OSError:
+                pass
+        finally:
+            if advisory_lock:
+                try:
+                    fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_UN)
+                    advisory_lock.close()
+                except:
+                    pass
 xbmc_version=xbmc.getInfoLabel("System.BuildVersion")[:4]
 ua = 'Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.64 Safari/537.36'
 
@@ -73,6 +119,99 @@ ua = 'Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like G
 GOTHAM_FIX_2 = ADDON.getSetting('gotham_fix_2') == 'true'
 if GOTHAM_FIX_2:
     GOTHAM_FIX = False
+
+DOWNLOAD_TIMEOUT = (10, 30)
+MIN_AUDIO_DOWNLOAD_BYTES = 1024
+
+class DownloadValidationError(Exception):
+    pass
+
+def _response_header(response, name):
+    try:
+        return response.headers.get(name, '')
+    except Exception:
+        return ''
+
+def _expected_download_length(response):
+    if _response_header(response, 'Content-Encoding'):
+        return None
+    value = _response_header(response, 'Content-Length')
+    try:
+        value = int(value)
+    except Exception:
+        return None
+    return value if value >= 0 else None
+
+def _audio_magic(prefix):
+    if not prefix:
+        return False
+    return (
+        prefix.startswith(b'ID3') or
+        prefix.startswith(b'OggS') or
+        prefix.startswith(b'fLaC') or
+        prefix.startswith(b'RIFF') or
+        (len(prefix) > 1 and prefix[0] == 0xff and (prefix[1] & 0xe0) == 0xe0)
+    )
+
+def _looks_like_text_error(prefix):
+    sample = (prefix or b'').lstrip()[:256].lower()
+    return sample.startswith((b'<', b'<!doctype')) or b'<html' in sample or b'<body' in sample
+
+def _validate_audio_download(response, prefix, total_bytes):
+    if total_bytes <= 0:
+        raise DownloadValidationError('empty download')
+    if total_bytes < MIN_AUDIO_DOWNLOAD_BYTES:
+        raise DownloadValidationError('download too small')
+    content_type = _response_header(response, 'Content-Type').split(';', 1)[0].strip().lower()
+    has_magic = _audio_magic(prefix)
+    if _looks_like_text_error(prefix):
+        raise DownloadValidationError('download response was not audio')
+    if content_type:
+        if content_type.startswith('audio/') or content_type in ('application/octet-stream', 'binary/octet-stream'):
+            return
+        if not has_magic:
+            raise DownloadValidationError('unexpected content type: %s' % content_type)
+    elif has_magic:
+        return
+
+def _download_audio_to_file(url, local_filename, headers):
+    part_filename = '%s.%s.part' % (local_filename, os.getpid())
+    response = None
+    try:
+        if os.path.exists(part_filename):
+            os.remove(part_filename)
+        response = requests.get(url, headers=headers, stream=True, timeout=DOWNLOAD_TIMEOUT)
+        response.raise_for_status()
+        expected_length = _expected_download_length(response)
+        total_bytes = 0
+        prefix = b''
+        with open(part_filename, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    if isinstance(chunk, str):
+                        chunk = chunk.encode('utf-8')
+                    if len(prefix) < 512:
+                        prefix += chunk[:512 - len(prefix)]
+                    f.write(chunk)
+                    total_bytes += len(chunk)
+        if expected_length is not None and total_bytes != expected_length:
+            raise DownloadValidationError('download length mismatch')
+        _validate_audio_download(response, prefix, total_bytes)
+        os.replace(part_filename, local_filename)
+        return total_bytes
+    except Exception:
+        try:
+            if os.path.exists(part_filename):
+                os.remove(part_filename)
+        except Exception:
+            pass
+        raise
+    finally:
+        try:
+            if response is not None:
+                response.close()
+        except Exception:
+            pass
 
 def newPlay(pl, clear):
     if clear or (not xbmc.Player().isPlayingAudio()):
@@ -103,7 +242,7 @@ def GET_url(url):
         header_dict['Connection'] = 'keep-alive'
     net.set_cookies(cookie_jar)
     #link = net.http_GET(url, headers=header_dict).content.encode("utf-8").rstrip()
-    link = requests.get(url, header_dict, timeout=10).text
+    link = requests.get(url, headers=header_dict, timeout=10).text
     net.save_cookies(cookie_jar)
     return link
 
@@ -170,7 +309,7 @@ def _id3_tag_value(tags, key):
     return str(val)
 
 def _legacy_local_path_id3_ok(path, artist, album):
-    """Allow pre-07.16 Music/<Album>/ files; reject when tagged for a different artist/album."""
+    """Allow legacy download folders; reject when tagged for a different artist/album."""
     try:
         audio = MP3(path, ID3=EasyID3)
     except Exception:
@@ -198,17 +337,28 @@ def find_local_track(artist, album, track, songname, title=None):
     if not track_id:
         track_id = str(track or '').replace('track', '').strip()
     numbered = numbered_song_title(track_id, songname)
-    candidates = [
-        settings.album_track_file_path(artist, album, track_id, songname, create_dir=False),
-    ]
+    candidates = []
+    seen_candidates = set()
+
+    def add_candidate(base, filename, verify_id3=False):
+        path = os.path.join(base, filename + '.mp3')
+        if path not in seen_candidates:
+            candidates.append((path, verify_id3))
+            seen_candidates.add(path)
+
     if FOLDERSTRUCTURE == "0":
-        base = os.path.join(settings.music_dir(), settings.sanitize_filename(artist), settings.sanitize_filename(album))
+        album_bases = [(os.path.join(settings.music_dir(), settings.sanitize_filename(artist), settings.sanitize_filename(album)), False)]
     else:
-        base = os.path.join(settings.music_dir(), settings.sanitize_filename(artist + ' - ' + album))
-    candidates.append(os.path.join(base, settings.sanitize_filename(numbered) + '.mp3'))
-    candidates.append(os.path.join(base, settings.sanitize_filename(songname) + '.mp3'))
-    for path in candidates:
-        if path and os.path.exists(path):
+        # New escaped flat folders first; old Artist - Album folders only with ID3 check (separator collisions).
+        album_bases = [
+            (settings.album_storage_folder(artist, album, create=False), False),
+            (settings.legacy_flat_album_storage_folder(artist, album), True),
+        ]
+    for base, verify_id3 in album_bases:
+        for filename in (settings.album_track_basename(track_id, songname), settings.sanitize_filename(numbered), settings.sanitize_filename(songname)):
+            add_candidate(base, filename, verify_id3=verify_id3)
+    for path, verify_id3 in candidates:
+        if path and os.path.exists(path) and (not verify_id3 or _legacy_local_path_id3_ok(path, artist, album)):
             return path
     # Pre-2026.07.16 album downloads used album title only — keep for legacy users, but verify ID3 when present.
     legacy_base = os.path.join(settings.music_dir(), settings.sanitize_filename(album))
@@ -699,11 +849,11 @@ def play_album(name, url, iconimage, mix, clear):
             dur=str((int(dur.split(':')[0])*60) + int(dur.split(':')[1]))
         addDirAudio(title, url, 10, iconimage, songname, artist, album, dur, '', nartist, nalbum)
         if 'musicmp3' in origurl:
-            url, liz = playerMP3.getListItem(songname, artist, album, trn, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2)
+            url, liz = playerMP3.getListItem(songname, artist, album, trn, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2, nartist, nalbum)
         elif 'goldenmp3' in origurl:
-            url, liz = playerMP3.getListItem(ntrack, songname, album, trn, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2)
+            url, liz = playerMP3.getListItem(ntrack, songname, album, trn, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2, nartist, nalbum)
         else:
-            url, liz = playerMP3.getListItem(songname, artist, album, trn, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2)
+            url, liz = playerMP3.getListItem(songname, artist, album, trn, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2, nartist, nalbum)
         stored_path = find_local_track(nartist, nalbum, trn, songname, title=title)
         if stored_path:
             url = stored_path
@@ -735,7 +885,7 @@ def play_song(url, name, songname, artist, album, iconimage, dur, clear, storage
         track = int(name[:name.find('.')])
     except:
         track = 0
-    url, liz = playerMP3.getListItem(songname, artist, album, track, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2)
+    url, liz = playerMP3.getListItem(songname, artist, album, track, iconimage, dur, url, fanart, 'true', GOTHAM_FIX_2, storage_artist, storage_album)
     title=name
     stored_path = find_local_track(storage_artist or artist, storage_album or album, track, songname, title=name)
     if stored_path:
@@ -764,15 +914,15 @@ def download_song(url, name, songname, artist, album, iconimage, storage_artist=
     list_data = "%s<>%s<>%s<>%s<>%s%s" % (album_path,artist,album,track,safe_songname,'.mp3')
     local_filename = os.path.join(album_path, safe_songname + '.mp3')
     headers = {'Host': 'listen.musicmp3.ru','Range': 'bytes=0-','User-Agent': 'AppleWebKit/<WebKit Rev>', 'Accept': 'audio/webm,audio/ogg,audio/wav,audio/*;q=0.9,application/ogg;q=0.7,video/*;q=0.6,*/*;q=0.5'}
-    r = requests.get(url, headers=headers, stream=True)
-    with open(local_filename, 'wb') as f:
-        for chunk in r.iter_content(): #chunk_size=1024
-            if chunk:
-                f.write(chunk)
-                f.flush()
-    #urllib.urlretrieve(url, local_filename)
+    try:
+        _download_audio_to_file(url, local_filename, headers)
+    except Exception as exc:
+        xbmc.log('MP3 Streams download failed for %s: %s' % (local_filename, exc), xbmc.LOGERROR)
+        notification('MP3 Streams', 'Download failed: %s' % display_name, '3000', iconimage or iconart)
+        return False
     add_to_list(list_data, DOWNLOAD_LIST, False)
     notification('MP3 Streams', 'Download complete: %s' % display_name, '3000', iconimage or iconart)
+    return True
 '''
 class DownloadMusicThread(Thread):
     def __init__(self, name, url, data_path, album_path):
@@ -808,58 +958,122 @@ def download_album(url, name, iconimage):
     dialog = xbmcgui.Dialog()
     check_downloads = os.path.join(settings.music_dir(), 'downloading.txt')
     xbmc.log("check_downloads = {0}".format(check_downloads), xbmc.LOGINFO)
-    if os.path.exists(check_downloads):
-        dialog.ok("Album download in progress", 'Please wait for the current download to finish')
+    lock_token = '%s:%s' % (os.getpid(), time.time())
+    try:
+        with ALBUM_LOCK_GUARD:
+            advisory_lock = None
+            try:
+                advisory_lock = open(_interprocess_lock_path(), 'a')
+                fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_EX)
+                # O_EXCL makes check-and-create atomic: a concurrent download loses the race here
+                # instead of both passing an exists() check. The token identifies this owner.
+                lock_fd = os.open(check_downloads, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    try:
+                        _write_all(lock_fd, lock_token)
+                    finally:
+                        os.close(lock_fd)
+                except OSError:
+                    # Roll back the half-initialized lock so a failed token write cannot leave
+                    # a tokenless file that blocks every future download.
+                    try:
+                        os.remove(check_downloads)
+                    except OSError:
+                        pass
+                    raise
+            finally:
+                if advisory_lock:
+                    try:
+                        fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_UN)
+                        advisory_lock.close()
+                    except:
+                        pass
+    except OSError as exc:
+        if exc.errno == errno.EEXIST:
+            dialog.ok("Album download in progress", 'Please wait for the current download to finish')
+        else:
+            xbmc.log('MP3 Streams could not acquire album download lock: %s' % exc, xbmc.LOGERROR)
+            notification('MP3 Streams', 'Download failed', '3000', iconimage or iconart)
         return
     notification('MP3 Streams', 'Downloading album: %s' % settings.decode_text(name), '3000', iconimage or iconart)
-    playlist = []
-    link = GET_url(url)#.decode('utf-8')
-    xbmc.log("link = {0}".format(link), xbmc.LOGINFO)
-    if 'goldenmp3' in url:
-        link = regex_from_to(link,'<table class="title_list">','<div>Total')
-        match = re.compile('itemscope="(.+?)" itemtype="http://schema.org/MusicRecording"><td><a class="play" href="#" rel="(.+?)" title="Listen the song in low quality">(.+?)</a>(.+?)<td><div class="title_td_wrap">(.+?)<span itemprop="(.+?)am(.+?)">(.+?)</span>&ensp;(.+?)<div class="jp-seek-bar"><div class="jp-play-bar"></div></div></div></td><td>').findall(link)
-    else:
-        match = re.compile('<tr class="song" id="(.+?)" itemprop="tracks" itemscope="itemscope" itemtype="http://schema.org/MusicRecording"><td class="song__play_button"><a class="player__play_btn js_play_btn" href="#" rel="(.+?)" title="Play track"/></td><td class="song__name"><div class="title_td_wrap"><meta content="(.+?)" itemprop="url"/><meta content="(.+?)" itemprop="duration"/><meta content="(.+?)" itemprop="inAlbum"/><meta content="(.+?)" itemprop="byArtist"/><span itemprop="name">(.+?)</span><div class="jp-seek-bar" data-time="(.+?)">').findall(link)
-    xbmc.log("match = {0}".format(match), xbmc.LOGINFO)
-    nSong = len(match)
-    count = 0
-    album_path = settings.album_storage_folder(nartist, nalbum)
-    for track, id, songurl, meta, album, artist, songname, dur in match:
-        count += 1
-        songname = settings.decode_text(songname)
-        if 'goldenmp3' in origurl:
-            artist = settings.decode_text(nartist)
-            album = settings.decode_text(nalbum)
-            track = str(count)
-        artist = settings.decode_text(artist)
-        album = settings.decode_text(album)
-        trn = track.replace('track','')
-        #url = find_url(trn).strip() + id
-        url = 'https://listen.musicmp3.ru/' + id #'http://files.musicmp3.ru/lofi/' + id
-        playlist.append(songname)
-        title = "%s. %s" % (track.replace('track',''), songname)
-        safe_title = settings.sanitize_filename(title)
-        list_data = "%s<>%s<>%s<>%s<>%s%s" % (album_path,artist,album,trn,safe_title,'.mp3')
-        create_file(settings.music_dir(), "downloading.txt")
-        local_filename = os.path.join(album_path, safe_title + '.mp3')
-        headers = {'Host':'listen.musicmp3.ru', 'Range':'bytes=0-', 'User-Agent':'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:44.0) Gecko/20100101 Firefox/44.0', 'Accept':'audio/webm,audio/ogg,audio/wav,audio/*;q=0.9,application/ogg;q=0.7,video/*;q=0.6,*/*;q=0.5','Referer':'https://www.goldenmp3.ru'}
-        r = requests.get(url, headers=headers, stream=True)
-        with open(local_filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
-                    f.flush()
-        #urllib.urlretrieve(url, local_filename)
-        text = "%s of %s tracks downloaded" % (trn, nSong)
-        notification(artist + ' ' + album, text, '3000', iconimage)
-        add_to_list(list_data, DOWNLOAD_LIST, False)
-    notification(nartist + ' ' + nalbum, 'Album download finished', '3000', iconimage)
-    if os.path.exists(download_lock_path()):
-        os.remove(download_lock_path())
+    downloaded = 0
+    failed = 0
+    try:
+        playlist = []
+        link = GET_url(url)#.decode('utf-8')
+        xbmc.log("link = {0}".format(link), xbmc.LOGINFO)
+        if 'goldenmp3' in url:
+            link = regex_from_to(link,'<table class="title_list">','<div>Total')
+            match = re.compile('itemscope="(.+?)" itemtype="http://schema.org/MusicRecording"><td><a class="play" href="#" rel="(.+?)" title="Listen the song in low quality">(.+?)</a>(.+?)<td><div class="title_td_wrap">(.+?)<span itemprop="(.+?am.+?)">(.+?)</span>&ensp;(.+?)<div class="jp-seek-bar"><div class="jp-play-bar"></div></div></div></td><td>').findall(link)
+        else:
+            match = re.compile('<tr class="song" id="(.+?)" itemprop="tracks" itemscope="itemscope" itemtype="http://schema.org/MusicRecording"><td class="song__play_button"><a class="player__play_btn js_play_btn" href="#" rel="(.+?)" title="Play track"/></td><td class="song__name"><div class="title_td_wrap"><meta content="(.+?)" itemprop="url"/><meta content="(.+?)" itemprop="duration"/><meta content="(.+?)" itemprop="inAlbum"/><meta content="(.+?)" itemprop="byArtist"/><span itemprop="name">(.+?)</span><div class="jp-seek-bar" data-time="(.+?)">').findall(link)
+        xbmc.log("match = {0}".format(match), xbmc.LOGINFO)
+        nSong = len(match)
+        count = 0
+        album_path = settings.album_storage_folder(nartist, nalbum)
+        for track, id, songurl, meta, album, artist, songname, dur in match:
+            count += 1
+            songname = settings.decode_text(songname)
+            if 'goldenmp3' in origurl:
+                artist = settings.decode_text(nartist)
+                album = settings.decode_text(nalbum)
+                track = str(count)
+            artist = settings.decode_text(artist)
+            album = settings.decode_text(album)
+            trn = track.replace('track','')
+            #url = find_url(trn).strip() + id
+            url = 'https://listen.musicmp3.ru/' + id #'http://files.musicmp3.ru/lofi/' + id
+            playlist.append(songname)
+            safe_title = settings.album_track_basename(trn, songname)
+            list_data = "%s<>%s<>%s<>%s<>%s%s" % (album_path,artist,album,trn,safe_title,'.mp3')
+            local_filename = os.path.join(album_path, safe_title + '.mp3')
+            headers = {'Host':'listen.musicmp3.ru', 'Range':'bytes=0-', 'User-Agent':'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:44.0) Gecko/20100101 Firefox/44.0', 'Accept':'audio/webm,audio/ogg,audio/wav,audio/*;q=0.9,application/ogg;q=0.7,video/*;q=0.6,*/*;q=0.5','Referer':'https://www.goldenmp3.ru'}
+            try:
+                _download_audio_to_file(url, local_filename, headers)
+            except Exception as exc:
+                failed += 1
+                xbmc.log('MP3 Streams album track failed for %s: %s' % (local_filename, exc), xbmc.LOGERROR)
+                notification(artist + ' ' + album, 'Skipped: %s' % songname, '3000', iconimage)
+                continue
+            text = "%s of %s tracks downloaded" % (trn, nSong)
+            notification(artist + ' ' + album, text, '3000', iconimage)
+            add_to_list(list_data, DOWNLOAD_LIST, False)
+            downloaded += 1
+        if downloaded:
+            message = 'Album download finished'
+            if failed:
+                message = 'Album download finished (%s skipped)' % failed
+            notification(nartist + ' ' + nalbum, message, '3000', iconimage)
+        elif nSong:
+            notification(nartist + ' ' + nalbum, 'Album download failed', '3000', iconimage)
+        else:
+            notification(nartist + ' ' + nalbum, 'No tracks found', '3000', iconimage)
+    except Exception as exc:
+        xbmc.log('MP3 Streams album download failed for %s: %s' % (name, exc), xbmc.LOGERROR)
+        notification(nartist + ' ' + nalbum, 'Album download failed', '3000', iconimage)
+    finally:
+        release_album_lock(lock_token)
 
 def clear_lock():
-    if os.path.exists(download_lock_path()):
-        os.remove(download_lock_path())
+    with ALBUM_LOCK_GUARD:
+        advisory_lock = None
+        removed = False
+        try:
+            advisory_lock = open(_interprocess_lock_path(), 'a')
+            fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_EX)
+            try:
+                os.remove(download_lock_path())
+                removed = True
+            except OSError:
+                pass
+        finally:
+            if advisory_lock:
+                try:
+                    fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_UN)
+                    advisory_lock.close()
+                except:
+                    pass
+    if removed:
         notification('Downloads', 'Unlocked', '3000', iconart)
 
 def id3_tags():
