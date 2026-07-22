@@ -532,7 +532,7 @@ def run_deferred_setup_background_if_needed():
 _DIRECTORY_LISTING_MODES = frozenset((
 	'build_movie_list', 'build_tvshow_list', 'build_season_list', 'build_episode_list',
 	'build_in_progress_episode', 'build_recently_watched_episode', 'build_next_episode',
-	'build_my_calendar', 'build_next_episode_manager'))
+	'build_my_calendar', 'build_next_episode_manager', 'build_continue_watching'))
 
 # The five settings the unified-list-sort migration reads. They are no longer in default_settings(),
 # so the obsolete-id purge in sync_settings() would delete them on the same pass that migrates them -
@@ -695,6 +695,14 @@ def sync_settings(params={}):
 			settings_cache.write_db('migration.my_content_nav_mode_v136', 'true', defaults_map.get('migration.my_content_nav_mode_v136'))
 			currentsettings['migration.my_content_nav_mode_v136'] = 'true'
 			if load_properties: settings_cache.set_memory_cache('migration.my_content_nav_mode_v136', 'true')
+		if currentsettings.get('migration.continue_watching_menu') != 'true':
+			try:
+				from caches.navigator_cache import refresh_continue_watching_menu_defaults
+				if refresh_continue_watching_menu_defaults(): migrated = True
+			except: pass
+			settings_cache.write_db('migration.continue_watching_menu', 'true', defaults_map.get('migration.continue_watching_menu'))
+			currentsettings['migration.continue_watching_menu'] = 'true'
+			if load_properties: settings_cache.set_memory_cache('migration.continue_watching_menu', 'true')
 		if currentsettings.get('migration.unified_list_sort') != 'true':
 			# Only record the migration as done when it did not raise. The obsolete purge above
 			# holds back the five legacy sort ids while this sentinel is unset, so a failed run
@@ -1198,6 +1206,7 @@ def default_settings():
 {'setting_id': 'migration.cache_check_pm_oc_tb_v129e', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.ad_cache_check_removed_v173', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.my_content_nav_mode_v136', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'migration.continue_watching_menu', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.unified_list_sort', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== Real Debrid
 {'setting_id': 'rd.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},

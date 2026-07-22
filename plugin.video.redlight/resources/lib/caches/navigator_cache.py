@@ -41,7 +41,8 @@ class NavigatorCache:
 	{'name': 'Because You Watched...', 'iconImage': 'because_you_watched', 'mode': 'navigator.because_you_watched', 'menu_type': 'movie'},
 	{'name': 'Watched', 'mode': 'build_movie_list', 'action': 'watched_movies', 'iconImage': 'watched_1'},
 	{'name': 'Recently Watched', 'mode': 'build_movie_list', 'action': 'recent_watched_movies', 'iconImage': 'watched_recent'},
-	{'name': 'In Progress', 'mode': 'build_movie_list', 'action': 'in_progress_movies', 'iconImage': 'player'}
+	{'name': 'In Progress', 'mode': 'build_movie_list', 'action': 'in_progress_movies', 'iconImage': 'player'},
+	{'name': 'Continue Watching', 'mode': 'build_continue_watching', 'iconImage': 'player'}
 				]
 	tvshow_list = [
 	{'name': 'Trending', 'mode': 'build_tvshow_list', 'action': 'trakt_tv_trending', 'random_support': 'true', 'iconImage': 'trending'},
@@ -67,7 +68,8 @@ class NavigatorCache:
 	{'name': 'In Progress', 'mode': 'build_tvshow_list', 'action': 'in_progress_tvshows', 'iconImage': 'in_progress_tvshow'},
 	{'name': 'Recently Watched Episodes', 'mode': 'build_recently_watched_episode', 'iconImage': 'watched_recent'},
 	{'name': 'In Progress Episodes', 'mode': 'build_in_progress_episode', 'iconImage': 'player'},
-	{'name': 'Next Episodes', 'mode': 'build_next_episode', 'iconImage': 'next_episodes'}
+	{'name': 'Next Episodes', 'mode': 'build_next_episode', 'iconImage': 'next_episodes'},
+	{'name': 'Continue Watching', 'mode': 'build_continue_watching', 'iconImage': 'player'}
 				]
 	anime_list = [
 	{'name': 'Anime Trending', 'mode': 'build_tvshow_list', 'action': 'trakt_anime_trending', 'random_support': 'true', 'iconImage': 'trending'},
@@ -291,6 +293,22 @@ def migrate_my_content_nav_mode():
 		for list_name in NavigatorCache.main_menus:
 			nc.delete_memory_cache(list_name, 'default')
 			nc.delete_memory_cache(list_name, 'edited')
+	return changed
+
+def refresh_continue_watching_menu_defaults():
+	"""Rewrite the stored default Movies/TV menus so existing installs gain the Continue Watching entry."""
+	nc = NavigatorCache()
+	changed = False
+	for list_name in ('MovieList', 'TVShowList'):
+		try:
+			stored = nc.get_list(list_name, 'default')
+			if stored == NavigatorCache.main_menus[list_name]: continue
+			nc.set_list(list_name, 'default', NavigatorCache.main_menus[list_name])
+			changed = True
+		except: pass
+	if changed:
+		for list_name in NavigatorCache.main_menus:
+			nc.delete_memory_cache(list_name, 'default')
 	return changed
 
 navigator_cache = NavigatorCache()

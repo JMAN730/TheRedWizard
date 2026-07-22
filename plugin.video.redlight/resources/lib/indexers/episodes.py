@@ -166,7 +166,7 @@ def build_single_episode(list_type, params={}):
 			tmdb_id, tvdb_id, imdb_id, title, show_year = meta_get('tmdb_id'), meta_get('tvdb_id'), meta_get('imdb_id'), meta_get('title'), meta_get('year') or '2050'
 			season_data = meta_get('season_data')
 			watched_info = ws.watched_info_episode(meta_get('tmdb_id'), watched_db)
-			if list_type_starts_with('next'):
+			if list_type_starts_with('next') or ep_data_get('cw_next'):
 				orig_season, orig_episode = ws.get_next(orig_season, orig_episode, watched_info, season_data, nextep_content)
 				if not orig_season or not orig_episode: return
 				if ws.get_watched_status_episode(watched_info, (orig_season, orig_episode)): return
@@ -180,6 +180,7 @@ def build_single_episode(list_type, params={}):
 			episode_type = item_get('episode_type') or ''
 			episode_id = item_get('episode_id') or None
 			if not episode_date or current_date < episode_date:
+				if ep_data_get('cw_next'): return
 				if list_type_starts_with('next_'):
 					if not episode_date: return
 					if not include_unaired: return
@@ -375,7 +376,9 @@ def build_single_episode(list_type, params={}):
 		else:
 			try: data = sorted(data, key=lambda i: (i['sort_title'], i.get('first_aired', '2100-12-31')), reverse=True)
 			except: data = sorted(data, key=lambda i: i['sort_title'], reverse=True)
-	else: data, return_results = sorted(params, key=lambda i: i['custom_order']), True
+	else:
+		if list_type == 'episode.continue_watching': nextep_content = settings.nextep_method()
+		data, return_results = sorted(params, key=lambda i: i['custom_order']), True
 	list_type_compare = list_type.split('episode.')[1]
 	list_type_starts_with = list_type_compare.startswith
 	threads = TaskPool().tasks_enumerate(_process, data, min(len(data), settings.max_threads()))
