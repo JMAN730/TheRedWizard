@@ -238,6 +238,11 @@ class Movies:
 			if settings.tmdblist_user_active():
 				tmdb_manager_params = self.build_url({'mode': 'tmdblists_manager_choice', 'media_type': 'movie', 'tmdb_id': tmdb_id, 'icon': poster})
 			favorites_manager_params = self.build_url({'mode': 'favorites_manager_choice', 'media_type': 'movie', 'tmdb_id': tmdb_id, 'title': title})
+			trakt_watchlist_params = ''
+			if self.watchlist_provider:
+				watchlist_action = 'remove' if str_tmdb_id in self.watchlist_ids else 'add'
+				trakt_watchlist_params = self.build_url({'mode': 'watchlist.toggle_watchlist', 'provider': self.watchlist_provider, 'action': watchlist_action,
+														'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': 'None', 'media_type': 'movie'})
 			belongs_to_movieset = 'true' if all([movieset_id, movieset_name]) else 'false'
 			skip_special = self.skip_inprogress and progress
 			item_open_extras = self.open_extras and not skip_special
@@ -267,6 +272,9 @@ class Movies:
 			cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
 			if self.ai_model_active: cm_append(['similar', ('[B]Browse Similar[/B]', self.window_command % browse_similar_params)])
 			if browse_in_trakt_list_params: cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % browse_in_trakt_list_params)])
+			if trakt_watchlist_params:
+				watchlist_label = '[B]Remove from Watchlist[/B]' if watchlist_action == 'remove' else '[B]Add to Watchlist[/B]'
+				cm_append(['trakt_watchlist', (watchlist_label, 'RunPlugin(%s)' % trakt_watchlist_params)])
 			if mdblist_manager_params: cm_append(['mdblist_manager', ('[B]MDBList Manager[/B]', 'RunPlugin(%s)' % mdblist_manager_params)])
 			if simkl_manager_params: cm_append(['simkl_manager', ('[B]Simkl Lists Manager[/B]', 'RunPlugin(%s)' % simkl_manager_params)])
 			if trakt_manager_params: cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
@@ -316,6 +324,7 @@ class Movies:
 				'redlight.browse_more_like_this_params': browse_more_like_this_params,
 				'redlight.browse_similar_params': browse_similar_params,
 				'redlight.browse_in_trakt_list_params': browse_in_trakt_list_params,
+				'redlight.trakt_watchlist_params': trakt_watchlist_params,
 				'redlight.trakt_manager_params': trakt_manager_params,
 				'redlight.simkl_manager_params': simkl_manager_params,
 				'redlight.mdblist_manager_params': mdblist_manager_params,
@@ -338,6 +347,11 @@ class Movies:
 		self.rpdb_api_key, self.rpdb_format = rpdb_info['rpdb_api_key'], rpdb_info['rpdb_format']
 		watched_db = watched_status.get_database(self.watched_indicators)
 		self.watched_info, self.bookmarks = watched_status.watched_info_movie(watched_db), watched_status.get_bookmarks_movie(watched_db)
+		self.watchlist_provider = settings.active_watchlist_provider()
+		if self.watchlist_provider:
+			from modules.watchlist import watchlist_tmdb_ids
+			self.watchlist_ids = watchlist_tmdb_ids(self.watchlist_provider, 'movie')
+		else: self.watchlist_ids = set()
 		self.window_command = 'ActivateWindow(Videos,%s,return)' if self.is_external else 'Container.Update(%s)'
 		open_action = settings.media_open_action('movie')
 		self.open_movieset = open_action in (2, 3) and not self.movieset_list_active

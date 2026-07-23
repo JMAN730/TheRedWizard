@@ -112,17 +112,16 @@ class SourcesResults(BaseDialog):
 					kwargs = {'items': json.dumps(list_items), 'heading': 'Filter Results', 'multi_choice': 'true'}
 					choice = select_dialog(filters, **kwargs)
 					if choice == None: return
-					choice = [i[1] for i in choice]
+					choice = [i[1].replace('[B]', '').replace('[/B]', '') for i in choice]
 					def _extra_info_tags(listitem):
 						extra = listitem.getProperty('extraInfo') or ''
 						return [p.replace('[B]', '').replace('[/B]', '').strip() for p in extra.split(' | ') if p.strip()]
 					def _matches_filters(listitem):
-						extra = listitem.getProperty('extraInfo') or ''
 						tags = _extra_info_tags(listitem)
 						for filt in choice:
 							if filt == 'ENG-OR-UNTAGGED':
 								if not matches_english_or_untagged(tags): return False
-							elif filt not in extra:
+							elif filt not in tags:
 								return False
 						return True
 					filtered_list = [i for i in self.item_list if _matches_filters(i)]

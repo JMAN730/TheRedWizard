@@ -3,11 +3,13 @@
 
 import urllib.request, urllib.error, urllib.parse, re
 import xbmcplugin, xbmcgui, xbmcvfs, os, xbmc, sys
+import errno
+import fcntl
 import settings, time
 import requests
 from bs4 import BeautifulSoup
 from t0mm0.common.net import Net
-from threading import Thread
+from threading import Thread, Lock
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
@@ -66,6 +68,50 @@ def genre_icon(parent=None, child=None, top=False, albums=False):
 
 def download_lock_path():
     return os.path.join(settings.music_dir(), 'downloading.txt')
+
+def _interprocess_lock_path():
+    """Path to the advisory lock file used to serialize lock operations across processes."""
+    return os.path.join(settings.music_dir(), 'downloading.advisory.lock')
+
+def _write_all(fd, data):
+    """Write all bytes from data to fd, raising an error if incomplete."""
+    data_bytes = data.encode('utf-8') if isinstance(data, str) else data
+    total = len(data_bytes)
+    written = 0
+    while written < total:
+        n = os.write(fd, data_bytes[written:])
+        if n == 0:
+            raise IOError('os.write returned 0, cannot make progress')
+        written += n
+
+# Serializes lock acquisition, release and manual clearing within this process so an
+# ownership check can never interleave with a concurrent remove/acquire. Across
+# processes, acquisition itself stays atomic via O_EXCL.
+ALBUM_LOCK_GUARD = Lock()
+
+def release_album_lock(lock_token):
+    # Remove the lock only while this invocation still owns it: after a manual clear_lock()
+    # another download may have acquired a fresh lock that must not be deleted here.
+    with ALBUM_LOCK_GUARD:
+        advisory_lock = None
+        try:
+            advisory_lock = open(_interprocess_lock_path(), 'a')
+            fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_EX)
+            lock_path = download_lock_path()
+            try:
+                with open(lock_path) as lock_file:
+                    owned = lock_file.read() == lock_token
+                if owned:
+                    os.remove(lock_path)
+            except OSError:
+                pass
+        finally:
+            if advisory_lock:
+                try:
+                    fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_UN)
+                    advisory_lock.close()
+                except:
+                    pass
 xbmc_version=xbmc.getInfoLabel("System.BuildVersion")[:4]
 ua = 'Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.64 Safari/537.36'
 
@@ -912,11 +958,44 @@ def download_album(url, name, iconimage):
     dialog = xbmcgui.Dialog()
     check_downloads = os.path.join(settings.music_dir(), 'downloading.txt')
     xbmc.log("check_downloads = {0}".format(check_downloads), xbmc.LOGINFO)
-    if os.path.exists(check_downloads):
-        dialog.ok("Album download in progress", 'Please wait for the current download to finish')
+    lock_token = '%s:%s' % (os.getpid(), time.time())
+    try:
+        with ALBUM_LOCK_GUARD:
+            advisory_lock = None
+            try:
+                advisory_lock = open(_interprocess_lock_path(), 'a')
+                fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_EX)
+                # O_EXCL makes check-and-create atomic: a concurrent download loses the race here
+                # instead of both passing an exists() check. The token identifies this owner.
+                lock_fd = os.open(check_downloads, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    try:
+                        _write_all(lock_fd, lock_token)
+                    finally:
+                        os.close(lock_fd)
+                except OSError:
+                    # Roll back the half-initialized lock so a failed token write cannot leave
+                    # a tokenless file that blocks every future download.
+                    try:
+                        os.remove(check_downloads)
+                    except OSError:
+                        pass
+                    raise
+            finally:
+                if advisory_lock:
+                    try:
+                        fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_UN)
+                        advisory_lock.close()
+                    except:
+                        pass
+    except OSError as exc:
+        if exc.errno == errno.EEXIST:
+            dialog.ok("Album download in progress", 'Please wait for the current download to finish')
+        else:
+            xbmc.log('MP3 Streams could not acquire album download lock: %s' % exc, xbmc.LOGERROR)
+            notification('MP3 Streams', 'Download failed', '3000', iconimage or iconart)
         return
     notification('MP3 Streams', 'Downloading album: %s' % settings.decode_text(name), '3000', iconimage or iconart)
-    create_file(settings.music_dir(), "downloading.txt")
     downloaded = 0
     failed = 0
     try:
@@ -925,7 +1004,7 @@ def download_album(url, name, iconimage):
         xbmc.log("link = {0}".format(link), xbmc.LOGINFO)
         if 'goldenmp3' in url:
             link = regex_from_to(link,'<table class="title_list">','<div>Total')
-            match = re.compile('itemscope="(.+?)" itemtype="http://schema.org/MusicRecording"><td><a class="play" href="#" rel="(.+?)" title="Listen the song in low quality">(.+?)</a>(.+?)<td><div class="title_td_wrap">(.+?)<span itemprop="(.+?)">(.+?)</span>&ensp;(.+?)<div class="jp-seek-bar"><div class="jp-play-bar"></div></div></div></td><td>').findall(link)
+            match = re.compile('itemscope="(.+?)" itemtype="http://schema.org/MusicRecording"><td><a class="play" href="#" rel="(.+?)" title="Listen the song in low quality">(.+?)</a>(.+?)<td><div class="title_td_wrap">(.+?)<span itemprop="(.+?am.+?)">(.+?)</span>&ensp;(.+?)<div class="jp-seek-bar"><div class="jp-play-bar"></div></div></div></td><td>').findall(link)
         else:
             match = re.compile('<tr class="song" id="(.+?)" itemprop="tracks" itemscope="itemscope" itemtype="http://schema.org/MusicRecording"><td class="song__play_button"><a class="player__play_btn js_play_btn" href="#" rel="(.+?)" title="Play track"/></td><td class="song__name"><div class="title_td_wrap"><meta content="(.+?)" itemprop="url"/><meta content="(.+?)" itemprop="duration"/><meta content="(.+?)" itemprop="inAlbum"/><meta content="(.+?)" itemprop="byArtist"/><span itemprop="name">(.+?)</span><div class="jp-seek-bar" data-time="(.+?)">').findall(link)
         xbmc.log("match = {0}".format(match), xbmc.LOGINFO)
@@ -973,12 +1052,28 @@ def download_album(url, name, iconimage):
         xbmc.log('MP3 Streams album download failed for %s: %s' % (name, exc), xbmc.LOGERROR)
         notification(nartist + ' ' + nalbum, 'Album download failed', '3000', iconimage)
     finally:
-        if os.path.exists(download_lock_path()):
-            os.remove(download_lock_path())
+        release_album_lock(lock_token)
 
 def clear_lock():
-    if os.path.exists(download_lock_path()):
-        os.remove(download_lock_path())
+    with ALBUM_LOCK_GUARD:
+        advisory_lock = None
+        removed = False
+        try:
+            advisory_lock = open(_interprocess_lock_path(), 'a')
+            fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_EX)
+            try:
+                os.remove(download_lock_path())
+                removed = True
+            except OSError:
+                pass
+        finally:
+            if advisory_lock:
+                try:
+                    fcntl.flock(advisory_lock.fileno(), fcntl.LOCK_UN)
+                    advisory_lock.close()
+                except:
+                    pass
+    if removed:
         notification('Downloads', 'Unlocked', '3000', iconart)
 
 def id3_tags():

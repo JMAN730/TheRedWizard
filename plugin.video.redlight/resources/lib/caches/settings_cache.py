@@ -532,7 +532,14 @@ def run_deferred_setup_background_if_needed():
 _DIRECTORY_LISTING_MODES = frozenset((
 	'build_movie_list', 'build_tvshow_list', 'build_season_list', 'build_episode_list',
 	'build_in_progress_episode', 'build_recently_watched_episode', 'build_next_episode',
-	'build_my_calendar', 'build_next_episode_manager'))
+	'build_my_calendar', 'build_next_episode_manager', 'build_continue_watching'))
+
+# The five settings the unified-list-sort migration reads. They are no longer in default_settings(),
+# so the obsolete-id purge in sync_settings() would delete them on the same pass that migrates them -
+# leaving nothing to retry from if the migration fails. The purge is deferred until the sentinel says
+# the migration succeeded, which happens in the same run, so they are removed on the following sync.
+_LEGACY_SORT_SETTING_IDS = frozenset((
+	'sort.watchlist', 'sort.collection', 'sort.simkl', 'tmdbsort.watchlist', 'tmdbsort.favorites'))
 
 # The five settings the unified-list-sort migration reads. They are no longer in default_settings(),
 # so the obsolete-id purge in sync_settings() would delete them on the same pass that migrates them -
@@ -682,10 +689,12 @@ def sync_settings(params={}):
 		currentsettings['migration.ad_cache_check_removed_v173'] = 'true'
 		if load_properties: settings_cache.set_memory_cache('migration.ad_cache_check_removed_v173', 'true')
 	if currentsettings:
-		from modules.settings import migrate_simkl_context_menu_for_upgrade, migrate_mdblist_context_menu_for_upgrade, migrate_cm_manager_order_for_upgrade, migrate_external_scraper_context_menu_for_upgrade
+		from modules.settings import migrate_simkl_context_menu_for_upgrade, migrate_mdblist_context_menu_for_upgrade, migrate_cm_manager_order_for_upgrade, \
+			migrate_external_scraper_context_menu_for_upgrade, migrate_trakt_watchlist_context_menu_for_upgrade
 		if migrate_simkl_context_menu_for_upgrade(had_existing_settings): migrated = True
 		if migrate_mdblist_context_menu_for_upgrade(had_existing_settings): migrated = True
 		if migrate_external_scraper_context_menu_for_upgrade(had_existing_settings): migrated = True
+		if migrate_trakt_watchlist_context_menu_for_upgrade(had_existing_settings): migrated = True
 		if migrate_cm_manager_order_for_upgrade(): migrated = True
 		if currentsettings.get('migration.my_content_nav_mode_v136') != 'true':
 			try:
@@ -695,6 +704,20 @@ def sync_settings(params={}):
 			settings_cache.write_db('migration.my_content_nav_mode_v136', 'true', defaults_map.get('migration.my_content_nav_mode_v136'))
 			currentsettings['migration.my_content_nav_mode_v136'] = 'true'
 			if load_properties: settings_cache.set_memory_cache('migration.my_content_nav_mode_v136', 'true')
+		if currentsettings.get('migration.continue_watching_menu') != 'true':
+			# Only record the migration as done when it did not raise, so a transient failure
+			# (e.g. a locked navigator DB) retries on the next sync instead of being skipped forever.
+			try:
+				from caches.navigator_cache import refresh_continue_watching_menu_defaults
+				if refresh_continue_watching_menu_defaults(): migrated = True
+				cw_menu_migration_ok = True
+			except Exception as e:
+				cw_menu_migration_ok = False
+				kodi_utils.logger('sync_settings', 'continue watching menu migration: %s' % e)
+			if cw_menu_migration_ok:
+				settings_cache.write_db('migration.continue_watching_menu', 'true', defaults_map.get('migration.continue_watching_menu'))
+				currentsettings['migration.continue_watching_menu'] = 'true'
+				if load_properties: settings_cache.set_memory_cache('migration.continue_watching_menu', 'true')
 		if currentsettings.get('migration.unified_list_sort') != 'true':
 			# Only record the migration as done when it did not raise. The obsolete purge above
 			# holds back the five legacy sort ids while this sentinel is unset, so a failed run
@@ -768,7 +791,7 @@ def sync_settings(params={}):
 			else:
 				name_default = item['settings_options'][setting_default]
 				name_value = item['settings_options'].get(setting_value, name_default)
-			insert_list_append(('%s_name' % setting_id, 'name', name_default, name_value))
+			insert_list_append((f'{setting_id}_name', 'name', name_default, name_value))
 		insert_list_append((setting_id, setting_type, setting_default, setting_value))
 	if insert_list:
 		settings_cache.set_many(insert_list, load_properties=load_properties)
@@ -1027,6 +1050,7 @@ def default_settings():
 {'setting_id': 'simkl.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'mdblist.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'external_scraper.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'trakt_watchlist.cm_menu_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'cm_manager_order_migrated', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'cm_manager_order_migrated_v2', 'setting_type': 'boolean', 'setting_default': 'false'},
 #======+============= Trakt Cache
@@ -1116,12 +1140,14 @@ def default_settings():
 {'setting_id': 'rpdb_enabled', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'None', '1': 'Movies', '2': 'TV Shows', '3': 'Both'}},
 {'setting_id': 'rpdb_format', 'setting_type': 'string', 'setting_default': ''},
 #==================== Context Menu
+{'setting_id': 'watchlist.provider', 'setting_type': 'action', 'setting_default': 'auto',
+'settings_options': {'auto': 'Automatic', 'trakt': 'Trakt', 'simkl': 'Simkl', 'mdblist': 'MDBList'}},
 {'setting_id': 'context_menu.enabled', 'setting_type': 'string',
 'setting_default': 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
+'trakt_watchlist,mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
 {'setting_id': 'context_menu.order', 'setting_type': 'string',
 'setting_default': 'extras,options,playback_options,external_scraper_settings,browse_movie_set,browse_seasons,browse_episodes,recommended,related,more_like_this,similar,in_trakt_list,' \
-'mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
+'trakt_watchlist,mdblist_manager,simkl_manager,trakt_manager,tmdb_manager,personal_manager,favorites_manager,mark_watched,unmark_previous_episode,exit,refresh,reload'},
 
 
 #==================================================================================#
@@ -1198,6 +1224,7 @@ def default_settings():
 {'setting_id': 'migration.cache_check_pm_oc_tb_v129e', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.ad_cache_check_removed_v173', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.my_content_nav_mode_v136', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'migration.continue_watching_menu', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'migration.unified_list_sort', 'setting_type': 'boolean', 'setting_default': 'false'},
 #==================== Real Debrid
 {'setting_id': 'rd.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},

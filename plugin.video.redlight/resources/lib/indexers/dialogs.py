@@ -677,16 +677,23 @@ def trakt_manager_choice(params):
 	tmdb_id, imdb_id, tvdb_id = params.get('tmdb_id'), params.get('imdb_id'), params.get('tvdb_id')
 	list_media = 'movie' if media_type == 'movie' else 'tvshow'
 	in_lists, out_lists = trakt_api.trakt_personal_lists_split_by_membership(media_type, tmdb_id, imdb_id, tvdb_id)
+	try:
+		in_watchlist = trakt_api.trakt_item_in_sync_list('watchlist', media_type, tmdb_id, imdb_id, tvdb_id)
+		in_collection = trakt_api.trakt_item_in_sync_list('collection', media_type, tmdb_id, imdb_id, tvdb_id)
+		in_favorites = trakt_api.trakt_item_in_favorites(media_type, tmdb_id, imdb_id, tvdb_id)
+	except Exception:
+		# Offering Add/Remove from a failed lookup risks acting on stale membership state.
+		return kodi_utils.notification('Error', 3000)
 	choices = []
-	if trakt_api.trakt_item_in_sync_list('watchlist', media_type, tmdb_id, imdb_id, tvdb_id):
+	if in_watchlist:
 		choices.append(('Remove from [B]Watchlist[/B]', 'remove_watchlist'))
 	else:
 		choices.append(('Add to [B]Watchlist[/B]', 'add_watchlist'))
-	if trakt_api.trakt_item_in_sync_list('collection', media_type, tmdb_id, imdb_id, tvdb_id):
+	if in_collection:
 		choices.append(('Remove from [B]Collection[/B]', 'remove_collection'))
 	else:
 		choices.append(('Add to [B]Collection[/B]', 'add_collection'))
-	if trakt_api.trakt_item_in_favorites(media_type, tmdb_id, imdb_id, tvdb_id):
+	if in_favorites:
 		choices.append(('Remove from [B]Favorites[/B]', 'remove_favorites'))
 	else:
 		choices.append(('Add to [B]Favorites[/B]', 'add_favorites'))
@@ -756,7 +763,10 @@ def _trakt_list_shortcut_choice(params, list_type):
 	from apis import trakt_api
 	label = 'Watchlist' if list_type == 'watchlist' else 'Collection'
 	heading = params.get('title') or ('Trakt %s' % label)
-	in_list = trakt_api.trakt_item_in_sync_list(list_type, params['media_type'], params.get('tmdb_id'), params.get('imdb_id'), params.get('tvdb_id'))
+	try:
+		in_list = trakt_api.trakt_item_in_sync_list(list_type, params['media_type'], params.get('tmdb_id'), params.get('imdb_id'), params.get('tvdb_id'))
+	except Exception:
+		return kodi_utils.notification('Error', 3000)
 	text = 'Remove from %s?' % label if in_list else 'Add to %s?' % label
 	if not kodi_utils.confirm_dialog(heading=heading, text=text): return
 	data = _trakt_manager_payload(params)

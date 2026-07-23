@@ -64,6 +64,9 @@ def routing(sys):
 	elif 'custom_key.' in mode:
 		from modules import custom_keys
 		return exec('custom_keys.%s()' % mode.split('custom_key.')[1])
+	elif mode.startswith('watchlist.'):
+		from modules import watchlist
+		return exec('watchlist.%s(params)' % mode.split('.')[1])
 	elif 'simkl.' in mode:
 		if '.list.' in mode:
 			from indexers import simkl_lists
@@ -104,6 +107,9 @@ def routing(sys):
 		elif mode == 'build_my_calendar':
 			from indexers.episodes import build_single_episode
 			return build_single_episode('episode.trakt', params)
+		elif mode == 'build_continue_watching':
+			from indexers.continue_watching import build_continue_watching
+			return build_continue_watching(params)
 		elif mode == 'build_next_episode_manager':
 			from modules.episode_tools import build_next_episode_manager
 			return build_next_episode_manager()
