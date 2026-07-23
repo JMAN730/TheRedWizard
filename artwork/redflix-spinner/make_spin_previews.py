@@ -79,7 +79,7 @@ def on_bg(im):
 
 
 def save(name, frames):
-    frames[0].save(f"{OUT}\\{name}.gif", save_all=True, append_images=frames[1:],
+    frames[0].save(str(HERE / f"{name}.gif"), save_all=True, append_images=frames[1:],
                    duration=DUR_MS, loop=0, optimize=False)
     print(name, "done")
 

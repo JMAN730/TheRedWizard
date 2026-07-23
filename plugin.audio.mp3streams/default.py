@@ -925,7 +925,7 @@ def download_album(url, name, iconimage):
         xbmc.log("link = {0}".format(link), xbmc.LOGINFO)
         if 'goldenmp3' in url:
             link = regex_from_to(link,'<table class="title_list">','<div>Total')
-            match = re.compile('itemscope="(.+?)" itemtype="http://schema.org/MusicRecording"><td><a class="play" href="#" rel="(.+?)" title="Listen the song in low quality">(.+?)</a>(.+?)<td><div class="title_td_wrap">(.+?)<span itemprop="(.+?)am(.+?)">(.+?)</span>&ensp;(.+?)<div class="jp-seek-bar"><div class="jp-play-bar"></div></div></div></td><td>').findall(link)
+            match = re.compile('itemscope="(.+?)" itemtype="http://schema.org/MusicRecording"><td><a class="play" href="#" rel="(.+?)" title="Listen the song in low quality">(.+?)</a>(.+?)<td><div class="title_td_wrap">(.+?)<span itemprop="(.+?)">(.+?)</span>&ensp;(.+?)<div class="jp-seek-bar"><div class="jp-play-bar"></div></div></div></td><td>').findall(link)
         else:
             match = re.compile('<tr class="song" id="(.+?)" itemprop="tracks" itemscope="itemscope" itemtype="http://schema.org/MusicRecording"><td class="song__play_button"><a class="player__play_btn js_play_btn" href="#" rel="(.+?)" title="Play track"/></td><td class="song__name"><div class="title_td_wrap"><meta content="(.+?)" itemprop="url"/><meta content="(.+?)" itemprop="duration"/><meta content="(.+?)" itemprop="inAlbum"/><meta content="(.+?)" itemprop="byArtist"/><span itemprop="name">(.+?)</span><div class="jp-seek-bar" data-time="(.+?)">').findall(link)
         xbmc.log("match = {0}".format(match), xbmc.LOGINFO)

@@ -87,8 +87,8 @@ def render(theta):
 
 
 frames = [render(2 * math.pi * i / N) for i in range(N)]
-frames[0].save(f"{OUT}\\g_spin3d.gif", save_all=True, append_images=frames[1:],
+frames[0].save(str(HERE / "g_spin3d.gif"), save_all=True, append_images=frames[1:],
                duration=DUR_MS, loop=0, optimize=False)
-frames[6].save(f"{OUT}\\chk3d_6.png")
-frames[12].save(f"{OUT}\\chk3d_12.png")
+frames[6].save(str(HERE / "chk3d_6.png"))
+frames[12].save(str(HERE / "chk3d_12.png"))
 print("done")

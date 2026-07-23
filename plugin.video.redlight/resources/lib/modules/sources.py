@@ -37,6 +37,7 @@ _NEXTEP_NATURAL_END_SEC = 15
 _NEXTEP_AUTOPLAY_STASH = {}
 _NEXTEP_PLAY_STASH_PATH = None
 _NEXTEP_STASH_PLAY_IN_FLIGHT = False
+_NORMALIZE_PREF_TAG_ALIASES = None
 
 def _nextep_stash_play_in_flight():
 	return _NEXTEP_STASH_PLAY_IN_FLIGHT
@@ -712,12 +713,14 @@ class Sources():
 		return results
 
 	def _normalize_pref_tag(self, tag):
+		global _NORMALIZE_PREF_TAG_ALIASES
 		key = (tag or '').lower().replace('[b]', '').replace('[/b]', '').strip()
 		if key in self.filter_keys: return self.filter_keys[key]
-		aliases = {'d/vision': 'D/VISION', 'dolby vision': 'D/VISION', 'hdr': 'HDR', 'high dynamic range (hdr)': 'HDR', 'dolby atmos': 'ATMOS', 'atmos': 'ATMOS', 'hevc (x265)': 'HEVC', 'hevc': 'HEVC',
-					'english or untagged': 'ENG-OR-UNTAGGED', 'eng-or-untagged': 'ENG-OR-UNTAGGED'}
-		aliases.update({name.lower(): lang_tag for name, lang_tag, _ in audio_lang_choices()})
-		return aliases.get(key, tag)
+		if _NORMALIZE_PREF_TAG_ALIASES is None:
+			_NORMALIZE_PREF_TAG_ALIASES = {'d/vision': 'D/VISION', 'dolby vision': 'D/VISION', 'hdr': 'HDR', 'high dynamic range (hdr)': 'HDR', 'dolby atmos': 'ATMOS', 'atmos': 'ATMOS', 'hevc (x265)': 'HEVC', 'hevc': 'HEVC',
+						'english or untagged': 'ENG-OR-UNTAGGED', 'eng-or-untagged': 'ENG-OR-UNTAGGED'}
+			_NORMALIZE_PREF_TAG_ALIASES.update({name.lower(): lang_tag for name, lang_tag, _ in audio_lang_choices()})
+		return _NORMALIZE_PREF_TAG_ALIASES.get(key, tag)
 
 	def _parse_extra_info_tags(self, extra_info):
 		tags = []
