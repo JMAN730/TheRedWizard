@@ -404,13 +404,19 @@ class TorBoxAPI:
 		return self.item_is_airlocked(item)
 
 	def set_airlocked(self, media_type, request_id, airlocked):
-		request_id = _to_int(request_id)
-		airlocked = bool(airlocked)
-		if media_type == 'torrent':
-			return self._put('torrents/edittorrent', json={'torrent_id': request_id, 'airlocked': airlocked})
-		if media_type == 'webdl':
-			return self._put('webdl/editwebdownload', json={'webdl_id': request_id, 'airlocked': airlocked})
-		return self._put('usenet/editusenetdownload', json={'usenet_id': request_id, 'airlocked': airlocked})
+		endpoints = {
+			'torrent': ('torrents/edittorrent', 'torrent_id'),
+			'usenet': ('usenet/editusenetdownload', 'usenet_id'),
+			'webdl': ('webdl/editwebdownload', 'webdl_id'),
+		}
+		if media_type not in endpoints:
+			return None
+		try:
+			request_id = int(str(request_id).strip())
+		except (TypeError, ValueError):
+			return None
+		endpoint, id_key = endpoints[media_type]
+		return self._put(endpoint, json={id_key: request_id, 'airlocked': bool(airlocked)})
 
 	# ----------- UNRESTRICT (request download URL) -----------
 	@staticmethod
