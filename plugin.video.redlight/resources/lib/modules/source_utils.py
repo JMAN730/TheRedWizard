@@ -4,6 +4,7 @@ import json
 import base64
 import time
 import requests
+from functools import lru_cache
 from threading import Thread
 from urllib.parse import unquote, unquote_plus
 from caches.settings_cache import get_setting
@@ -34,6 +35,7 @@ def audio_filter_choices():
 ('DTS', 'DTS'), ('DTS-HD MASTER AUDIO', 'DTS-HD MA'), ('DTS-X', 'DTS-X'), ('DTS-HD', 'DTS-HD'), ('AAC', 'AAC'), ('OPUS', 'OPUS'), ('MP3', 'MP3'),
 ('8CH AUDIO', '8CH'), ('7CH AUDIO', '7CH'), ('6CH AUDIO', '6CH'), ('2CH AUDIO', '2CH'))
 
+@lru_cache(maxsize=1)
 def audio_lang_choices():
 	# Alphabetical by display name (Sort To Top / filter menu order).
 	return (
@@ -50,6 +52,7 @@ def audio_lang_choices():
 
 ENG_OR_UNTAGGED_FILTER = ('ENGLISH OR UNTAGGED', 'ENG-OR-UNTAGGED')
 
+@lru_cache(maxsize=1)
 def foreign_audio_lang_tags():
 	return frozenset(tag for _, tag, _ in audio_lang_choices() if tag != 'ENG')
 
